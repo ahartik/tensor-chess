@@ -5,6 +5,7 @@ node_modules
 /bazel-out
 /bazel-serving
 /bazel-tensorflow
+/bazel-tensor-chess
 /bazel-tensorflow_serving
 /bazel-testlogs
 /bazel-tf
