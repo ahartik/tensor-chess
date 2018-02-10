@@ -21,146 +21,63 @@ using ::tensorflow::Tensor;
 using ::tensorflow::TensorShape;
 using ::tensorflow::error::Code;
 
-bool ReadData(std::istream& in, int n, std::vector<RawBoardData>* out) {
-  out->reserve(out->size() + n);
-  for (int i = 0; i < n; ++i) {
-    char buf[sizeof(RawBoardData)];
-    if (!in.read(buf, sizeof(RawBoardData))) {
-      return i == 0 ? false : true;
-    }
-    out->emplace_back();
-    memcpy(&out->back(), buf, sizeof(RawBoardData));
-  }
-  return false;
-}
 }  // namespace
-
-tensorflow::Status ReadGameDataFromFile(std::istream& in, int batch_size,
-                                        tensorflow::Tensor* out) {
-  std::vector<RawBoardData> data;
-  if (!ReadData(in, batch_size, &data)) {
-    return tensorflow::Status(tensorflow::error::Code::OUT_OF_RANGE,
-                              "end of file reached");
-  }
-  *out = tensorflow::Tensor(tensorflow::DT_FLOAT,
-                            tensorflow::TensorShape({batch_size, 64, 14}));
-
-  return tensorflow::Status::OK();
-}
 
 namespace {
 
-class GameDataset : public tensorflow::DatasetBase {
+class GameDataIteratorImpl : public GameDataIterator {
  public:
-  explicit GameDataset(tensorflow::Env* env, const string& path)
-      : env_(env), path_(path) {
-    TF_CHECK_OK(env_->NewRandomAccessFile(path, &input_file_));
-  }
+  GameDataIteratorImpl(std::unique_ptr<RandomAccessFile> input_file)
+      : input_file_(std::move(input_file)) {}
 
-  std::unique_ptr<IteratorBase> MakeIterator(
-      const string& prefix) const override;
-
-  const DataTypeVector& output_dtypes() const override {
-    return output_dtypes_;
-  }
-
-  const std::vector<PartialTensorShape>& output_shapes() const {
-    return output_shapes_;
-  }
-
-  string DebugString() override { return absl::StrCat("GameDataset:", path_); }
-
- private:
-  tensorflow::Env* const env_;
-  const string path_;
-
-  const DataTypeVector output_dtypes_ = {
-      tensorflow::DT_FLOAT, tensorflow::DT_FLOAT, tensorflow::DT_FLOAT};
-  const std::vector<PartialTensorShape> output_shapes_ = {
-      {64, 14}, {64 * 64}, {1}};
-
-  std::unique_ptr<tensorflow::RandomAccessFile> input_file_;
-};
-
-class GameDatasetIterator : public tensorflow::DatasetIterator<GameDataset> {
- public:
-  using Base = tensorflow::DatasetIterator<GameDataset>;
-  struct Params {
-    const GameDataset* dataset = nullptr;
-    string prefix;
-    RandomAccessFile* input_file;
-  };
-
-  GameDatasetIterator(const Params& params)
-      : Base(Base::Params{params.dataset, params.prefix}),
-        input_file_(params.input_file) {}
-
- protected:
-  Status GetNextInternal(IteratorContext* ctx, std::vector<Tensor>* out_tensors,
-                         bool* end_of_sequence) override {
-    *end_of_sequence = false;
-
-    RawBoardData raw;
-    {
+  bool ReadData(int batch_size, DataBatch* out) override {
+    out->board = Tensor(DT_FLOAT, TensorShape({batch_size, 8, 8, 14}));
+    out->move = Tensor(DT_FLOAT, TensorShape({batch_size, 64 * 64}));
+    out->result = Tensor(DT_FLOAT, TensorShape({batch_size, 1}));
+    for (int i = 0; i < batch_size; ++i) {
+      // 1. Read data
+      RawBoardData raw;
       char scratch[sizeof(RawBoardData)];
       tensorflow::StringPiece result;
       const Status read_status =
           input_file_->Read(offset_, sizeof(RawBoardData), &result, scratch);
       if (read_status.code() == Code::OUT_OF_RANGE) {
-        *end_of_sequence = true;
-        return Status::OK();
-      } else if (!read_status.ok()) {
-        return read_status;
+        return false;
       }
+      // Crash on any other error.
+      TF_CHECK_OK(read_status);
       memcpy(&raw, result.data(), sizeof(raw));
       offset_ += sizeof(raw);
-    }
 
-    out_tensors->resize(3);
-    Tensor& board = (*out_tensors)[0];
-    Tensor& move = (*out_tensors)[1];
-    Tensor& result = (*out_tensors)[2];
-
-    auto* allocator = ctx->allocator({});
-
-    board = Tensor(allocator, DT_FLOAT, TensorShape({64, 14}));
-    move = Tensor(allocator, DT_FLOAT, TensorShape({64 * 64}));
-    result = Tensor(allocator, DT_FLOAT, TensorShape({1}));
-
-    for (int p = 0; p < 14; ++p) {
-      for (int i = 0; i < 64; ++i) {
-        if ((raw.data[p] >> i) & 1) {
-          board.matrix<float>()(i, p) = 1.0;
+      // 2. Put it in output tensors
+      for (int piece = 0; piece < 14; ++piece) {
+        for (int pos = 0; pos < 64; ++pos) {
+          const int rank = pos / 8;
+          const int file = pos % 8;
+          if ((raw.data[piece] >> pos) & 1) {
+            out->board.tensor<float, 4>()(i, rank, file, piece) = 1.0;
+          }
         }
       }
+
+      out->move.tensor<float, 2>()(i, raw.move) = 1.0;
+      out->result.tensor<float, 2>()(i, 0) = 1.0;
     }
-    move.flat<float>()(raw.move) = 1.0;
-
-    result.flat<float>()(0) = raw.result;
-
-    return Status ::OK();
+    return true;
   }
 
  private:
-  RandomAccessFile* input_file_;
+  const std::unique_ptr<RandomAccessFile> input_file_;
   uint64_t offset_ = 0;
 };
 
-std::unique_ptr<IteratorBase> GameDataset::MakeIterator(
-    const string& prefix) const {
-  GameDatasetIterator::Params params;
-  params.dataset = this;
-  params.prefix = prefix;
-  params.input_file = input_file_.get();
-
-  return absl::make_unique<GameDatasetIterator>(params);
-}
-
 }  // namespace
 
-std::unique_ptr<tensorflow::DatasetBase> DatasetFromFile(tensorflow::Env* env,
-                                                         const string& path) {
-  return absl::make_unique<GameDataset>(env, path);
+std::unique_ptr<GameDataIterator> ReadGameDataFromFile(
+    tensorflow::Env* env, const std::string& path) {
+  std::unique_ptr<RandomAccessFile> input_file;
+  TF_CHECK_OK(env->NewRandomAccessFile(path, &input_file));
+  return absl::make_unique<GameDataIteratorImpl>(std::move(input_file));
 }
 
 }  // namespace chess

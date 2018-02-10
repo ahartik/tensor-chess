@@ -37,8 +37,22 @@ struct RawBoardData {
   int32_t result;  // Either -1, 0, or 1
 };
 
-std::unique_ptr<tensorflow::DatasetBase> DatasetFromFile(
-    tensorflow::Env* env, const std::string& path);
+struct DataBatch {
+  tensorflow::Tensor board;
+  tensorflow::Tensor move;
+  tensorflow::Tensor result;
+};
+
+class GameDataIterator {
+ public:
+  virtual ~GameDataIterator();
+  // Returns false on end-of-file, that is, if there are less than n items left
+  // in the file.
+  virtual bool ReadData(int batch_size, DataBatch* out);
+};
+
+std::unique_ptr<GameDataIterator> ReadGameDataFromFile(tensorflow::Env* env,
+                                           const std::string& path);
 
 }  // namespace chess
 
