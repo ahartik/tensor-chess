@@ -1,0 +1,5 @@
+import %workspace%/tensorflow/.tf_configure.bazelrc
+build --copt=-march=native
+build --host_copt=-march=native
+build:opt --copt=-march=native
+build:opt --host_copt=-march=native
