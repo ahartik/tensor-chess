@@ -52,29 +52,24 @@ namespace {
 
 class GameDataset : public tensorflow::DatasetBase {
  public:
-  explicit GameDataset(const string& path) : path_(path) {}
+  explicit GameDataset(tensorflow::Env* env, const string& path)
+      : env_(env), path_(path) {}
 
   std::unique_ptr<IteratorBase> MakeIterator(
       const string& prefix) const override;
 
-  // Returns a vector of DataType values, representing the respective
-  // element types of each tuple component in the outputs of this
-  // dataset.
   const DataTypeVector& output_dtypes() const override {
     return output_dtypes_;
   }
 
-  // Returns a vector of tensor shapes, representing the respective
-  // (and possibly partially defined) shapes of each tuple component
-  // in the outputs of this dataset.
   const std::vector<PartialTensorShape>& output_shapes() const {
     return output_shapes_;
   }
 
-  // A human-readable debug string for this dataset.
   string DebugString() override { return absl::StrCat("GameDataset:", path_); }
 
  private:
+  tensorflow::Env* const env_;
   const string path_;
 
   const DataTypeVector output_dtypes_ = {
@@ -89,12 +84,12 @@ class GameDatasetIterator : public tensorflow::DatasetIterator<GameDataset> {
   struct Params {
     const GameDataset* dataset = nullptr;
     string prefix;
-    std::unique_ptr<RandomAccessFile> input_file;
+    RandomAccessFile* input_file;
   };
 
   GameDatasetIterator(Params params)
       : Base(Base::Params{params.dataset, params.prefix}),
-        input_file_(std::move(params.input_file)) {}
+        input_file_(params.input_file) {}
 
  protected:
   Status GetNextInternal(IteratorContext* ctx, std::vector<Tensor>* out_tensors,
@@ -114,6 +109,7 @@ class GameDatasetIterator : public tensorflow::DatasetIterator<GameDataset> {
         return read_status;
       }
       memcpy(&raw, result.data(), sizeof(raw));
+      offset += sizeof(raw);
     }
 
     out_tensors->resize(3);
@@ -121,17 +117,28 @@ class GameDatasetIterator : public tensorflow::DatasetIterator<GameDataset> {
     Tensor& move = (*out_tensors)[1];
     Tensor& result = (*out_tensors)[2];
 
-    board = Tensor(DT_FLOAT, TensorShape({64, 14}));
-    move = Tensor(DT_FLOAT, TensorShape({64 * 64}));
-    result = Tensor(DT_FLOAT, TensorShape({1}));
+    auto* allocator = ctx->allocator({});
 
-    board.unaligned_flat<float>()(0) = 1.0;
+    board = Tensor(allocator, DT_FLOAT, TensorShape({64, 14}));
+    move = Tensor(allocator, DT_FLOAT, TensorShape({64 * 64}));
+    result = Tensor(allocator, DT_FLOAT, TensorShape({1}));
+
+    for (int p = 0; p < 14; ++p) {
+      for (int i = 0; i < 64; ++i) {
+        if ((raw.data[p] >> i) & 1) {
+          board.matrix<float>()(i, p) = 1.0;
+        }
+      }
+    }
+    move.flat<float>()(raw.move) = 1.0;
+
+    result.flat<float>()(0) = raw.result;
 
     return Status ::OK();
   }
 
  private:
-  const std::unique_ptr<RandomAccessFile> input_file_;
+  RandomAccessFile* input_file_;
   uint64_t offset_ = 0;
 };
 
@@ -141,6 +148,7 @@ std::unique_ptr<IteratorBase> GameDataset::MakeIterator(
   params.dataset = this;
   params.prefix = prefix;
   params.input_file = nullptr;
+
   return absl::make_unique<GameDatasetIterator>(std::move(params));
 }
 
