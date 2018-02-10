@@ -38,7 +38,7 @@ struct RawBoardData {
 };
 
 std::unique_ptr<tensorflow::DatasetBase> DatasetFromFile(
-    const std::string& path);
+    tensorflow::Env* env, const std::string& path);
 
 }  // namespace chess
 

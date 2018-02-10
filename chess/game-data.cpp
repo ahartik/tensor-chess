@@ -53,7 +53,9 @@ namespace {
 class GameDataset : public tensorflow::DatasetBase {
  public:
   explicit GameDataset(tensorflow::Env* env, const string& path)
-      : env_(env), path_(path) {}
+      : env_(env), path_(path) {
+    TF_CHECK_OK(env_->NewRandomAccessFile(path, &input_file_));
+  }
 
   std::unique_ptr<IteratorBase> MakeIterator(
       const string& prefix) const override;
@@ -76,6 +78,8 @@ class GameDataset : public tensorflow::DatasetBase {
       tensorflow::DT_FLOAT, tensorflow::DT_FLOAT, tensorflow::DT_FLOAT};
   const std::vector<PartialTensorShape> output_shapes_ = {
       {64, 14}, {64 * 64}, {1}};
+
+  std::unique_ptr<tensorflow::RandomAccessFile> input_file_;
 };
 
 class GameDatasetIterator : public tensorflow::DatasetIterator<GameDataset> {
@@ -87,7 +91,7 @@ class GameDatasetIterator : public tensorflow::DatasetIterator<GameDataset> {
     RandomAccessFile* input_file;
   };
 
-  GameDatasetIterator(Params params)
+  GameDatasetIterator(const Params& params)
       : Base(Base::Params{params.dataset, params.prefix}),
         input_file_(params.input_file) {}
 
@@ -109,7 +113,7 @@ class GameDatasetIterator : public tensorflow::DatasetIterator<GameDataset> {
         return read_status;
       }
       memcpy(&raw, result.data(), sizeof(raw));
-      offset += sizeof(raw);
+      offset_ += sizeof(raw);
     }
 
     out_tensors->resize(3);
@@ -147,15 +151,16 @@ std::unique_ptr<IteratorBase> GameDataset::MakeIterator(
   GameDatasetIterator::Params params;
   params.dataset = this;
   params.prefix = prefix;
-  params.input_file = nullptr;
+  params.input_file = input_file_.get();
 
-  return absl::make_unique<GameDatasetIterator>(std::move(params));
+  return absl::make_unique<GameDatasetIterator>(params);
 }
 
 }  // namespace
 
-std::unique_ptr<tensorflow::DatasetBase> DatasetFromFile(const string& path) {
-  return absl::make_unique<GameDataset>(path);
+std::unique_ptr<tensorflow::DatasetBase> DatasetFromFile(tensorflow::Env* env,
+                                                         const string& path) {
+  return absl::make_unique<GameDataset>(env, path);
 }
 
 }  // namespace chess
