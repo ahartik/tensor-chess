@@ -2,15 +2,18 @@
 #include "tensorflow/cc/ops/standard_ops.h"
 #include "tensorflow/core/framework/tensor.h"
 
+using namespace tensorflow;
+using namespace tensorflow::ops;
+
+void 
+
 int main() {
-  using namespace tensorflow;
-  using namespace tensorflow::ops;
   Scope root = Scope::NewRootScope();
-  // Matrix A = [3 2; -1 0]
-  auto A = Const(root, { {3.f, 2.f}, {-1.f, 0.f} });
-  // Vector b = [3 5]
-  auto b = Const(root, { {3.f, 5.f} });
-  // v = Ab^T
+
+  // Simple logreg
+  
+
+
   auto v = MatMul(root.WithOpName("v"), A, b, MatMul::TransposeB(true));
   std::vector<Tensor> outputs;
   ClientSession session(root);
