@@ -1,3 +1,5 @@
+load("@com_google_protobuf//:protobuf.bzl", "py_proto_library")
+
 cc_library(
     name = "game-data",
     hdrs = ["game-data.h"],
@@ -9,4 +11,10 @@ cc_library(
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/memory",
     ],
+)
+
+py_proto_library(
+    name = "board-proto",
+    srcs = ["board.proto"],
+    deps = [],
 )

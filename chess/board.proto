@@ -1,0 +1,59 @@
+syntax = "proto2";
+
+package chess;
+
+message Board {
+  enum DataPiece {
+    MY_P = 0;
+    MY_R = 1;
+    MY_B = 2;
+    MY_N = 3;
+    MY_Q = 4;
+    MY_K = 5;
+    OPP_P = 6;
+    OPP_R = 7;
+    OPP_B = 8;
+    OPP_N = 9;
+    OPP_Q = 10;
+    OPP_K = 11;
+
+    MY_LEGAL_FROM = 12;
+    MY_LEGAL_TO = 13;
+
+    OPP_LEGAL_FROM = 14;
+    OPP_LEGAL_TO = 15;
+
+    MY_CASTLE_RIGHTS = 16;
+    OPP_CASTLE_RIGHTS = 17;
+
+    MY_EN_PASSANT = 18;
+    OPP_EN_PASSANT = 19;
+
+    // More can be added, but enum values must not change.
+  };
+  // Indexed by DataPiece enum.
+  repeated uint64 data = 1 [packed=true];
+  optional DataPiece promotion = 2 [default=MY_Q];
+
+  optional uint64 castle_rights = 3;
+  optional uint64 en_passant_squares = 4;
+
+  // Draw rules and such
+  optional int32 half_move_count = 5;  // General signal about game phase.
+  optional int32 repetition_count = 6;  // For 3-fold repetition.
+  optional int32 no_progress_count = 7;  // For 50-move rule
+
+  // Output for this position:
+  optional int32 move_from = 8;
+  // Move to is one of 
+  optional int32 move_to = 9;
+
+  // Move encoded in the following fashion:
+  // [0..64) regular move, capture, castling, or queen-promotion.
+  // [64..67) move up, promote to rook, bishop, knight respectively.
+  // [67..70) capture left, promote to rook, bishop, knight respectively.
+  // [70..73) capture right, promote to rook, bishop, knight respectively.
+  optional int32 encoded_move= 10;
+
+  optional int32 game_result = 11; // 1 if player-to-move won, -1 if lost, 0 if draw.
+}
