@@ -3,7 +3,7 @@ syntax = "proto2";
 package chess;
 
 message Board {
-  enum DataPiece {
+  enum Layer {
     MY_P = 0;
     MY_R = 1;
     MY_B = 2;
@@ -26,17 +26,14 @@ message Board {
     MY_CASTLE_RIGHTS = 16;
     OPP_CASTLE_RIGHTS = 17;
 
-    MY_EN_PASSANT = 18;
-    OPP_EN_PASSANT = 19;
+    // As it's "our" turn to move, we can't have any pawns in en-passant.
+    OPP_EN_PASSANT = 18;
 
-    // More can be added, but enum values must not change.
+    NUM_LAYERS = 19;
   };
-  // Indexed by DataPiece enum.
-  repeated uint64 data = 1 [packed=true];
-  optional DataPiece promotion = 2 [default=MY_Q];
-
-  optional uint64 castle_rights = 3;
-  optional uint64 en_passant_squares = 4;
+  // Indexed by Layer enum.
+  repeated uint64 layers = 1 [packed=true];
+  optional Layer promotion = 2 [default=MY_Q];
 
   // Draw rules and such
   optional int32 half_move_count = 5;  // General signal about game phase.
@@ -53,7 +50,7 @@ message Board {
   // [64..67) move up, promote to rook, bishop, knight respectively.
   // [67..70) capture left, promote to rook, bishop, knight respectively.
   // [70..73) capture right, promote to rook, bishop, knight respectively.
-  optional int32 encoded_move= 10;
+  optional int32 encoded_move_to = 10;
 
   optional int32 game_result = 11; // 1 if player-to-move won, -1 if lost, 0 if draw.
 }

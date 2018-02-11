@@ -19,14 +19,14 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   name='board.proto',
   package='chess',
   syntax='proto2',
-  serialized_pb=_b('\n\x0b\x62oard.proto\x12\x05\x63hess\"\xc4\x04\n\x05\x42oard\x12\x10\n\x04\x64\x61ta\x18\x01 \x03(\x04\x42\x02\x10\x01\x12/\n\tpromotion\x18\x02 \x01(\x0e\x32\x16.chess.Board.DataPiece:\x04MY_Q\x12\x15\n\rcastle_rights\x18\x03 \x01(\x04\x12\x1a\n\x12\x65n_passant_squares\x18\x04 \x01(\x04\x12\x17\n\x0fhalf_move_count\x18\x05 \x01(\x05\x12\x18\n\x10repetition_count\x18\x06 \x01(\x05\x12\x19\n\x11no_progress_count\x18\x07 \x01(\x05\x12\x11\n\tmove_from\x18\x08 \x01(\x05\x12\x0f\n\x07move_to\x18\t \x01(\x05\x12\x14\n\x0c\x65ncoded_move\x18\n \x01(\x05\x12\x13\n\x0bgame_result\x18\x0b \x01(\x05\"\xa7\x02\n\tDataPiece\x12\x08\n\x04MY_P\x10\x00\x12\x08\n\x04MY_R\x10\x01\x12\x08\n\x04MY_B\x10\x02\x12\x08\n\x04MY_N\x10\x03\x12\x08\n\x04MY_Q\x10\x04\x12\x08\n\x04MY_K\x10\x05\x12\t\n\x05OPP_P\x10\x06\x12\t\n\x05OPP_R\x10\x07\x12\t\n\x05OPP_B\x10\x08\x12\t\n\x05OPP_N\x10\t\x12\t\n\x05OPP_Q\x10\n\x12\t\n\x05OPP_K\x10\x0b\x12\x11\n\rMY_LEGAL_FROM\x10\x0c\x12\x0f\n\x0bMY_LEGAL_TO\x10\r\x12\x12\n\x0eOPP_LEGAL_FROM\x10\x0e\x12\x10\n\x0cOPP_LEGAL_TO\x10\x0f\x12\x14\n\x10MY_CASTLE_RIGHTS\x10\x10\x12\x15\n\x11OPP_CASTLE_RIGHTS\x10\x11\x12\x11\n\rMY_EN_PASSANT\x10\x12\x12\x12\n\x0eOPP_EN_PASSANT\x10\x13')
+  serialized_pb=_b('\n\x0b\x62oard.proto\x12\x05\x63hess\"\x8b\x04\n\x05\x42oard\x12\x12\n\x06layers\x18\x01 \x03(\x04\x42\x02\x10\x01\x12+\n\tpromotion\x18\x02 \x01(\x0e\x32\x12.chess.Board.Layer:\x04MY_Q\x12\x17\n\x0fhalf_move_count\x18\x05 \x01(\x05\x12\x18\n\x10repetition_count\x18\x06 \x01(\x05\x12\x19\n\x11no_progress_count\x18\x07 \x01(\x05\x12\x11\n\tmove_from\x18\x08 \x01(\x05\x12\x0f\n\x07move_to\x18\t \x01(\x05\x12\x17\n\x0f\x65ncoded_move_to\x18\n \x01(\x05\x12\x13\n\x0bgame_result\x18\x0b \x01(\x05\"\xa0\x02\n\x05Layer\x12\x08\n\x04MY_P\x10\x00\x12\x08\n\x04MY_R\x10\x01\x12\x08\n\x04MY_B\x10\x02\x12\x08\n\x04MY_N\x10\x03\x12\x08\n\x04MY_Q\x10\x04\x12\x08\n\x04MY_K\x10\x05\x12\t\n\x05OPP_P\x10\x06\x12\t\n\x05OPP_R\x10\x07\x12\t\n\x05OPP_B\x10\x08\x12\t\n\x05OPP_N\x10\t\x12\t\n\x05OPP_Q\x10\n\x12\t\n\x05OPP_K\x10\x0b\x12\x11\n\rMY_LEGAL_FROM\x10\x0c\x12\x0f\n\x0bMY_LEGAL_TO\x10\r\x12\x12\n\x0eOPP_LEGAL_FROM\x10\x0e\x12\x10\n\x0cOPP_LEGAL_TO\x10\x0f\x12\x14\n\x10MY_CASTLE_RIGHTS\x10\x10\x12\x15\n\x11OPP_CASTLE_RIGHTS\x10\x11\x12\x12\n\x0eOPP_EN_PASSANT\x10\x12\x12\x0e\n\nNUM_LAYERS\x10\x13')
 )
 
 
 
-_BOARD_DATAPIECE = _descriptor.EnumDescriptor(
-  name='DataPiece',
-  full_name='chess.Board.DataPiece',
+_BOARD_LAYER = _descriptor.EnumDescriptor(
+  name='Layer',
+  full_name='chess.Board.Layer',
   filename=None,
   file=DESCRIPTOR,
   values=[
@@ -103,20 +103,20 @@ _BOARD_DATAPIECE = _descriptor.EnumDescriptor(
       options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='MY_EN_PASSANT', index=18, number=18,
+      name='OPP_EN_PASSANT', index=18, number=18,
       options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='OPP_EN_PASSANT', index=19, number=19,
+      name='NUM_LAYERS', index=19, number=19,
       options=None,
       type=None),
   ],
   containing_type=None,
   options=None,
-  serialized_start=308,
-  serialized_end=603,
+  serialized_start=258,
+  serialized_end=546,
 )
-_sym_db.RegisterEnumDescriptor(_BOARD_DATAPIECE)
+_sym_db.RegisterEnumDescriptor(_BOARD_LAYER)
 
 
 _BOARD = _descriptor.Descriptor(
@@ -127,7 +127,7 @@ _BOARD = _descriptor.Descriptor(
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='data', full_name='chess.Board.data', index=0,
+      name='layers', full_name='chess.Board.layers', index=0,
       number=1, type=4, cpp_type=4, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
@@ -141,63 +141,49 @@ _BOARD = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='castle_rights', full_name='chess.Board.castle_rights', index=2,
-      number=3, type=4, cpp_type=4, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='en_passant_squares', full_name='chess.Board.en_passant_squares', index=3,
-      number=4, type=4, cpp_type=4, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='half_move_count', full_name='chess.Board.half_move_count', index=4,
+      name='half_move_count', full_name='chess.Board.half_move_count', index=2,
       number=5, type=5, cpp_type=1, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='repetition_count', full_name='chess.Board.repetition_count', index=5,
+      name='repetition_count', full_name='chess.Board.repetition_count', index=3,
       number=6, type=5, cpp_type=1, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='no_progress_count', full_name='chess.Board.no_progress_count', index=6,
+      name='no_progress_count', full_name='chess.Board.no_progress_count', index=4,
       number=7, type=5, cpp_type=1, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='move_from', full_name='chess.Board.move_from', index=7,
+      name='move_from', full_name='chess.Board.move_from', index=5,
       number=8, type=5, cpp_type=1, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='move_to', full_name='chess.Board.move_to', index=8,
+      name='move_to', full_name='chess.Board.move_to', index=6,
       number=9, type=5, cpp_type=1, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='encoded_move', full_name='chess.Board.encoded_move', index=9,
+      name='encoded_move_to', full_name='chess.Board.encoded_move_to', index=7,
       number=10, type=5, cpp_type=1, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='game_result', full_name='chess.Board.game_result', index=10,
+      name='game_result', full_name='chess.Board.game_result', index=8,
       number=11, type=5, cpp_type=1, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
@@ -208,7 +194,7 @@ _BOARD = _descriptor.Descriptor(
   ],
   nested_types=[],
   enum_types=[
-    _BOARD_DATAPIECE,
+    _BOARD_LAYER,
   ],
   options=None,
   is_extendable=False,
@@ -217,11 +203,11 @@ _BOARD = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=23,
-  serialized_end=603,
+  serialized_end=546,
 )
 
-_BOARD.fields_by_name['promotion'].enum_type = _BOARD_DATAPIECE
-_BOARD_DATAPIECE.containing_type = _BOARD
+_BOARD.fields_by_name['promotion'].enum_type = _BOARD_LAYER
+_BOARD_LAYER.containing_type = _BOARD
 DESCRIPTOR.message_types_by_name['Board'] = _BOARD
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
@@ -233,6 +219,6 @@ Board = _reflection.GeneratedProtocolMessageType('Board', (_message.Message,), d
 _sym_db.RegisterMessage(Board)
 
 
-_BOARD.fields_by_name['data'].has_options = True
-_BOARD.fields_by_name['data']._options = _descriptor._ParseOptions(descriptor_pb2.FieldOptions(), _b('\020\001'))
+_BOARD.fields_by_name['layers'].has_options = True
+_BOARD.fields_by_name['layers']._options = _descriptor._ParseOptions(descriptor_pb2.FieldOptions(), _b('\020\001'))
 # @@protoc_insertion_point(module_scope)
