@@ -28,6 +28,18 @@ local_repository(
   path = __workspace_dir__ + "/abseil-cpp",
 )
 
+# http_archive(
+#     name = "com_google_protobuf",
+#     urls = ["https://github.com/google/protobuf/archive/b4b0e304be5a68de3d0ee1af9b286f958750f5e4.zip"],
+# )
+# 
+# # cc_proto_library rules implicitly depend on @com_google_protobuf_cc//:cc_toolchain,
+# # which is the C++ proto runtime (base classes and common utilities).
+# http_archive(
+#     name = "com_google_protobuf_cc",
+#     urls = ["https://github.com/google/protobuf/archive/b4b0e304be5a68de3d0ee1af9b286f958750f5e4.zip"],
+# )
+
 
 load('@org_tensorflow//tensorflow:workspace.bzl', 'tf_workspace')
 
