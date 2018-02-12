@@ -7,8 +7,6 @@ import threading
 import numpy as np
 import tensorflow as tf
 
-from board_pb2 import Board
-
 # Tensor shape
 # 64 * 6 * 2 pieces
 # 8 * 2 en_passant
@@ -24,54 +22,18 @@ n_epochs = 3000
 # - repetition count
 # - no progress count
 
-HALFMOVE_LAYER = Board.NUM_LAYERS
-REP_LAYER = Board.NUM_LAYERS + 1
-NO_PROGRESS_LAYER = Board.NUM_LAYERS + 2
-
-NUM_CHANNELS = Board.NUM_LAYERS + 3
-
-empty_board_vec = np.array(NUM_CHANNELS * [[0.0] * 64], np.float32)
-
 NUM_MOVES = 64 * 73
 
-def encoded_to_tensor(board_str):
-    board = Board.FromString(board_str)
-    board_vec = empty_board_vec.copy()
-    for x in range(0, Board.NUM_LAYERS):
-        for j in range(0, 64):
-            if (board.layers[x] >> j) & 1:
-                board_vec[(x, j)] = 1.0
-    for j in range(0, 64):
-        board_vec[(HALFMOVE_LAYER, j)] = board.half_move_count * 0.01
-        board_vec[(REP_LAYER, j)] = board.repetition_count * 0.01
-        board_vec[(NO_PROGRESS_LAYER, j)] = board.no_progress_count * 0.01
-
-    # print("move={0},{1}".format(move // 64, move % 64))
-    move = board.encoded_move_to * 64 + board.move_from
-    if board_vec[(Board.MY_LEGAL_FROM, board.move_from)] == 0.0:
-        print("Bad move_from {0}, legal_from {1}".format(
-            board.move_from, board.layers[Board.MY_LEGAL_FROM]))
-        exit()
-    if board_vec[(Board.MY_LEGAL_TO, board.move_to)] == 0.0:
-        print("Bad move_to {0}, legal_to {1}".format(
-            board.move_from, board.layers[Board.MY_LEGAL_TO]))
-        exit()
-    return (board_vec, np.int32(move), np.float32(board.game_result))
-
-
-input_shape = (tf.TensorShape([NUM_CHANNELS * 64]), tf.TensorShape([]),
-               tf.TensorShape([]))
-
+_board_converter_module = tf.load_op_library(
+    os.path.join(tf.resource_loader.get_data_files_path(),
+                 'board_converter.so'))
+decode_board = _board_converter_module.decode_board
 
 def dataset_from_dir(path):
     filenames = glob.glob(os.path.join(path, "*.tfrecord"))
     random.shuffle(filenames)
     data = tf.data.TFRecordDataset(filenames)
-    data = data.map(
-            lambda tf_str :
-            tuple(tf.py_func(encoded_to_tensor, [tf_str],
-                [tf.float32, tf.int32, tf.float32]))
-            )
+    data = data.map(decode_board)
     data = data.shuffle(10000)
     data = data.apply(tf.contrib.data.batch_and_drop_remainder(batch_size))
     return data

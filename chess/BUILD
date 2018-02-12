@@ -1,6 +1,9 @@
 load('@org_tensorflow//tensorflow:tensorflow.bzl', 'tf_kernel_library')
 load('@org_tensorflow//tensorflow:tensorflow.bzl', 'tf_custom_op_library')
 
+# load('@com_google_protobuf//protobuf.bzl', 'proto_library')
+# load('@com_google_protobuf//protobuf.bzl', 'cc_proto_library')
+
 cc_library(
     name = "game-data",
     hdrs = ["game-data.h"],
@@ -15,7 +18,7 @@ cc_library(
 )
 
 tf_custom_op_library(
-    name = "board-converter.so",
+    name = "board_converter.so",
     srcs = ["board-converter.cpp"],
     deps = [
         ":board_cc_proto",
@@ -35,7 +38,7 @@ cc_proto_library(
 py_binary(
     name = "initial_trainer",
     srcs = ["initial_trainer.py"],
-    data = [":board-converter.so"],
+    data = [":board_converter.so"],
     srcs_version = "PY3",
     deps = [
         "@org_tensorflow//tensorflow:tensorflow_py"

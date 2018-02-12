@@ -28,17 +28,25 @@ local_repository(
   path = __workspace_dir__ + "/abseil-cpp",
 )
 
-# http_archive(
-#     name = "com_google_protobuf",
-#     urls = ["https://github.com/google/protobuf/archive/b4b0e304be5a68de3d0ee1af9b286f958750f5e4.zip"],
-# )
-# 
-# # cc_proto_library rules implicitly depend on @com_google_protobuf_cc//:cc_toolchain,
-# # which is the C++ proto runtime (base classes and common utilities).
-# http_archive(
-#     name = "com_google_protobuf_cc",
-#     urls = ["https://github.com/google/protobuf/archive/b4b0e304be5a68de3d0ee1af9b286f958750f5e4.zip"],
-# )
+http_archive(
+    name = "com_google_protobuf",
+    urls = [
+        "https://mirror.bazel.build/github.com/google/protobuf/archive/396336eb961b75f03b25824fe86cf6490fb75e3a.tar.gz",
+        "https://github.com/google/protobuf/archive/396336eb961b75f03b25824fe86cf6490fb75e3a.tar.gz",
+    ],
+    sha256 = "846d907acf472ae233ec0882ef3a2d24edbbe834b80c305e867ac65a1f2c59e3",
+    strip_prefix = "protobuf-396336eb961b75f03b25824fe86cf6490fb75e3a",
+)
+
+http_archive(
+    name = "com_google_protobuf_cc",
+    urls = [
+        "https://mirror.bazel.build/github.com/google/protobuf/archive/396336eb961b75f03b25824fe86cf6490fb75e3a.tar.gz",
+        "https://github.com/google/protobuf/archive/396336eb961b75f03b25824fe86cf6490fb75e3a.tar.gz",
+    ],
+    sha256 = "846d907acf472ae233ec0882ef3a2d24edbbe834b80c305e867ac65a1f2c59e3",
+    strip_prefix = "protobuf-396336eb961b75f03b25824fe86cf6490fb75e3a",
+)
 
 
 load('@org_tensorflow//tensorflow:workspace.bzl', 'tf_workspace')

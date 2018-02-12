@@ -5,16 +5,17 @@
 namespace chess {
 
 using namespace ::tensorflow;
+namespace {
+constexpr const int kNumChannels = Board::NUM_LAYERS + 3;
+constexpr const int kNumMoves = 73 * 64;
+constexpr const int kHalfMoveLayer = Board::NUM_LAYERS;
+constexpr const int kRepLayer = Board::NUM_LAYERS + 1;
+constexpr const int kNoProgressLayer = Board::NUM_LAYERS + 2;
+}  // namespace
 
 class DecodeBoardOp : public OpKernel {
  public:
   explicit DecodeBoardOp(OpKernelConstruction* ctx) : OpKernel(ctx) {}
-
-  const int kNumChannels = Board::NUM_LAYERS + 3;
-  const int kNumMoves = 73 * 64;
-  const int kHalfMoveLayer = Board::NUM_LAYERS;
-  const int kRepLayer = Board::NUM_LAYERS + 1;
-  const int kNoProgressLayer = Board::NUM_LAYERS + 2;
 
   void Compute(tensorflow::OpKernelContext* ctx) override {
     const Tensor* encoded;
@@ -64,6 +65,9 @@ class DecodeBoardOp : public OpKernel {
       board->matrix<float>()(kNoProgressLayer, j) =
           0.01 * board_msg.no_progress_count();
     }
+    move->scalar<int>()() =
+        64 * board_msg.encoded_move_to() + board_msg.move_from();
+    result->scalar<float>()() = board_msg.game_result();
   }
 
  private:
@@ -71,13 +75,29 @@ class DecodeBoardOp : public OpKernel {
   const std::vector<tensorflow::DataType> out_type_ = {
       DT_FLOAT,
       DT_INT32,
-      DT_FLOAT,
+      DT_INT32,
   };
 #endif
 };
 }  // namespace chess
 
 namespace tensorflow {
+
+REGISTER_OP("DecodeBoard")
+    .Input("encoded_board: string")
+    .Output("board: float32")
+    .Output("move: int32")
+    .Output("score: float32")
+    .SetShapeFn([](shape_inference::InferenceContext* c) {
+      c->set_output(0, c->Matrix(chess::kNumChannels, 64));
+      c->set_output(1, c->Scalar());
+      c->set_output(2, c->Scalar());
+      return Status::OK();
+    })
+    .Doc(R"doc(
+Parses chessboard from proto to tensor format.
+)doc");
+
 REGISTER_KERNEL_BUILDER(Name("DecodeBoard").Device(DEVICE_CPU),
                         chess::DecodeBoardOp);
 }  // namespace tensorflow

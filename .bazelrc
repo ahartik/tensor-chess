@@ -3,3 +3,6 @@ build --copt=-march=native
 build --host_copt=-march=native
 build:opt --copt=-march=native
 build:opt --host_copt=-march=native
+
+# build --copt=-D_GLIBCXX_USE_CXX11_ABI=0 
+# build --host_copt=-D_GLIBCXX_USE_CXX11_ABI=0 
