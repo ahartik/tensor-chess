@@ -148,9 +148,10 @@ with tf.python_io.TFRecordWriter(sys.argv[2]) as output:
             transpos_key = hash(board._transposition_key())
             repcount = repcounts[transpos_key] = repcounts.get(
                 transpos_key, 0) + 1
+            # Only write legal moves
+            assert board.is_legal(move)
             output.write(
                 encode_state(board, move_number, repcount, move, result))
-            assert board.is_legal(move)
             board.push(move)
             move_number += 1
         print(count)
