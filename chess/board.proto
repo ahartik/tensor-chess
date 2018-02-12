@@ -26,7 +26,7 @@ message Board {
     MY_CASTLE_RIGHTS = 16;
     OPP_CASTLE_RIGHTS = 17;
 
-    // As it's "our" turn to move, we can't have any pawns in en-passant.
+    // As it is "our" turn to move, we can't have any pawns in en-passant.
     OPP_EN_PASSANT = 18;
 
     NUM_LAYERS = 19;

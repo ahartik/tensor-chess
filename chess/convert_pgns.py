@@ -52,18 +52,18 @@ def encode_underpromotion(from_square, to_square, promo):
 
 # Returns Board object
 def encode_state(board, move_number, repetition_count, next_move, game_result):
+    move_from_square =  next_move.from_square
+    move_to_square =  next_move.to_square
     if board.turn:
         board = board.copy()
     else:
-
         def fixpos(i):
             rank = i // 8
             f = i % 8
             return (7 - rank) * 8 + f
-
         board = board.mirror()
-        next_move.from_square = fixpos(next_move.from_square)
-        next_move.to_square = fixpos(next_move.to_square)
+        move_from_square = fixpos(next_move.from_square)
+        move_to_square = fixpos(next_move.to_square)
 
     output = Board()
     output.layers.extend([0] * Board.NUM_LAYERS)
@@ -108,8 +108,8 @@ def encode_state(board, move_number, repetition_count, next_move, game_result):
     output.repetition_count = repetition_count
     output.half_move_count = move_number
 
-    output.move_from = next_move.from_square
-    output.move_to = next_move.to_square
+    output.move_from = move_from_square
+    output.move_to = move_to_square
     output.encoded_move_to = next_move.to_square
     if next_move.promotion != None:
         output.promotion = promo_to_layer[next_move.promotion]
@@ -150,6 +150,7 @@ with tf.python_io.TFRecordWriter(sys.argv[2]) as output:
                 transpos_key, 0) + 1
             output.write(
                 encode_state(board, move_number, repcount, move, result))
+            assert board.is_legal(move)
             board.push(move)
             move_number += 1
         print(count)
