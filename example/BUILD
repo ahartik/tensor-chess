@@ -7,3 +7,11 @@ cc_binary(
         "@org_tensorflow//tensorflow/core:tensorflow",
     ],
 )
+
+py_binary(
+    name = "hello",
+    srcs = ["hello.py"],
+    deps = [
+        "@org_tensorflow//tensorflow:tensorflow_py"
+    ],
+)
