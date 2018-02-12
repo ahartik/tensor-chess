@@ -159,13 +159,13 @@ def add_res_conv2d(y, fx, fy, mid_depth, out_depth, stride=1):
     return y
 
 
-depth = 128
+depth = 192
 # Add convolution layer(s)
 # conv_params = [(5, 5), (3, 3), (1, 8), (8, 1)]
 # Convert board to 2d format
 conv_output = tf.reshape(board, [-1, NUM_CHANNELS, 8, 8])
 
-num_layers = 4
+num_layers = 14
 use_residual = True
 
 conv_output = add_conv2d(conv_output, 3, 3, depth)
