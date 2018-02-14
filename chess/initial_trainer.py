@@ -62,7 +62,7 @@ _board_converter_module = tf.load_op_library(
 cpp_mapper = _board_converter_module.decode_board
 py_mapper = lambda tf_str : tuple(tf.py_func(encoded_to_tensor, [tf_str], [tf.float32, tf.int32, tf.float32]))
 
-def dataset_from_dir(path, mapper = py_mapper):
+def dataset_from_dir(path, mapper = cpp_mapper):
     filenames = glob.glob(os.path.join(path, "*.tfrecord"))
     #random.shuffle(filenames)
     data = tf.data.TFRecordDataset(filenames)
@@ -70,7 +70,6 @@ def dataset_from_dir(path, mapper = py_mapper):
     # data = data.repeat(10000)
     # data = data.shuffle(10000)
     data = data.batch(batch_size)
-    print("data.shape={0}".format(data))
     # data = tf.train.batch
     # data = data.apply(tf.contrib.data.batch_and_drop_remainder(batch_size))
     return data
@@ -169,7 +168,7 @@ depth = 192
 
 conv_output = tf.reshape(board, [-1, NUM_CHANNELS, 8, 8])
 
-num_layers = 14
+num_layers = 12
 use_residual = True
 
 conv_output = add_conv2d(conv_output, 3, 3, depth)
@@ -177,7 +176,7 @@ conv_output = add_conv2d(conv_output, 3, 3, depth)
 if use_residual:
     layers = 1
     while layers < num_layers - 1:
-        conv_output = add_res_conv2d(conv_output, 3, 3, depth, depth)
+        conv_output = add_res_conv2d(conv_output, 3, 3, depth / 2, depth)
         layers += 2
     if layers < num_layers:
         conv_output = add_conv2d(conv_output, 3, 3, depth)
@@ -228,7 +227,7 @@ loss = policy_loss * 1.00 + result_loss * 1.00
 
 update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 with tf.control_dependencies(update_ops):
-    optimizer = tf.train.AdamOptimizer(
+    optimizer = tf.train.RMSPropOptimizer(
         learning_rate=0.002, use_locking=True).minimize(loss)
 
 # Step 7: calculate accuracy with test set
@@ -313,7 +312,7 @@ with tf.Session() as sess:
     for epoch in range(n_epochs):
         last_log_time = start_time
 
-        threads = 16
+        threads = 1
         items_per_step = 10000
         batches_per_thread = items_per_step // (threads * batch_size)
         items_per_step = batches_per_thread * threads * batch_size

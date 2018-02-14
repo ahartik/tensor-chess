@@ -22,7 +22,9 @@ tf_custom_op_library(
     srcs = ["board-converter.cpp"],
     deps = [
         ":board_cc_proto",
+        "@com_google_absl//absl/synchronization",
     ],
+    # linkopts=["-fsanitize=address"],
 )
 
 proto_library(

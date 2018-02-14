@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include "chess/board.pb.h"
+#include "absl/synchronization/mutex.h"
 
 namespace chess {
 
@@ -20,25 +21,21 @@ class DecodeBoardOp : public OpKernel {
   explicit DecodeBoardOp(OpKernelConstruction* ctx) : OpKernel(ctx) {}
 
   void Compute(tensorflow::OpKernelContext* ctx) override {
-    const Tensor* encoded;
-    OpInputList record_defaults;
+    OP_REQUIRES(ctx, ctx->num_inputs() == 1,
+                errors::InvalidArgument("Expected exactly one input"));
+    const Tensor& encoded = ctx->input(0);
+    OP_REQUIRES(ctx, encoded.dims() == 0,
+                errors::InvalidArgument("Input must be a scalar"));
+    OP_REQUIRES(ctx, encoded.dtype() == DT_STRING,
+                errors::InvalidArgument("Input must be a scalar"));
+    StringPiece as_str(encoded.scalar<string>()());
 
-    OP_REQUIRES_OK(ctx, ctx->input("encoded", &encoded));
-
-    auto encoded_t = encoded->flat<string>();
-    OP_REQUIRES(ctx, encoded_t.size() == 1,
-                errors::InvalidArgument("Must only have 1 string per op"));
-
-    StringPiece as_str(encoded_t(0));
     Board board_msg;
     const bool can_parse =
         board_msg.ParseFromArray(as_str.data(), as_str.size());
     OP_REQUIRES(ctx, can_parse,
                 errors::InvalidArgument("Failed to parse Board proto"));
 
-    // std::cout << "Parsed: " << board_msg.DebugString();
-
-    // TODO: Optimize to call int-taking functions
     Tensor* board = nullptr;
     Tensor* move = nullptr;
     Tensor* result = nullptr;
@@ -52,6 +49,12 @@ class DecodeBoardOp : public OpKernel {
 
     OP_REQUIRES(ctx, board_msg.layers_size() == Board::NUM_LAYERS,
                 errors::InvalidArgument("Board message is missing layers"));
+    OP_REQUIRES(ctx, board->dtype() == DT_FLOAT,
+                errors::InvalidArgument("board output type must be float"));
+    OP_REQUIRES(ctx, move->dtype() == DT_INT32,
+                errors::InvalidArgument("move output type must be int32"));
+    OP_REQUIRES(ctx, result->dtype() == DT_FLOAT,
+                errors::InvalidArgument("result output type must be float"));
 
     for (int i = 0; i < Board::NUM_LAYERS; ++i) {
       for (int j = 0; j < 64; ++j) {
@@ -77,15 +80,6 @@ class DecodeBoardOp : public OpKernel {
     move->scalar<int>()() = encoded_move;
     result->scalar<float>()() = board_msg.game_result();
   }
-
- private:
-#if 0
-  const std::vector<tensorflow::DataType> out_type_ = {
-      DT_FLOAT,
-      DT_INT32,
-      DT_INT32,
-  };
-#endif
 };
 }  // namespace chess
 

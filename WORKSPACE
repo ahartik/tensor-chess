@@ -48,6 +48,13 @@ http_archive(
     strip_prefix = "protobuf-396336eb961b75f03b25824fe86cf6490fb75e3a",
 )
 
+# CCTZ (Time-zone framework), required by absl.
+http_archive(
+    name = "com_googlesource_code_cctz",
+    urls = ["https://github.com/google/cctz/archive/master.zip"],
+    strip_prefix = "cctz-master",
+)
+
 
 load('@org_tensorflow//tensorflow:workspace.bzl', 'tf_workspace')
 
