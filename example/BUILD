@@ -1,6 +1,9 @@
+load("@local_config_cuda//cuda:build_defs.bzl", "if_cuda")
+
 cc_binary(
     name = "example",
-    srcs = ["example.cpp"],
+    srcs = ["example.cpp"] + if_cuda(["xyz"]),
+    tags = ["requires-gpu"],
     deps = [
         "@org_tensorflow//tensorflow/cc:cc_ops",
         "@org_tensorflow//tensorflow/cc:client_session",
@@ -11,6 +14,7 @@ cc_binary(
 py_binary(
     name = "hello",
     srcs = ["hello.py"],
+    tags = ["requires-gpu"],
     deps = [
         "@org_tensorflow//tensorflow:tensorflow_py"
     ],

@@ -1,5 +1,7 @@
 #include "tensorflow/core/framework/reader_op_kernel.h"
 
+#include <iostream>
+
 #include "chess/board.pb.h"
 
 namespace chess {
@@ -34,18 +36,19 @@ class DecodeBoardOp : public OpKernel {
     OP_REQUIRES(ctx, can_parse,
                 errors::InvalidArgument("Failed to parse Board proto"));
 
-    OpOutputList output;
-    OP_REQUIRES_OK(ctx, ctx->output_list("output", &output));
+    // std::cout << "Parsed: " << board_msg.DebugString();
 
+    // TODO: Optimize to call int-taking functions
     Tensor* board = nullptr;
     Tensor* move = nullptr;
     Tensor* result = nullptr;
     OP_REQUIRES_OK(
-        ctx,
-        output.allocate(0, tensorflow::TensorShape{kNumChannels, 64}, &board));
-    OP_REQUIRES_OK(ctx, output.allocate(1, tensorflow::TensorShape{1}, &move));
+        ctx, ctx->allocate_output(0, tensorflow::TensorShape{kNumChannels, 64},
+                                  &board));
     OP_REQUIRES_OK(ctx,
-                   output.allocate(2, tensorflow::TensorShape{1}, &result));
+                   ctx->allocate_output(1, tensorflow::TensorShape{}, &move));
+    OP_REQUIRES_OK(ctx,
+                   ctx->allocate_output(2, tensorflow::TensorShape{}, &result));
 
     OP_REQUIRES(ctx, board_msg.layers_size() == Board::NUM_LAYERS,
                 errors::InvalidArgument("Board message is missing layers"));
@@ -54,6 +57,8 @@ class DecodeBoardOp : public OpKernel {
       for (int j = 0; j < 64; ++j) {
         if ((board_msg.layers(i) >> j) & 1) {
           board->matrix<float>()(i, j) = 1.0f;
+        } else {
+          board->matrix<float>()(i, j) = 0.0f;
         }
       }
     }
@@ -65,8 +70,11 @@ class DecodeBoardOp : public OpKernel {
       board->matrix<float>()(kNoProgressLayer, j) =
           0.01 * board_msg.no_progress_count();
     }
-    move->scalar<int>()() =
-        64 * board_msg.encoded_move_to() + board_msg.move_from();
+    int encoded_move = 64 * board_msg.move_from() + board_msg.move_to();
+    if (board_msg.encoded_move_to() >= 64) {
+      encoded_move = board_msg.encoded_move_to() * 64 + board_msg.move_to();
+    }
+    move->scalar<int>()() = encoded_move;
     result->scalar<float>()() = board_msg.game_result();
   }
 
@@ -84,7 +92,7 @@ class DecodeBoardOp : public OpKernel {
 namespace tensorflow {
 
 REGISTER_OP("DecodeBoard")
-    .Input("encoded_board: string")
+    .Input("encoded: string")
     .Output("board: float32")
     .Output("move: int32")
     .Output("score: float32")

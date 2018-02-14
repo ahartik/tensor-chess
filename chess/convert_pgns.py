@@ -57,6 +57,7 @@ def encode_state(board, move_number, repetition_count, next_move, game_result):
     if board.turn:
         board = board.copy()
     else:
+        game_result = -game_result
         def fixpos(i):
             rank = i // 8
             f = i % 8
@@ -117,7 +118,7 @@ def encode_state(board, move_number, repetition_count, next_move, game_result):
             output.encoded_move_to = encode_underpromotion(
                 output.move_from, output.move_to, next_move.promotion)
 
-    output.game_result = game_result if board.turn else -game_result
+    output.game_result = game_result
     return output.SerializeToString()
 
 

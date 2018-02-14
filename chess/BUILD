@@ -39,6 +39,7 @@ py_binary(
     name = "initial_trainer",
     srcs = ["initial_trainer.py"],
     data = [":board_converter.so"],
+    tags = ["requires-gpu"],
     srcs_version = "PY3",
     deps = [
         "@org_tensorflow//tensorflow:tensorflow_py"
