@@ -67,8 +67,8 @@ def dataset_from_dir(path, mapper = cpp_mapper):
     #random.shuffle(filenames)
     data = tf.data.TFRecordDataset(filenames)
     data = data.map(mapper)
-    # data = data.repeat(10000)
-    # data = data.shuffle(10000)
+    data = data.repeat(10000)
+    data = data.shuffle(10000)
     data = data.batch(batch_size)
     # data = tf.train.batch
     # data = data.apply(tf.contrib.data.batch_and_drop_remainder(batch_size))
@@ -227,8 +227,8 @@ loss = policy_loss * 1.00 + result_loss * 1.00
 
 update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 with tf.control_dependencies(update_ops):
-    optimizer = tf.train.RMSPropOptimizer(
-        learning_rate=0.002, use_locking=True).minimize(loss)
+    optimizer = tf.train.AdamOptimizer(
+        learning_rate=0.001, use_locking=False).minimize(loss)
 
 # Step 7: calculate accuracy with test set
 correct_preds = tf.equal(tf.argmax(prediction, 1), tf.argmax(move, 1))
