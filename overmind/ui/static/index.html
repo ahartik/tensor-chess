@@ -5,15 +5,20 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
   <title>My chess AI tester</title>
   <link rel="stylesheet" href="css/chessboard.css" />
+  <link rel="stylesheet" href="css/page.css" />
 </head>
 <body>
 
-<div id="board" style="width: 400px"></div>
-<input type="button" id="resetBtn" value="Reset" />
-<div id="status"> status </div>
-<div id="prediction" style=> prediction </div>
-<div id="pgn" style="border-style: solid; width: 400px; height: 400px"> pgn </div>
 
+<div id="container">
+  <div id="board"></div>
+  <div id="info">
+    <input type="button" id="resetBtn" value="Reset" />
+    <div id="status" style="font-size: large"> status </div>
+    <div id="prediction" style="font-size: large"> prediction </div>
+    <div id="pgn"> status </div>
+  </div>
+</div>
 
 <script src="js/json3.min.js"></script>
 <script src="js/jquery-1.10.1.min.js"></script>
@@ -22,8 +27,8 @@
 <script>
 
 
-var init = function() {
 
+var init = function() {
 
 //--- start example JS ---
 var board,
@@ -31,18 +36,41 @@ var board,
   statusEl = $('#status'),
   pgnEl = $('#pgn');
 
-var updatePredictions = function() {
-     $.ajax({url: "predict/" + game.fen(),
-       success: function(result){
-         res_html = "<table>"
-         for (res of result) {
-           move = res[0]
-           score = (res[1] * 100).toFixed(2)
-           res_html += `<tr><td>${move}</td><td>${score} % </td></tr>`
 
-         }
-               $("#prediction").html(res_html);
-           }});
+var updatePredictions = function() {
+  var query = [game.fen(), game.history().length]
+
+  var apply_prediction = function(result) {
+    var res_html = "<table>"
+    for (res of result) {
+      var move = res[0]
+      var score = (res[1] * 100).toFixed(2)
+      res_html += `<tr><td>${move}</td><td>${score} % </td></tr>`
+
+    }
+    var prediction = result
+    $("#prediction").html(res_html);
+    if (prediction.length > 0 && game.turn() == 'b') {
+      var best_move = prediction[0][0];
+      var move = {
+        from: best_move.substring(0, 2), 
+        to: best_move.substring(2, 4)
+      };
+      if (best_move.length > 4) {
+        move.promotion = best_move.substring(4, 5)
+      }
+      move_result = game.move(move)
+      if (move_result == null) {
+        $("#prediction").html(`Bad move ${best_move}`);
+      }
+
+      // board.move(move.from + "-" + move.to)
+      board.position(game.fen(), true);
+      updateStatus();
+    }
+  }
+
+  $.ajax({url: "predict/" + JSON.stringify(query), success: apply_prediction});
 }
 
 // do not pick up pieces if the game is over
@@ -121,17 +149,25 @@ board = ChessBoard('board', cfg);
 var resetGame = function() {
   game = new Chess()
   board = ChessBoard('board', cfg);
-
-  rest
+  updateStatus();
 }
 
 $('#resetBtn').on('click', resetGame);
 
-updateStatus();
+document.body.onresize = function() {
+  board.resize();
+}
+
+resetGame();
 
 }; // end init()
 
+
 $(document).ready(init);
+
+// Prevent scrolling
+document.ontouchmove = function(e){ e.preventDefault(); };
+document.ontouchstart = function(e){ e.preventDefault(); };
 
 </script>
 </body>

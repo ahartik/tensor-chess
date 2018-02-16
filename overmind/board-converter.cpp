@@ -2,10 +2,10 @@
 
 #include <iostream>
 
-#include "chess/board.pb.h"
 #include "absl/synchronization/mutex.h"
+#include "overmind/board.pb.h"
 
-namespace chess {
+namespace overmind {
 
 using namespace ::tensorflow;
 namespace {
@@ -81,7 +81,7 @@ class DecodeBoardOp : public OpKernel {
     result->scalar<float>()() = board_msg.game_result();
   }
 };
-}  // namespace chess
+}  // namespace overmind
 
 namespace tensorflow {
 
@@ -91,7 +91,7 @@ REGISTER_OP("DecodeBoard")
     .Output("move: int32")
     .Output("score: float32")
     .SetShapeFn([](shape_inference::InferenceContext* c) {
-      c->set_output(0, c->Matrix(chess::kNumChannels, 64));
+      c->set_output(0, c->Matrix(overmind::kNumChannels, 64));
       c->set_output(1, c->Scalar());
       c->set_output(2, c->Scalar());
       return Status::OK();
@@ -101,5 +101,5 @@ Parses chessboard from proto to tensor format.
 )doc");
 
 REGISTER_KERNEL_BUILDER(Name("DecodeBoard").Device(DEVICE_CPU),
-                        chess::DecodeBoardOp);
+                        overmind::DecodeBoardOp);
 }  // namespace tensorflow
