@@ -24,8 +24,9 @@ result_tensor = tf.constant(0, dtype=tf.float32)
 cm = model.ChessFlow(is_training_tensor, board_tensor, move_ind_tensor, result_tensor)
 saver = tf.train.Saver()
 
-# Don't run on GPU
-sess = tf.Session()
+# Don't use all VRAM
+gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.2)
+sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
 saver.restore(sess, model_path)
 
 def run_policy(board, half_move_count, repetition_count):

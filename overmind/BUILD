@@ -34,3 +34,30 @@ py_binary(
         "@org_tensorflow//tensorflow:tensorflow_py"
         ],
 )
+
+cc_library(
+    name = "chess",
+    srcs = ["chess.cc"],
+    hdrs = ["chess.h"],
+    deps = [
+        ":board_cc_proto",
+    ]
+)
+
+cc_library(
+    name =  "persistent-int-map",
+    hdrs = ["persistent-int-map.h"],
+    deps = [
+    ]
+)
+
+cc_test(
+    name = "persistent-int-map_test",
+    srcs = ["persistent-int-map_test.cc"],
+    copts = ["-Iexternal/gtest/include"],
+    deps = [
+        ":persistent-int-map",
+        "@gtest//:main",
+        ],
+)
+

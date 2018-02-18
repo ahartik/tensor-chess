@@ -29,6 +29,16 @@ local_repository(
 )
 
 http_archive(
+    name = "protobuf_archive",
+    urls = [
+        "https://mirror.bazel.build/github.com/google/protobuf/archive/396336eb961b75f03b25824fe86cf6490fb75e3a.tar.gz",
+        "https://github.com/google/protobuf/archive/396336eb961b75f03b25824fe86cf6490fb75e3a.tar.gz",
+    ],
+    sha256 = "846d907acf472ae233ec0882ef3a2d24edbbe834b80c305e867ac65a1f2c59e3",
+    strip_prefix = "protobuf-396336eb961b75f03b25824fe86cf6490fb75e3a",
+)
+
+http_archive(
     name = "com_google_protobuf",
     urls = [
         "https://mirror.bazel.build/github.com/google/protobuf/archive/396336eb961b75f03b25824fe86cf6490fb75e3a.tar.gz",
@@ -53,6 +63,14 @@ http_archive(
     name = "com_googlesource_code_cctz",
     urls = ["https://github.com/google/cctz/archive/master.zip"],
     strip_prefix = "cctz-master",
+)
+
+new_http_archive(
+    name = "gtest",
+    url = "https://github.com/google/googletest/archive/release-1.7.0.zip",
+    sha256 = "b58cb7547a28b2c718d1e38aee18a3659c9e3ff52440297e965f5edffe34b6d0",
+    build_file = "gtest.BUILD",
+    strip_prefix = "googletest-release-1.7.0",
 )
 
 

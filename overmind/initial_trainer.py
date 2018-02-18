@@ -76,7 +76,7 @@ board, move_ind, result = tf.cond(
     lambda: test_iterator.get_next(name="test_board"))
 cm = model.ChessFlow(is_training, board, move_ind, result)
 
-writer = tf.summary.FileWriter('./graphs', tf.get_default_graph())
+writer = tf.summary.FileWriter('/home/aleksi/tensor-chess-data/graphs', tf.get_default_graph())
 saver = tf.train.Saver()
 
 def test_model(sess):
@@ -130,8 +130,8 @@ class TrainThread(threading.Thread):
                 cancelled = True
                 pass
 
-
-with tf.Session() as sess:
+gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.50)
+with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
     start_time = time.time()
     sess.run(train_init)
 
