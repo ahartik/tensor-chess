@@ -58,6 +58,7 @@ cc_test(
     deps = [
         ":persistent-int-map",
         "@googletest//:gtest_main",
+        "@com_google_absl//absl/time",
         ],
 )
 

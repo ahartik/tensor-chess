@@ -84,11 +84,11 @@ class PersistentIntMap {
       const LeafNode* existing_leaf = static_cast<const LeafNode*>(node);
       LeafNode* new_leaf = new LeafNode(key, std::move(value));
       if (key == existing_leaf->key) {
-        std::cerr << "Matching key " << key << "\n";
+        // std::cerr << "Matching key " << key << "\n";
         return new_leaf;
       }
       RefCountInc(&existing_leaf->refcount);
-      std::cerr << "splitting leaf for " << key << " and " << existing_leaf->key << "\n";
+      // std::cerr << "splitting leaf for " << key << " and " << existing_leaf->key << "\n";
 
       // Convert this to inner node, and add both existing and new leaf.
       InnerNode* new_inner = new InnerNode;
@@ -109,7 +109,7 @@ class PersistentIntMap {
       }
       assert(false);
     } else {
-      std::cerr << "Replacing inner with offset " << bit_offset << "\n";
+      // std::cerr << "Replacing inner with offset " << bit_offset << "\n";
       // 'node' is inner, create a copy with updated child.
       const InnerNode* inner = static_cast<const InnerNode*>(node);
       const int digit = (key >> bit_offset) & 15;
