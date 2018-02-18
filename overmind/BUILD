@@ -57,7 +57,7 @@ cc_test(
     copts = ["-Iexternal/gtest/include"],
     deps = [
         ":persistent-int-map",
-        "@gtest//:main",
+        "@googletest//:gtest_main",
         ],
 )
 

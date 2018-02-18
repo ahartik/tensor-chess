@@ -1,7 +1,9 @@
 #ifndef _OVERMIND_CHESS_H_
 #define _OVERMIND_CHESS_H_
 
+#include <iostream>
 #include <atomic>
+#include <utility>
 #include <cassert>
 #include <cstdint>
 
@@ -34,6 +36,12 @@ class PersistentIntMap {
       RefCountInc(&root_->refcount);
     }
   }
+  PersistentIntMap& operator=(const PersistentIntMap& o) {
+    UnrefNode(root_);
+    root_ = o.root_;
+    RefCountInc(&root_->refcount);
+  }
+
   ~PersistentIntMap() { UnrefNode(root_); }
 
   // Returns null if 'key' doesn't exist in the map.
@@ -76,9 +84,11 @@ class PersistentIntMap {
       const LeafNode* existing_leaf = static_cast<const LeafNode*>(node);
       LeafNode* new_leaf = new LeafNode(key, std::move(value));
       if (key == existing_leaf->key) {
+        std::cerr << "Matching key " << key << "\n";
         return new_leaf;
       }
       RefCountInc(&existing_leaf->refcount);
+      std::cerr << "splitting leaf for " << key << " and " << existing_leaf->key << "\n";
 
       // Convert this to inner node, and add both existing and new leaf.
       InnerNode* new_inner = new InnerNode;
@@ -99,6 +109,7 @@ class PersistentIntMap {
       }
       assert(false);
     } else {
+      std::cerr << "Replacing inner with offset " << bit_offset << "\n";
       // 'node' is inner, create a copy with updated child.
       const InnerNode* inner = static_cast<const InnerNode*>(node);
       const int digit = (key >> bit_offset) & 15;
@@ -108,8 +119,10 @@ class PersistentIntMap {
           DoInsert(inner->children[digit], key, value, bit_offset + 4);
       for (int i = 0; i < 16; ++i) {
         if (i != digit) {
-          new_inner->children[i] = inner->children[i];
-          RefCountInc(&inner->children[i]->refcount);
+          if (inner->children[i] != nullptr) {
+            new_inner->children[i] = inner->children[i];
+            RefCountInc(&inner->children[i]->refcount);
+          }
         }
       }
       return new_inner;
