@@ -37,12 +37,13 @@ py_binary(
 
 cc_library(
     name = "chess",
-    srcs = ["chess.cc"],
+    srcs = ["chess.cpp"],
     hdrs = ["chess.h"],
     deps = [
         ":board_cc_proto",
         ":persistent-int-map",
         "@com_google_absl//absl/strings",
+        "@org_tensorflow//tensorflow/core:lib",
     ]
 )
 

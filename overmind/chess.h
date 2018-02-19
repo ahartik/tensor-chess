@@ -60,7 +60,7 @@ class ChessBoard {
 
   uint64_t hash() const;
 
-  PersistentHashMap<uint64_t, int> state_counts_;
+  PersistentIntMap<uint64_t, int> state_counts_;
 };
 
 }  // namespace overmind
