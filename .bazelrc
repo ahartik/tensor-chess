@@ -44,6 +44,8 @@ build --define framework_shared_object=true
 
 test --test_output=errors
 
+build --linkopt -lSegFault
+
 build:asan --strip=never
 build:asan --copt -fsanitize=address
 build:asan --copt -DADDRESS_SANITIZER

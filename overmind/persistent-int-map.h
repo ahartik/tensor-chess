@@ -61,6 +61,8 @@ class PersistentIntMap {
   // No way to remove anything, ha ha.
  private:
   static constexpr int kKeyBits = sizeof(KeyInt) * 8;
+  static constexpr int kBitsPerLevel = 4;
+  static constexpr int kFanOut = 1 << kBitsPerLevel;
 
   struct NodeBase {
     mutable RefCount refcount{1};
@@ -68,7 +70,7 @@ class PersistentIntMap {
   };
   struct InnerNode : public NodeBase {
     InnerNode() { NodeBase::is_leaf = false; }
-    const NodeBase* children[16] = {};
+    const NodeBase* children[kFanOut] = {};
   };
   struct LeafNode : public NodeBase {
     LeafNode(KeyInt key, Value value) : key(key), value(std::move(value)) {
@@ -100,8 +102,8 @@ class PersistentIntMap {
       InnerNode* new_inner = new InnerNode;
       InnerNode* last_inner = new_inner;
       while (bit_offset < kKeyBits) {
-        const int digit_1 = (new_leaf->key >> bit_offset) & 15;
-        const int digit_2 = (existing_leaf->key >> bit_offset) & 15;
+        const int digit_1 = (new_leaf->key >> bit_offset) & (kFanOut - 1);
+        const int digit_2 = (existing_leaf->key >> bit_offset) & (kFanOut - 1);
         if (digit_1 != digit_2) {
           last_inner->children[digit_1] = new_leaf;
           last_inner->children[digit_2] = existing_leaf;
@@ -111,19 +113,19 @@ class PersistentIntMap {
           last_inner->children[digit_1] = nl;
           last_inner = nl;
         }
-        bit_offset += 4;
+        bit_offset += kBitsPerLevel;
       }
       assert(false);
     } else {
       // std::cerr << "Replacing inner with offset " << bit_offset << "\n";
       // 'node' is inner, create a copy with updated child.
       const InnerNode* inner = static_cast<const InnerNode*>(node);
-      const int digit = (key >> bit_offset) & 15;
+      const int digit = (key >> bit_offset) & (kFanOut - 1);
 
       InnerNode* new_inner = new InnerNode;
       new_inner->children[digit] =
-          DoInsert(inner->children[digit], key, value, bit_offset + 4);
-      for (int i = 0; i < 16; ++i) {
+          DoInsert(inner->children[digit], key, value, bit_offset + kBitsPerLevel);
+      for (int i = 0; i < kFanOut; ++i) {
         if (i != digit) {
           if (inner->children[i] != nullptr) {
             new_inner->children[i] = inner->children[i];
@@ -143,7 +145,7 @@ class PersistentIntMap {
         delete static_cast<const LeafNode*>(node);
       } else {
         const InnerNode* as_inner = static_cast<const InnerNode*>(node);
-        for (int i = 0; i < 16; ++i) {
+        for (int i = 0; i < kFanOut; ++i) {
           UnrefNode(as_inner->children[i]);
         }
         delete as_inner;
@@ -163,8 +165,8 @@ class PersistentIntMap {
       }
     }
     const InnerNode* as_inner = static_cast<const InnerNode*>(node);
-    const int digit = (key >> bit_offset) & 15;
-    return DoFind(as_inner->children[digit], key, bit_offset + 4);
+    const int digit = (key >> bit_offset) & (kFanOut - 1);
+    return DoFind(as_inner->children[digit], key, bit_offset + kBitsPerLevel);
   }
 
   const NodeBase* root_ = nullptr;

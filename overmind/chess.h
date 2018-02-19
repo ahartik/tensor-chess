@@ -4,6 +4,7 @@
 #include <memory>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "overmind/board.pb.h"
 #include "overmind/persistent-int-map.h"
 
@@ -16,6 +17,7 @@ enum class Piece {
   kRook,
   kQueen,
   kKing,
+  kEmpty,  // Special sentinel value, not stored.
 };
 
 enum class Color {
@@ -29,19 +31,25 @@ struct Move {
   Piece promotion = Piece::kQueen;
 };
 
-class ChessBoard : std::enable_shared_from_this<ChessBoard> {
+bool IsValidFen(absl::string_view fen);
+
+class ChessBoard {
  public:
+
   ChessBoard();
-  explicit ChessBoard(const std::string& fen);
+  explicit ChessBoard(absl::string_view fen);
 
   void GetLegalMoves(std::vector<Move>* out) const;
-  std::shared_ptr<ChessBoard> ApplyMove(const Move& m) const;
+  ChessBoard ApplyMove(const Move& m) const;
 
   void ToProto(Board* out) const;
 
   std::string DebugString() const;
 
  private:
+  // Helper for constructor.
+  void SetPiece(int square, Piece p, Color color);
+
   uint64_t pieces_[12] = {};
   uint64_t castling_rights_ = {};
   uint64_t en_passant_ = {};

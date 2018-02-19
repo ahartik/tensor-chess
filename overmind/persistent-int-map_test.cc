@@ -41,6 +41,28 @@ TEST(PersistentIntMapTest, InsertMultiple) {
   }
 }
 
+TEST(PersistentIntMapTest, ReplaceValue) {
+  PersistentIntMap<int, int> map;
+  map = map.Insert(10, 2 * 10);
+  map = map.Insert(20, 2 * 20);
+  auto map_with_40 = map;
+  map = map.Insert(30, 2 * 30);
+  map = map.Insert(40, 2 * 40);
+  map = map.Insert(50, 2 * 50);
+  map = map.Insert(60, 2 * 60);
+
+  // Replace value for 20
+  map = map.Insert(20, 35);
+  const int* val = map.Find(20);
+  ASSERT_NE(val, nullptr);
+  EXPECT_EQ(*val, 35);
+
+  // Older map still has the old value
+  val = map_with_40.Find(20);
+  ASSERT_NE(val, nullptr);
+  EXPECT_EQ(*val, 40);
+}
+
 TEST(PersistentIntMapTest, Negatives) {
   PersistentIntMap<int, int> map;
   map = map.Insert(10, 20);
@@ -53,9 +75,17 @@ TEST(PersistentIntMapTest, Negatives) {
   EXPECT_EQ(*val, 50);
 }
 
+TEST(PersistentIntMapTest, NotFound) {
+  PersistentIntMap<int, int> map;
+  map = map.Insert(10, 20);
+  map = map.Insert(-10, 50);
+  const int* val = map.Find(15);
+  EXPECT_EQ(val, nullptr);
+}
+
 TEST(PersistentIntMapTest, LookupBenchmark) {
   PersistentIntMap<uint64_t, int> map;
-  const int kSize = 1000 * 1000;
+  const int kSize = 100 * 1000;
   std::vector<uint64_t> keys;
   std::mt19937_64 my_rand;
   for (int i = 0; i < kSize; ++i) {

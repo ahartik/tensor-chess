@@ -42,6 +42,7 @@ cc_library(
     deps = [
         ":board_cc_proto",
         ":persistent-int-map",
+        "@com_google_absl//absl/strings",
     ]
 )
 
