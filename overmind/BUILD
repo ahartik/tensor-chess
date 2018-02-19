@@ -41,6 +41,7 @@ cc_library(
     hdrs = ["chess.h"],
     deps = [
         ":board_cc_proto",
+        ":persistent-int-map",
     ]
 )
 

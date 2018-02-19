@@ -52,6 +52,12 @@ class PersistentIntMap {
     return PersistentIntMap(new_root);
   }
 
+  template <typename UpdateFunc>
+  PersistentIntMap Update(KeyInt key, const UpdateFunc& func) {
+    // TODO: optimize this to do only a single traversal.
+    return Insert(key, func(Find(key)));
+  }
+
   // No way to remove anything, ha ha.
  private:
   static constexpr int kKeyBits = sizeof(KeyInt) * 8;

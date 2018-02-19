@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "overmind/board.pb.h"
+#include "overmind/persistent-int-map.h"
 
 namespace overmind {
 
@@ -33,7 +34,7 @@ class ChessBoard : std::enable_shared_from_this<ChessBoard> {
   ChessBoard();
   explicit ChessBoard(const std::string& fen);
 
-  void legal_moves(std::vector<Move>* out) const;
+  void GetLegalMoves(std::vector<Move>* out) const;
   std::shared_ptr<ChessBoard> ApplyMove(const Move& m) const;
 
   void ToProto(Board* out) const;
@@ -49,7 +50,9 @@ class ChessBoard : std::enable_shared_from_this<ChessBoard> {
   int no_progress_count_ = 0;
   int repetition_count_ = 0;
 
-  std::shared_ptr<ChessBoard> parent_;
+  uint64_t hash() const;
+
+  PersistentHashMap<uint64_t, int> state_counts_;
 };
 
 }  // namespace overmind
