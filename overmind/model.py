@@ -120,7 +120,7 @@ class ChessFlow(object):
             result_predict_input, 128, activation=tf.nn.leaky_relu)
         self.result_prediction = tf.layers.dense(
             result_predict_hidden, 1, activation=tf.nn.tanh)
-        self.result_prediction = tf.reshape(self.result_prediction, [-1])
+        self.result_prediction = tf.reshape(self.result_prediction, [-1], name="result_prediction")
         self.result_loss = tf.reduce_sum(tf.squared_difference(self.result_prediction, result))
         
         self.loss = policy_loss * 1.00 + self.result_loss * 1.00

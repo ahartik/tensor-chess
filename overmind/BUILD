@@ -35,6 +35,27 @@ py_binary(
         ],
 )
 
+py_binary(
+    name =  "graph_saver",
+    srcs = ["graph_saver.py"],
+    tags = ["requires-gpu"],
+    srcs_version = "PY3",
+    deps = [
+        "@org_tensorflow//tensorflow:tensorflow_py",
+        "@org_tensorflow//tensorflow/python/tools:freeze_graph_lib"
+        ],
+)
+
+py_binary(
+    name =  "selfplay",
+    srcs = ["selfplay.py"],
+    tags = ["requires-gpu"],
+    srcs_version = "PY3",
+    deps = [
+        "@org_tensorflow//tensorflow:tensorflow_py",
+        ],
+)
+
 cc_library(
     name = "chess",
     srcs = ["chess.cpp"],

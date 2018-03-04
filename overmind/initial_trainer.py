@@ -79,6 +79,7 @@ cm = model.ChessFlow(is_training, board, move_ind, result)
 writer = tf.summary.FileWriter('/home/aleksi/tensor-chess-data/graphs', tf.get_default_graph())
 saver = tf.train.Saver()
 
+
 def test_model(sess):
     # test the model first
     total_correct_preds = 0
@@ -130,6 +131,7 @@ class TrainThread(threading.Thread):
                 cancelled = True
                 pass
 
+graph_path = "/home/aleksi/tensor-chess-data/graphs/00"
 gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.50)
 with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
     start_time = time.time()

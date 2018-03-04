@@ -1,5 +1,5 @@
-#ifndef _OVERMIND_CHESS_H_
-#define _OVERMIND_CHESS_H_
+#ifndef _OVERMIND_PERSISTENT_INT_MAP_H_
+#define _OVERMIND_PERSISTENT_INT_MAP_H_
 
 #include <iostream>
 #include <atomic>
@@ -174,4 +174,4 @@ class PersistentIntMap {
 
 }  // namespace overmind
 
-#endif  // _OVERMIND_CHESS_H_
+#endif  // _OVERMIND_PERSISTENT_INT_MAP_H_
