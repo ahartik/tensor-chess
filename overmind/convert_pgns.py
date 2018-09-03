@@ -37,7 +37,6 @@ underpromo_offset = {
     chess.KNIGHT: 2,
 }
 
-
 def encode_underpromotion(from_square, to_square, promo):
     assert promo in [chess.ROOK, chess.BISHOP, chess.KNIGHT]
     if to_square == from_square + 8:

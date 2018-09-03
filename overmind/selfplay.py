@@ -13,6 +13,29 @@ import model
 from board_pb2 import Board
 
 
+underpromo_offset = {
+    chess.ROOK: 0,
+    chess.BISHOP: 1,
+    chess.KNIGHT: 2,
+}
+
+def encode_underpromotion(from_square, to_square, promo):
+    assert promo in [chess.ROOK, chess.BISHOP, chess.KNIGHT]
+    if to_square == from_square + 8:
+        return 64 + underpromo_offset[promo]
+    if to_square == from_square + 7:
+        return 67 + underpromo_offset[promo]
+    if to_square == from_square + 9:
+        return 70 + underpromo_offset[promo]
+    raise RuntimeError("Bad promo: from {0} to {1}".format(
+        from_square, to_square))
+
+def encode_move(move):
+    if move.promotion != None:
+        if move.promotion != chess.QUEEN:
+            return encode_underpromotion(move.from_square, move.to_square, move.promotion)
+    return move.from_square * 64 + move.to_square
+
 def run_policy(sess, cm, board_tensor, board, half_move_count,
                repetition_count):
     orig_board = board
@@ -35,12 +58,14 @@ def run_policy(sess, cm, board_tensor, board, half_move_count,
                                          repetition_count)
     bt = np.reshape(bt, [1, bt.shape[0], bt.shape[1]])
     [pred_tensor] = sess.run([cm.prediction], {board_tensor: bt})
+
     predictions = []
-    for fq in range(0, 64):
-        for tq in range(0, 64):
-            m = chess.Move(fixpos(fq), fixpos(tq))
-            if orig_board.is_legal(m):
-                predictions.append((m, float(pred_tensor[(0, fq * 64 + tq)])))
+    for move in board.legal_moves:
+        prob = float(pred_tensor[(0, encode_move(move))])
+        move.from_square = fixpos(move.from_square)
+        move.to_square = fixpos(move.to_square)
+        predictions.append((move, prob))
+
     return predictions
 
 piece_to_idx = {
@@ -57,6 +82,14 @@ piece_to_idx = {
     'q': Board.OPP_Q,
     'k': Board.OPP_K,
 }
+
+promo_to_layer = {
+    chess.QUEEN: Board.MY_Q,
+    chess.ROOK: Board.MY_R,
+    chess.BISHOP: Board.MY_B,
+    chess.KNIGHT: Board.MY_N,
+}
+
 
 def encode_state(board, move_number, repetition_count, next_move, game_result):
     move_from_square = next_move.from_square
@@ -128,21 +161,23 @@ def encode_state(board, move_number, repetition_count, next_move, game_result):
                 output.move_from, output.move_to, next_move.promotion)
 
     output.game_result = game_result
-    return output.SerializeToString()
+    return output
 
 
 def pick_random_move(board, policy):
-    while True:
-        r = random.random()
-        for (move, p) in policy:
-            r -= p
-            if r < 0:
-                if board.is_legal(move):
-                    return move
-                else:
-                    # Restart with new random number
-                    break
-
+    r = random.random()
+    for (move, p) in policy:
+        r -= p
+        if r < 0:
+            if board.is_legal(move):
+                return move
+            else:
+                break
+    # Failed: Return most probable legal move
+    policy.sort(key=lambda x: x[1], reverse=True)
+    for (move, p) in policy:
+        if board.is_legal(move):
+            return move
 
 result_to_score = {
     "1-0": 1,
@@ -150,31 +185,30 @@ result_to_score = {
     "0-1": -1,
 }
 
+is_training_tensor = tf.constant(False, dtype=tf.bool)
+board_tensor = tf.placeholder(
+dtype=tf.float32, shape=(1, board_to_tensor.NUM_CHANNELS, 64))
+move_ind_tensor = tf.constant(0, dtype=tf.int32)
+result_tensor = tf.constant(0, dtype=tf.float32)
+
+cm = model.ChessFlow(is_training_tensor, board_tensor, move_ind_tensor,
+                 result_tensor)
 
 def run_games(opp, num, output):
     model_path = "/home/aleksi/tensor-chess-data/models/next/"
     opp_path = os.path.join("/home/aleksi/tensor-chess-data/models/", str(opp))
 
-    is_training_tensor = tf.constant(False, dtype=tf.bool)
-    board_tensor = tf.placeholder(
-        dtype=tf.float32, shape=(1, board_to_tensor.NUM_CHANNELS, 64))
-    move_ind_tensor = tf.constant(0, dtype=tf.int32)
-    result_tensor = tf.constant(0, dtype=tf.float32)
-
-    cm = model.ChessFlow(is_training_tensor, board_tensor, move_ind_tensor,
-                         result_tensor)
-    saver = tf.train.Saver()
-
     # Don't use all VRAM
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.2)
     sess_my = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
-    saver.restore(sess_my, model_path)
+    cm.optimistic_restore(sess_my, model_path)
 
     sess_opp = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
-    saver.restore(sess_opp, opp_path)
+    cm.optimistic_restore(sess_opp, opp_path)
 
+    total_score = 0
     for game_no in range(0, num):
-        print("Game {}".format(game_no))
+        # print("Game {}".format(game_no))
         board = chess.Board()
         player = random.randint(0, 1)
         sessions = [sess_my, sess_opp]
@@ -190,19 +224,41 @@ def run_games(opp, num, output):
                                move_number, repcount)
 
             move = pick_random_move(board, preds)
-
-            states.append(encode_state(board, move_number, repcount, move, 0))
+            if move == None:
+                print("No legal move")
+                print(board)
+                print("turn {}".format(board.turn))
+                break
+            # Only record moves by the learning player:
+            if bot_idx == 0:
+                states.append(encode_state(board, move_number, repcount, move, 0))
 
             board.push(move)
             move_number += 1
         score = result_to_score[board.result(claim_draw=True)]
-        print("move number {}".format(move_number))
-        print(board)
-        print("Result {}".format(score))
+        my_score = score if player == 0 else -score
+        total_score += my_score
+        ## print("move number {}".format(move_number))
+        ## print(board)
+        ## print("Result {}".format(score))
+        score_char = {
+                -1: "-",
+                0 : ".",
+                1: "+",
+                }[my_score]
+        print(score_char, end="")
         sys.stdout.flush()
+        for x in states:
+            x.game_result = score if player == 0 else -score
+            output.write(x.SerializeToString())
+    
+    print("Avg. score {}".format(total_score / num))
+    sys.stdout.flush()
+    sess_my.close()
+    sess_opp.close()
 
-
-output_path = "/home/aleksi/tensor-chess-data/selfplay/log"
-
-with tf.python_io.TFRecordWriter(output_path) as output:
-    run_games("0/", 100, output)
+while True:
+    output_path = "/home/aleksi/tensor-chess-data/selfplay/log_{}_{:08x}.tfrecord".format(
+        time.strftime("%Y_%m_%d_%H:%M"), random.randint(0, (1 << 32) - 1))
+    with tf.python_io.TFRecordWriter(output_path) as output:
+        run_games("0/", 200, output)

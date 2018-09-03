@@ -56,6 +56,17 @@ py_binary(
         ],
 )
 
+py_binary(
+    name = "reinforce",
+    srcs = ["reinforce.py"],
+    tags = ["requires-gpu"],
+    data = [":board_converter.so"],
+    srcs_version = "PY3",
+    deps = [
+        "@org_tensorflow//tensorflow:tensorflow_py",
+        ],
+)
+
 cc_library(
     name = "chess",
     srcs = ["chess.cpp"],
