@@ -9,3 +9,11 @@ cc_library(
     "@com_google_absl//absl/debugging:symbolize",
   ],
 )
+
+cc_library(
+  name = "recordio",
+  srcs = ["recordio.cpp"],
+  hdrs = ["recordio.h"],
+  deps = [
+  ],
+)

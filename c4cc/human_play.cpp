@@ -34,8 +34,10 @@ void Play() {
   std::cout << "Start game!\n";
   const Board result = PlayGame(&HumanPickMove, [](const Board& b) -> int {
     auto r = Negamax(b, kDepth);
+#if 0
     std::cout << "AI ponder for\n";
     std::cout << b << "\n";
+#endif
     std::cout << "eval for AI: " << r.eval << "\n";
     std::cout << "move: " << r.best_move << "\n";
     return r.best_move;

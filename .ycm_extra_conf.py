@@ -52,7 +52,7 @@ flags = [
 # a "-std=<something>".
 # For a C project, you would set this to something like 'c99' instead of
 # 'c++14'.
-'-std=c++11',
+'-std=c++17',
 # ...and the same thing goes for the magic -x option which specifies the
 # language that the files to be compiled are written in. This is mostly
 # relevant for c++ headers.
@@ -70,11 +70,13 @@ flags = [
 '-isystem',
 '../llvm/tools/clang/include',
 '-I',
-'.',
+'/home/aleksi/tensor-chess/abseil-cpp/',
 '-I',
-'/home/aleksi/cpp/tensor-chess/abseil-cpp/',
+'/home/aleksi/tensor-chess/tensorflow/tensorflow/cc/',
 '-I',
-'/home/aleksi/cpp/tensor-chess/tensorflow/tensorflow/cc/',
+'/home/aleksi/tensor-chess',
+'-I',
+'/home/aleksi/tensor-chess/bazel-genfiles',
 '-I',
 './ClangCompleter',
 '-isystem',
@@ -93,6 +95,10 @@ flags = [
 '/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1',
 '-isystem',
 '/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include',
+'-isystem',
+'/usr/include',
+'-isystem',
+'/usr/include/c++/8.2.1/',
 ]
 
 

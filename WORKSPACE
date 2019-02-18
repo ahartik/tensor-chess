@@ -28,3 +28,9 @@ local_repository(
 )
 load('@org_tensorflow//tensorflow:workspace.bzl', 'tf_workspace')
 tf_workspace(path_prefix = "", tf_repo_name = "org_tensorflow")
+
+# YCM stuff
+local_repository(
+    name = "compdb",
+    path = __workspace_dir__ + "/bazel-compilation-database",
+)

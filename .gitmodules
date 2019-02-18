@@ -4,3 +4,6 @@
 [submodule "abseil-cpp"]
 	path = abseil-cpp
 	url = https://github.com/abseil/abseil-cpp.git
+[submodule "bazel-compilation-database"]
+	path = bazel-compilation-database
+	url = https://github.com/grailbio/bazel-compilation-database.git

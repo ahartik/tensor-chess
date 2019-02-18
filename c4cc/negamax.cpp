@@ -28,6 +28,7 @@ int32_t StaticEval(const Board& b, Color me) {
     for (const auto start : Board::start_pos_list(dir)) {
       int x = start.first;
       int y = start.second;
+      bool last_open = false;
       int count = 0;
       Color current = Color::kEmpty;
       // Go go power rangers!
@@ -35,11 +36,20 @@ int32_t StaticEval(const Board& b, Color me) {
         if (b.color(x, y) == current) {
           ++count;
         } else {
-          // Give points.
+          Color new_color = b.color(x, y);
+          // Give points based on how many sides are open.
           if (current != Color::kEmpty) {
             assert(count < 4);
-            e += ((current == me) ? 1 : -1) * kCloseBonus[count];
+            int multiplier = 1;
+            if (last_open) {
+              multiplier *= 2;
+            }
+            if (new_color == Color::kEmpty) {
+              multiplier *= 2;
+            }
+            e += multiplier * ((current == me) ? 1 : -1) * kCloseBonus[count];
           }
+          last_open = current == Color::kEmpty;
           current = b.color(x, y);
           count = 1;
         }

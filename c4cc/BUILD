@@ -24,3 +24,14 @@ cc_binary(
     srcs = ["human_play.cpp"],
     deps = [":board", ":play_game", ":negamax", "//util:init"],
 )
+
+proto_library(
+    name = "game_proto",
+    srcs = ["game.proto"],
+)
+
+cc_proto_library(
+    name = "game_cc_proto",
+    deps = [":game_proto"],
+)
+
