@@ -1,5 +1,6 @@
 #include "c4cc/board.h"
 
+#include <iostream>
 #include <cstdint>
 
 namespace c4cc {
@@ -7,8 +8,8 @@ namespace c4cc {
 namespace {
 const int kDX[4] = {0, 1, 1, 1};
 const int kDY[4] = {1, 0, 1, -1};
-uint8_t kStartX[4][6][7];
-uint8_t kStartY[4][6][7];
+uint8_t kStartX[4][7][6];
+uint8_t kStartY[4][7][6];
 
 bool InitializeStartXY() {
   // Vertical and horizontal.
@@ -26,7 +27,7 @@ bool InitializeStartXY() {
       // Upward (direction kDX/kDY[2]):
       int x = i;
       int y = j;
-      while (x > 1 && y > 1) {
+      while (x > 0 && y > 0) {
         --x;
         --y;
       }
@@ -37,7 +38,7 @@ bool InitializeStartXY() {
       // Downward (direction kDX/kDY[3]):
       x = i;
       y = j;
-      while (x > 1 && y < 5) {
+      while (x > 0 && y < 5) {
         --x;
         ++y;
       }
@@ -58,6 +59,7 @@ Board::Board() {
       board_[i][j] = Color::kEmpty;
     }
   }
+  RedoMoves();
 }
 
 void Board::MakeMove(int move_x) {
@@ -95,13 +97,7 @@ void Board::MakeMove(int move_x) {
   }
   if (move_y == 5) {
     // Last move for this column, update the list of valid moves.
-    MoveList new_list;
-    for (int i = 0; i < valid_moves_.size(); ++i) {
-      if (valid_moves_[i] != move_x) {
-        new_list.push_back(valid_moves_[i]);
-      }
-    }
-    valid_moves_ = new_list;
+    RedoMoves();
     if (!is_over_ && valid_moves_.size() == 0) {
       // Draw, no more moves left.
       is_over_ = true;
@@ -109,6 +105,34 @@ void Board::MakeMove(int move_x) {
     }
   }
   turn_ = OtherColor(turn_);
+}
+
+void Board::UndoMove(int move_x) {
+  is_over_ = false;
+  turn_ = OtherColor(turn_);
+  for (int move_y = 5; move_y >= 0; --move_y) {
+    if (board_[move_x][move_y] != Color::kEmpty) {
+      assert(board_[move_x][move_y] == turn_);
+      board_[move_x][move_y] = Color::kEmpty;
+      if (move_y == 5) {
+        RedoMoves();
+      }
+      return;
+    }
+  }
+  assert(false);
+}
+
+void Board::RedoMoves() {
+  // Last move for this column, update the list of valid moves.
+  MoveList new_list;
+  static const int kBestOrder[] = {3, 2, 4, 1, 5, 0, 6};
+  for (int x : kBestOrder) {
+    if (board_[x][5] == Color::kEmpty) {
+      new_list.push_back(x);
+    }
+  }
+  valid_moves_ = new_list;
 }
 
 // static
@@ -140,6 +164,30 @@ const std::vector<std::pair<int, int>>& Board::start_pos_list(int dir) {
       make_vec(3),
   };
   return kVecs[dir];
+}
+
+void PrintBoard(std::ostream& out, const Board& b, const char* one,
+                const char* two) {
+  out << "+---+---+---+---+---+---+---+\n";
+  for (int y = 5; y >= 0; --y) {
+    for (int x = 0; x < 7; ++x) {
+      Color c = b.color(x, y);
+      switch (c) {
+        case Color::kEmpty:
+          out << "|   ";
+          break;
+        case Color::kOne:
+          out << "|" << one;
+          break;
+        case Color::kTwo:
+          out << "|" << two;
+          break;
+      }
+    }
+    out << "|\n";
+    out << "+---+---+---+---+---+---+---+\n";
+  }
+  out << "  0   1   2   3   4   5   6 \n";
 }
 
 }  // namespace c4cc

@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstdint>
 
+#include <ostream>
 #include <vector>
 #include <utility>
 
@@ -16,7 +17,11 @@ class MoveList {
   MoveList& operator=(const MoveList& o) = default;
 
   int operator[](int idx) const { return moves_[idx]; }
-  int size() { return size_; }
+  int size() const { return size_; }
+
+  const uint8_t* begin() const { return &moves_[0]; }
+  const uint8_t* end() const { return begin() + size(); }
+
   void push_back(int x) {
     assert(x < 7);
     assert(x >= 0);
@@ -56,23 +61,34 @@ class Board {
     return result_;
   }
 
-  void MakeMove(int m);
+  void MakeMove(int move_x);
+  void UndoMove(int move_x);
 
   Color color(int x, int y) const { return board_[x][y]; }
 
   static constexpr int kNumDirs = 4;
   static int dx(int dir);
   static int dy(int dir);
-  static std::pair<int,int> start_pos(int dir, int x, int y);
+  static std::pair<int, int> start_pos(int dir, int x, int y);
   static const std::vector<std::pair<int, int>>& start_pos_list(int dir);
 
  private:
+  void RedoMoves();
+
   Color turn_ = Color::kOne;
   MoveList valid_moves_;
   Color board_[7][6] = {};
   bool is_over_ = false;
   Color result_ = Color::kEmpty;
 };
+
+void PrintBoard(std::ostream& out, const Board& b, const char* one,
+                const char* two);
+
+inline std::ostream& operator<<(std::ostream& out, const Board& b) {
+  PrintBoard(out, b, " X ", " O ");
+  return out;
+}
 
 }  // namespace c4cc
 

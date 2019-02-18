@@ -5,14 +5,15 @@
 
 namespace c4cc {
 
-struct NegamaxResult {
-  int32_t eval;
-  int best_move = 0;
-};
 
 int32_t StaticEval(const Board& b);
 
-NegamaxResult Negamax(const Board& b);
+// Returns eval and best move for the current player.
+struct NegamaxResult {
+  int32_t eval;
+  int best_move;
+};
+NegamaxResult Negamax(const Board& b, int depth);
 
 }  // namespace c4cc
 
