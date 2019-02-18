@@ -99,6 +99,12 @@ flags = [
 '/usr/include',
 '-isystem',
 '/usr/include/c++/8.2.1/',
+'-isystem',
+'/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/8.2.1/../../../../include/c++/8.2.1',
+'-isystem',
+'/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/8.2.1/../../../../include/c++/8.2.1/x86_64-pc-linux-gnu',
+'-isystem',
+'/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/8.2.1/../../../../include/c++/8.2.1/backward',
 ]
 
 
