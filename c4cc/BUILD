@@ -4,3 +4,10 @@ cc_library(
     hdrs = ["board.h"],
     deps = [],
 )
+
+cc_library(
+    name = "negamax",
+    srcs = ["negamax.cpp"],
+    hdrs = ["negamax.h"],
+    deps = [":board"],
+)

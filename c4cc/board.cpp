@@ -111,4 +111,35 @@ void Board::MakeMove(int move_x) {
   turn_ = OtherColor(turn_);
 }
 
+// static
+int Board::dx(int dir) { return kDX[dir]; }
+// static
+int Board::dy(int dir) { return kDY[dir]; }
+// static
+std::pair<int, int> Board::start_pos(int dir, int x, int y) {
+  return {kStartX[dir][x][y], kStartY[dir][x][y]};
+}
+
+// static
+const std::vector<std::pair<int, int>>& Board::start_pos_list(int dir) {
+  static const auto make_vec = [](int dir) {
+    std::vector<std::pair<int, int>> v;
+    for (int i = 0; i < 7; ++i) {
+      for (int j = 0; j < 6; ++j) {
+        if (kStartX[dir][i][j] == i && kStartY[dir][i][j] == j) {
+          v.push_back({i, j});
+        }
+      }
+    }
+    return v;
+  };
+  static const std::vector<std::pair<int, int>> kVecs[4] = {
+      make_vec(0),
+      make_vec(1),
+      make_vec(2),
+      make_vec(3),
+  };
+  return kVecs[dir];
+}
+
 }  // namespace c4cc

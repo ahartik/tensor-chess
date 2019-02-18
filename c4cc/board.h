@@ -4,6 +4,9 @@
 #include <cassert>
 #include <cstdint>
 
+#include <vector>
+#include <utility>
+
 namespace c4cc {
 
 class MoveList {
@@ -54,6 +57,14 @@ class Board {
   }
 
   void MakeMove(int m);
+
+  Color color(int x, int y) const { return board_[x][y]; }
+
+  static constexpr int kNumDirs = 4;
+  static int dx(int dir);
+  static int dy(int dir);
+  static std::pair<int,int> start_pos(int dir, int x, int y);
+  static const std::vector<std::pair<int, int>>& start_pos_list(int dir);
 
  private:
   Color turn_ = Color::kOne;
