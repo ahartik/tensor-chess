@@ -23,7 +23,7 @@ class RecordReader {
   bool Read(std::string& buf);
 
  private:
-  std::istream& in_;
+  std::ifstream in_;
 };
 
 }  // namespace util
