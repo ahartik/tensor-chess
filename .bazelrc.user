@@ -1,5 +1,5 @@
 build --copt=-march=native
-build --action_env TMP=/tmp/
+build --action_env=TMP=/tmp/
 build --linkopt=-pthread
 build --linkopt=-rdynamic
-build --cxxopt=-std=c++17
+build --cxxopt=-std=c++14

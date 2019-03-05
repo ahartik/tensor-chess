@@ -66,7 +66,7 @@ int32_t StaticEval(const Board& b, Color me) {
 
 namespace {
 
-NegamaxResult NRec(Board& b, int depth) {
+NegamaxResult NRec(Board& b, int depth, int32_t alpha, int32_t beta) {
   if (b.is_over() || depth == 0) {
     int32_t eval = StaticEval(b, b.turn());
     if (b.is_over()) {
@@ -85,16 +85,20 @@ NegamaxResult NRec(Board& b, int depth) {
   const MoveList moves = b.valid_moves();
   for (int m : moves) {
     b.MakeMove(m);
-    const auto r = NRec(b, depth - 1);
+    const auto r = NRec(b, depth - 1, -beta, -alpha);
     const int32_t eval_for_me = -r.eval;
-    if (eval_for_me > best) {
-      best_move = m;
-      best = eval_for_me;
-    }
     //     std::cout << "depth=" << depth << " score for " << m << ": " <<
     //     eval_for_me
     //               << "\n";
     b.UndoMove(m);
+    if (eval_for_me > best) {
+      best_move = m;
+      best = eval_for_me;
+    }
+    alpha = std::max(alpha, best);
+    if (alpha >= beta) {
+      break;
+    }
   }
   return NegamaxResult{best, best_move};
 }
@@ -103,7 +107,7 @@ NegamaxResult NRec(Board& b, int depth) {
 
 NegamaxResult Negamax(const Board& b, int depth) {
   Board copy = b;
-  return NRec(copy, depth);
+  return NRec(copy, depth, -kWinScore - 100, kWinScore + 100);
 }
 
 }  // namespace c4cc

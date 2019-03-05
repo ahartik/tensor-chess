@@ -1,7 +1,7 @@
 #include "util/recordio.h"
 
-#include <cstring>
 #include <cstdint>
+#include <cstring>
 
 #include <iostream>
 
@@ -9,13 +9,22 @@ namespace util {
 
 const uint8_t kCurrentVersion = 1;
 
-RecordWriter::RecordWriter(const char* file) : out_(file) {
+RecordWriter::RecordWriter(const char* file) : fname_(file), out_(file) {
   if (out_) {
     out_.put(kCurrentVersion);
   }
 }
 
-bool RecordWriter::Write(std::string_view str) {
+RecordWriter::~RecordWriter() {
+  if (!closed_) {
+    if (!Finish()) {
+      std::cerr << "Failed to close file " << fname_ << "\n";
+      abort();
+    }
+  }
+}
+
+bool RecordWriter::Write(absl::string_view str) {
   const uint32_t len = str.size();
   if (!out_.write(reinterpret_cast<const char*>(&len), sizeof(len))) {
     return false;
@@ -26,10 +35,14 @@ bool RecordWriter::Write(std::string_view str) {
 bool RecordWriter::Finish() {
   bool status = out_.flush().good();
   out_.close();
+  closed_ = true;
   return status;
 }
 
-RecordReader::RecordReader(const char* file) : in_(file) {
+void RecordWriter::Flush() { out_.flush(); }
+
+RecordReader::RecordReader(absl::string_view file)
+    : in_(std::string(file).c_str()) {
   const uint8_t version = in_.get();
   if (version != kCurrentVersion) {
     std::cerr << "Unsupported recordio version " << version << "file: " << file
@@ -46,7 +59,7 @@ bool RecordReader::Read(std::string& buf) {
   }
   memcpy(&len, len_buf, sizeof(len));
   buf.resize(len);
-  return in_.read(buf.data(), len).good();
+  return in_.read(&buf[0], len).good();
 }
 
 }  // namespace util
