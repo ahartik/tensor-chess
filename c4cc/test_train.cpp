@@ -1,6 +1,6 @@
+#include <dirent.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <dirent.h>
 
 #include <cstdlib>
 #include <iostream>
@@ -10,6 +10,7 @@
 
 #include "c4cc/board.h"
 #include "c4cc/game.pb.h"
+#include "c4cc/model.h"
 #include "tensorflow/core/framework/graph.pb.h"
 #include "tensorflow/core/framework/tensor.h"
 #include "tensorflow/core/lib/io/path.h"
@@ -22,120 +23,18 @@
 
 namespace c4cc {
 
-class Model {
- public:
-  explicit Model(const std::string& graph_def_filename) {
-    tensorflow::GraphDef graph_def;
-    TF_CHECK_OK(tensorflow::ReadBinaryProto(tensorflow::Env::Default(),
-                                            graph_def_filename, &graph_def));
-    session_.reset(tensorflow::NewSession(tensorflow::SessionOptions()));
-    TF_CHECK_OK(session_->Create(graph_def));
-
-    true_.flat<bool>()(0) = true;
-    false_.flat<bool>()(0) = false;
-  }
-
-  void Init() { TF_CHECK_OK(session_->Run({}, {}, {"init"}, nullptr)); }
-
-  void Restore(const std::string& checkpoint_prefix) {
-    SaveOrRestore(checkpoint_prefix, "save/restore_all");
-  }
-
-  std::vector<int> Predict(const std::vector<float>& batch) {
-    std::vector<tensorflow::Tensor> out_tensors;
-    TF_CHECK_OK(session_->Run(
-        {
-            {"board", MakeBoardTensor(batch)},
-            {"is_training", false_},
-        },
-        {"output_move"}, {}, &out_tensors));
-    const int width = 2 * 42;
-    const int size = batch.size();
-    const int num_boards = size / width;
-    CHECK_EQ(size % width, 0);
-    CHECK_EQ(out_tensors[0].dims(), 2);
-    CHECK_EQ(out_tensors[0].dim_size(0), num_boards);
-    CHECK_EQ(out_tensors[0].dim_size(1), 7);
-    const auto& result = out_tensors[0].matrix<float>();
-    std::vector<int> output(num_boards);
-    for (int i = 0; i < num_boards; ++i) {
-      int best_move = 0;
-      float best_prob = 0;
-      float total = 0;
-      for (int j = 0; j < 7; ++j) {
-        const float p = result(i, j);
-        total += p;
-        CHECK(!isnan(p));
-        if (p > best_prob) {
-          best_prob = p;
-          best_move = j;
-        }
-      }
-      output[i] = best_move;
-      // std::cout << "tot=" << total << " best=" << best_move << "\n";
-    }
-    return output;
-  }
-
-  void RunTrainStep(const std::vector<float>& board_batch,
-                    const std::vector<int>& target_batch) {
-    TF_CHECK_OK(session_->Run(
-        {
-            {"board", MakeBoardTensor(board_batch)},
-            {"target_move", MakeMoveTensor(target_batch)},
-            {"is_training", true_},
-        },
-        {}, {"train"}, nullptr));
-  }
-
-  void Checkpoint(const std::string& checkpoint_prefix) {
-    SaveOrRestore(checkpoint_prefix, "save/control_dependency");
-  }
-
- private:
-  tensorflow::Tensor MakeBoardTensor(const std::vector<float>& batch) {
-    const int width = 2 * 42;
-    const int size = batch.size();
-    CHECK_EQ(size % width, 0);
-    tensorflow::Tensor t(tensorflow::DT_FLOAT,
-                         tensorflow::TensorShape({size / width, width}));
-    for (int i = 0; i < batch.size(); ++i) {
-      t.flat<float>()(i) = batch[i];
-    }
-    return t;
-  }
-  tensorflow::Tensor MakeMoveTensor(const std::vector<int>& batch) {
-    tensorflow::Tensor t(tensorflow::DT_FLOAT,
-                         tensorflow::TensorShape({(int)batch.size(), 7}));
-    for (int i = 0; i < batch.size() * 7; ++i) {
-      t.flat<float>()(i) = 0.0;
-    }
-    for (int i = 0; i < batch.size(); ++i) {
-      t.flat<float>()(i * 7 + batch[i]) = 1.0;
-    }
-    return t;
-  }
-  void SaveOrRestore(const std::string& checkpoint_prefix,
-                     const std::string& op_name) {
-    tensorflow::Tensor t(tensorflow::DT_STRING, tensorflow::TensorShape());
-    t.scalar<std::string>()() = checkpoint_prefix;
-    TF_CHECK_OK(session_->Run({{"save/Const", t}}, {}, {op_name}, nullptr));
-  }
-  std::unique_ptr<tensorflow::Session> session_;
-  tensorflow::Tensor true_{tensorflow::DT_BOOL, tensorflow::TensorShape({})};
-  tensorflow::Tensor false_{tensorflow::DT_BOOL, tensorflow::TensorShape({})};
-};
-
-void BoardToTensor(const Board& b, std::vector<float>* tensor) {
+void BoardToTensor(const Board& b, tensorflow::Tensor* tensor, int i) {
   const Color kColorOrder[2][2] = {
       {Color::kOne, Color::kTwo},
       {Color::kTwo, Color::kOne},
   };
+  int j = 0;
   for (Color c : kColorOrder[b.turn() == Color::kOne]) {
     for (int x = 0; x < 7; ++x) {
       for (int y = 0; y < 6; ++y) {
         const bool set = b.color(x, y) == c;
-        tensor->push_back(set ? 1.0 : 0.0);
+        tensor->matrix<float>()(i, j) = set ? 1.0 : 0.0;
+        ++j;
       }
     }
   }
@@ -148,7 +47,7 @@ class ShufflingTrainer {
 
   explicit ShufflingTrainer(Model* model) : model_(model) {}
 
-  void Train(const Board& b, int move) {
+  void Train(const Board& b, int move, Color winner) {
     auto d = std::make_unique<BoardData>();
     for (int x = 0; x < 7; ++x) {
       for (int y = 0; y < 6; ++y) {
@@ -157,6 +56,11 @@ class ShufflingTrainer {
     }
     d->turn = b.turn();
     d->move = move;
+    if (winner == Color::kEmpty) {
+      d->score = 0;
+    } else {
+      d->score = b.turn() == winner ? 1.0 : -1.0;
+    }
     boards_.push_back(std::move(d));
     if (boards_.size() >= kShuffleBatch) {
       TrainBatch();
@@ -174,37 +78,44 @@ class ShufflingTrainer {
     Color board[42];
     Color turn;
     int move;
+    float score = 0.0;
   };
 
-  void BoardToTensor(const BoardData& b, std::vector<float>* tensor) {
+  void BoardToTensor(const BoardData& b, tensorflow::Tensor* tensor, int i) {
     const Color kColorOrder[2][2] = {
         {Color::kOne, Color::kTwo},
         {Color::kTwo, Color::kOne},
     };
+    int j = 0;
     for (Color c : kColorOrder[b.turn == Color::kOne]) {
       for (int x = 0; x < 42; ++x) {
         const bool set = b.board[x] == c;
-        tensor->push_back(set ? 1.0 : 0.0);
+        tensor->matrix<float>()(i, j) = set ? 1.0 : 0.0;
+        ++j;
       }
     }
   }
 
   void TrainBatch() {
-    std::vector<float> batch_data;
-    std::vector<int> moves;
-    batch_data.reserve(kTrainBatch * 2 * 42);
-    moves.reserve(kTrainBatch);
-
+    tensorflow::Tensor board_tensor(tensorflow::DT_FLOAT,
+                                    tensorflow::TensorShape({kTrainBatch, 84}));
+    tensorflow::Tensor move_tensor(tensorflow::DT_FLOAT,
+                                   tensorflow::TensorShape({kTrainBatch, 7}));
+    tensorflow::Tensor value_tensor(tensorflow::DT_FLOAT,
+                                    tensorflow::TensorShape({kTrainBatch}));
     for (int i = 0; i < kTrainBatch; ++i) {
       std::uniform_int_distribution<int> dist(0, boards_.size() - 1);
       const int x = dist(rng_);
-      BoardToTensor(*boards_[x], &batch_data);
-      moves.push_back(boards_[x]->move);
+      BoardToTensor(*boards_[x], &board_tensor, i);
+      for (int m = 0; m < 7; ++m) {
+        move_tensor.matrix<float>()(i, m) = (m == boards_[x]->move) ? 1.0 : 0.0;
+      }
+      value_tensor.flat<float>()(i) = boards_[x]->score;
 
       std::swap(boards_[x], boards_.back());
       boards_.pop_back();
     }
-    model_->RunTrainStep(batch_data, moves);
+    model_->RunTrainStep(board_tensor, move_tensor, value_tensor);
   }
 
   std::mt19937 rng_;
@@ -275,13 +186,17 @@ void Go() {
         GameRecord record;
         record.ParseFromString(buf);
         Board board;
+        const Color winner =
+            record.game_result() == 0
+                ? Color::kEmpty
+                : record.game_result() == 1 ? Color::kOne : Color::kTwo;
         const Color good_ai =
             record.players(0) == GameRecord::MINMAX ? Color::kOne : Color::kTwo;
         for (const int move : record.moves()) {
           CHECK(!board.is_over());
           const bool train = board.turn() == good_ai;
           if (train) {
-            trainer.Train(board, move);
+            trainer.Train(board, move, winner);
           }
           board.MakeMove(move);
         }
@@ -293,6 +208,7 @@ void Go() {
     std::cout << "Saving checkpoint\n";
     model.Checkpoint(checkpoint_prefix);
 
+#if 1
     std::cout << "Running test\n";
     {
       util::RecordReader reader(test_file);
@@ -308,23 +224,39 @@ void Go() {
         ++game_no;
         GameRecord record;
         record.ParseFromString(buf);
-        std::vector<float> board_tensors;
+        tensorflow::Tensor board_tensor(tensorflow::DT_FLOAT,
+                                        tensorflow::TensorShape({record.moves_size(), 84}));
         std::vector<int> expected_moves;
         Board board;
         const Color good_ai =
             record.players(0) == GameRecord::MINMAX ? Color::kOne : Color::kTwo;
+        int move_no = 0;
         for (const int move : record.moves()) {
           CHECK(!board.is_over());
           const bool train = board.turn() == good_ai;
           if (train) {
-            BoardToTensor(board, &board_tensors);
+            BoardToTensor(board, &board_tensor, move_no);
+            ++move_no;
             expected_moves.push_back(move);
           }
           board.MakeMove(move);
         }
         CHECK(board.is_over());
 
-        const auto actual_moves = model.Predict(board_tensors);
+        const Model::Prediction prediction  = model.Predict(board_tensor);
+        std::vector<int> actual_moves;
+        for (int i = 0; i < expected_moves.size(); ++i) {
+          int best = 0;
+          float score = 0;
+          for (int m = 0; m < 7; ++m) {
+            double p = prediction.move_p.matrix<float>()(i, m);
+            if (p > score) {
+              score = p;
+              best = m;
+            }
+          }
+          actual_moves.push_back(best);
+        }
         CHECK_EQ(actual_moves.size(), expected_moves.size());
         for (int i = 0; i < actual_moves.size(); ++i) {
           if (actual_moves[i] == expected_moves[i]) {
@@ -333,8 +265,9 @@ void Go() {
           ++total;
         }
       }
-      std::cout << "Accuracy: " << (100 * double(correct) / total) << "%\n";
+      std::cout << "Accuracy: " << (100 * double(correct) / total) << "% \n";
     }
+#endif
   }
 }
 

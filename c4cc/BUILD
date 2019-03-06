@@ -1,4 +1,5 @@
 load("@org_tensorflow//tensorflow:tensorflow.bzl", "tf_cc_binary")
+load("@org_tensorflow//tensorflow:tensorflow.bzl", "tf_copts")
 
 cc_library(
     name = "board",
@@ -57,11 +58,24 @@ tf_cc_binary(
     ],
 )
 
+cc_library (
+    name = "model",
+    hdrs = ["model.h"],
+    srcs = ["model.cpp"],
+    copts = tf_copts(),
+    deps = [
+        "@org_tensorflow//tensorflow/core:lib",
+        "@org_tensorflow//tensorflow/core:tensorflow",
+        "@org_tensorflow//tensorflow/core:framework",
+    ],
+)
+
 tf_cc_binary(
     name = "test_train",
     srcs = ["test_train.cpp"],
     deps = [
         ":board",
+        ":model",
         ":game_cc_proto",
         "//util:recordio",
         "@org_tensorflow//tensorflow/core:lib",
@@ -69,3 +83,4 @@ tf_cc_binary(
         "@org_tensorflow//tensorflow/core:framework",
     ],
 )
+
