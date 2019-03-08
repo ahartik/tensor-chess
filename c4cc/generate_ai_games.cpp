@@ -51,15 +51,16 @@ void PlayGames(const char* output, int n) {
   for (int i = 0; i < n; ++i) {
     const Color good_ai = (i % 2) ? Color::kOne : Color::kTwo;
     Board result;
+    std::vector<int> moves;
     GameRecord record;
     if (good_ai == Color::kOne) {
       record.add_players(GameRecord::MINMAX);
       record.add_players(GameRecord::MINMAX_RANDOM);
-      result = PlayGame(&PickMove, &PickMoveWithRandom);
+      std::tie(result, moves) = PlayGame(&PickMove, &PickMoveWithRandom);
     } else {
       record.add_players(GameRecord::MINMAX_RANDOM);
       record.add_players(GameRecord::MINMAX);
-      result = PlayGame(&PickMoveWithRandom, &PickMove);
+      std::tie(result, moves) = PlayGame(&PickMoveWithRandom, &PickMove);
     }
     LOG(INFO) << "Board: \n" << result; 
     switch (result.result()) {
@@ -73,7 +74,7 @@ void PlayGames(const char* output, int n) {
         record.set_game_result(-1);
         break;
     }
-    for (const int move : result.history()) {
+    for (const int move : moves) {
       record.add_moves(move);
     }
     CHECK(writer.Write(record.SerializeAsString()));

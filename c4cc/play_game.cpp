@@ -4,8 +4,10 @@
 
 namespace c4cc {
 
-Board PlayGame(const std::function<int(const Board&)>& move_picker_1,
-               const std::function<int(const Board&)>& move_picker_2) {
+std::pair<Board, std::vector<int>> PlayGame(
+    const std::function<int(const Board&)>& move_picker_1,
+    const std::function<int(const Board&)>& move_picker_2) {
+  std::vector<int> moves;
   Board b;
   while (!b.is_over()) {
     int m = -1;
@@ -20,9 +22,10 @@ Board PlayGame(const std::function<int(const Board&)>& move_picker_1,
         std::cerr << "Impossible location";
         abort();
     }
+    moves.push_back(m);
     b.MakeMove(m);
   }
-  return b;
+  return {b, moves};
 }
 
 }  // namespace c4cc

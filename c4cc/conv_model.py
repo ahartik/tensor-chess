@@ -52,7 +52,6 @@ value_layer = tf.keras.layers.Flatten()(layer)
 print("After flatten: {}".format(value_layer.shape));
 value_layer = tf.keras.layers.Dense(128, activation='relu')(value_layer)
 print("After dense: {}".format(value_layer.shape));
-
 output_value = tf.keras.layers.Dense(1, activation='tanh')(value_layer)
 print("After head: {}".format(value_layer.shape));
 

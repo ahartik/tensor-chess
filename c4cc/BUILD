@@ -84,3 +84,24 @@ tf_cc_binary(
     ],
 )
 
+cc_library(
+    name = "predictor",
+    hdrs = ["predictor.h"],
+    srcs = ["predictor.cpp"],
+    deps = [
+        ":model",
+        ":board",
+    ],
+)
+
+cc_library(
+    name =  "mcts",
+    hdrs = ["mcts.h"],
+    srcs = ["mcts.cpp"],
+    copts = tf_copts(),
+    deps = [
+        ":board",
+        "@org_tensorflow//tensorflow/core:lib",
+        "@org_tensorflow//tensorflow/core:tensorflow",
+    ],
+)

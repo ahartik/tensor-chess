@@ -64,7 +64,6 @@ Board::Board() {
 
 void Board::MakeMove(int move_x) {
   assert(!is_over());
-  moves_.push_back(move_x);
   const Color t = turn();
   int move_y;
   for (move_y = 0; move_y < 6; ++move_y) {
@@ -110,7 +109,6 @@ void Board::MakeMove(int move_x) {
 
 void Board::UndoMove(int move_x) {
   is_over_ = false;
-  moves_.pop_back();
   turn_ = OtherColor(turn_);
   for (int move_y = 5; move_y >= 0; --move_y) {
     if (board_[move_x][move_y] != Color::kEmpty) {

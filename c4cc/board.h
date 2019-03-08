@@ -65,7 +65,6 @@ class Board {
   void UndoMove(int move_x);
 
   Color color(int x, int y) const { return board_[x][y]; }
-  const std::vector<uint8_t>& history() const { return moves_; }
 
   static constexpr int kNumDirs = 4;
   static int dx(int dir);
@@ -81,7 +80,6 @@ class Board {
   Color board_[7][6] = {};
   bool is_over_ = false;
   Color result_ = Color::kEmpty;
-  std::vector<uint8_t> moves_;
 };
 
 void PrintBoard(std::ostream& out, const Board& b, const char* one,
