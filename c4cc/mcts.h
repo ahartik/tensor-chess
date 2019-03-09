@@ -39,7 +39,7 @@ class MCTS {
   // Number of times an iteration has been completed.
   int num_iterations() const;
 
-  // This is the prediction for the current board
+  // This is the prediction for the current board. Requires num_iterations > 1.
   Prediction GetMCTSPrediction();
 
   // Advances the current state with a move.

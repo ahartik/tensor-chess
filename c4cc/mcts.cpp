@@ -155,4 +155,8 @@ Prediction MCTS::GetMCTSPrediction() {
   return res;
 }
 
+void MCTS::MakeMove(int a) {
+  CHECK_EQ(next_parent_, nullptr);
+}
+
 }  // namespace c4cc

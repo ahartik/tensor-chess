@@ -53,10 +53,10 @@ bool dummy = InitializeStartXY();
 
 }  // namespace
 
-Board::Board() {
+Board::Board() : is_over_(false) {
   for (int i = 0; i < 7; ++i) {
     for (int j = 0; j < 6; ++j) {
-      board_[i][j] = Color::kEmpty;
+      SetColor(i, j, Color::kEmpty);
     }
   }
   RedoMoves();
@@ -67,8 +67,8 @@ void Board::MakeMove(int move_x) {
   const Color t = turn();
   int move_y;
   for (move_y = 0; move_y < 6; ++move_y) {
-    if (board_[move_x][move_y] == Color::kEmpty) {
-      board_[move_x][move_y] = t;
+    if (color(move_x, move_y) == Color::kEmpty) {
+      SetColor(move_x, move_y, t);
       break;
     }
   }
@@ -80,7 +80,7 @@ void Board::MakeMove(int move_x) {
     int y = kStartY[d][move_x][move_y];
     int count = 0;
     while (x < 7 && y >= 0 && y < 6) {
-      if (board_[x][y] == t) {
+      if (color(x, y) == t) {
         ++count;
         if (count == 4) {
           is_over_ = true;
@@ -98,7 +98,7 @@ void Board::MakeMove(int move_x) {
   if (move_y == 5) {
     // Last move for this column, update the list of valid moves.
     RedoMoves();
-    if (!is_over_ && valid_moves_.size() == 0) {
+    if (!is_over_ && valid_moves_  == 0) {
       // Draw, no more moves left.
       is_over_ = true;
       result_ = Color::kEmpty;
@@ -111,9 +111,9 @@ void Board::UndoMove(int move_x) {
   is_over_ = false;
   turn_ = OtherColor(turn_);
   for (int move_y = 5; move_y >= 0; --move_y) {
-    if (board_[move_x][move_y] != Color::kEmpty) {
-      assert(board_[move_x][move_y] == turn_);
-      board_[move_x][move_y] = Color::kEmpty;
+    if (color(move_x, move_y) != Color::kEmpty) {
+      assert(color(move_x, move_y) == turn_);
+      SetColor(move_x, move_y, Color::kEmpty);
       if (move_y == 5) {
         RedoMoves();
       }
@@ -125,14 +125,23 @@ void Board::UndoMove(int move_x) {
 
 void Board::RedoMoves() {
   // Last move for this column, update the list of valid moves.
-  MoveList new_list;
-  static const int kBestOrder[] = {3, 2, 4, 1, 5, 0, 6};
-  for (int x : kBestOrder) {
-    if (board_[x][5] == Color::kEmpty) {
-      new_list.push_back(x);
+  valid_moves_ = 0;
+  for (int x = 0; x < 7; ++x) {
+    if (color(x, 5) == Color::kEmpty) {
+      valid_moves_ |= (1 << x);
     }
   }
-  valid_moves_ = new_list;
+}
+
+MoveList Board::valid_moves() const {
+  static const int kBestOrder[] = {3, 2, 4, 1, 5, 0, 6};
+  MoveList list;
+  for (int x : kBestOrder) {
+    if (valid_moves_ & (1 << x)) {
+      list.push_back(x);
+    }
+  }
+  return list;
 }
 
 // static

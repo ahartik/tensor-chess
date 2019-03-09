@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstdint>
 
+#include <iostream>
 #include <ostream>
 #include <vector>
 #include <utility>
@@ -37,8 +38,8 @@ class MoveList {
 
 enum class Color : uint8_t {
   kEmpty = 0,
-  kOne,
-  kTwo,
+  kOne = 1,
+  kTwo = 2,
 };
 
 inline Color OtherColor(Color c) {
@@ -52,7 +53,7 @@ class Board {
 
   Color turn() const { return turn_; }
 
-  const MoveList& valid_moves() const { return valid_moves_; }
+  MoveList valid_moves() const;
 
   bool is_over() const { return is_over_; }
   // 1 if kOne wins, -1 if kTwo wins, 0 for draw.
@@ -64,7 +65,19 @@ class Board {
   void MakeMove(int move_x);
   void UndoMove(int move_x);
 
-  Color color(int x, int y) const { return board_[x][y]; }
+  Color color(int x, int y) const {
+    unsigned i = x * 6 + y;
+    int byte = i / 4;
+    int offset = 2 * (i % 4);
+    const int val = (data_[byte] >> offset) & 3;
+#if 0
+    if (val == 3 || byte > 10) {
+      std::cerr << "Invalid bytes: i=" << i << " val=" << val << "\n";
+      abort();
+    }
+#endif
+    return static_cast<Color>(val);
+  }
 
   static constexpr int kNumDirs = 4;
   static int dx(int dir);
@@ -73,12 +86,27 @@ class Board {
   static const std::vector<std::pair<int, int>>& start_pos_list(int dir);
 
  private:
+  template <typename H>
+  friend H AbslHashValue(H h, const Board& b);
+
   void RedoMoves();
 
-  Color turn_ = Color::kOne;
-  MoveList valid_moves_;
-  Color board_[7][6] = {};
+  void SetColor(int x, int y, Color c) {
+    unsigned i = x * 6 + y;
+    int byte = i / 4;
+    int offset = 2 * (i % 4);
+    assert(byte < 11);
+    // Clear:
+    data_[byte] &= ~(3 << offset);
+    // Set:
+    data_[byte] |= (static_cast<uint8_t>(c) << offset);
+  }
+
+  // 2 * 42 = 84 / 8 = 10.5.
+  uint8_t data_[11] = {};
   bool is_over_ = false;
+  uint8_t valid_moves_;
+  Color turn_ = Color::kOne;
   Color result_ = Color::kEmpty;
 };
 
@@ -88,6 +116,12 @@ void PrintBoard(std::ostream& out, const Board& b, const char* one,
 inline std::ostream& operator<<(std::ostream& out, const Board& b) {
   PrintBoard(out, b, " X ", " O ");
   return out;
+}
+
+template <typename H>
+H AbslHashValue(H h, const Board& b) {
+  // Turn, result, and valid moves are functions of board data.
+  return H::combine_contiguous(std::move(h), b.data_, 11);
 }
 
 }  // namespace c4cc

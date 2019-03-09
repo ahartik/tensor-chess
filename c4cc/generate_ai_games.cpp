@@ -89,6 +89,7 @@ void PlayGames(const char* output, int n) {
 
 int main(int argc, const char** argv) {
   NiceInit(argc, argv);
+  LOG(INFO) << "Size: " << sizeof(c4cc::Board);
   if (argc < 3) {
     std::cerr << "Usage: " << argv[0] << " output-file num-games\n";
     return 1;
