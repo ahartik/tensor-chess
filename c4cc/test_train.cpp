@@ -214,6 +214,7 @@ void Go() {
       util::RecordReader reader(test_file);
       int correct = 0;
       int total = 0;
+      double total_value_loss = 0;
 
       std::string buf;
       int game_no = 1;
@@ -224,8 +225,9 @@ void Go() {
         ++game_no;
         GameRecord record;
         record.ParseFromString(buf);
-        tensorflow::Tensor board_tensor(tensorflow::DT_FLOAT,
-                                        tensorflow::TensorShape({record.moves_size(), 84}));
+        tensorflow::Tensor board_tensor(
+            tensorflow::DT_FLOAT,
+            tensorflow::TensorShape({record.moves_size(), 84}));
         std::vector<int> expected_moves;
         Board board;
         const Color good_ai =
@@ -243,8 +245,9 @@ void Go() {
         }
         CHECK(board.is_over());
 
-        const Model::Prediction prediction  = model.Predict(board_tensor);
+        const Model::Prediction prediction = model.Predict(board_tensor);
         std::vector<int> actual_moves;
+        std::vector<double> values;
         for (int i = 0; i < expected_moves.size(); ++i) {
           int best = 0;
           float score = 0;
@@ -256,16 +259,22 @@ void Go() {
             }
           }
           actual_moves.push_back(best);
+          values.push_back(prediction.value.flat<float>()(i));
         }
         CHECK_EQ(actual_moves.size(), expected_moves.size());
+        const double actual_value = good_ai == Color::kOne
+                                        ? record.game_result()
+                                        : -record.game_result();
         for (int i = 0; i < actual_moves.size(); ++i) {
           if (actual_moves[i] == expected_moves[i]) {
             ++correct;
           }
+          total_value_loss += pow(values[i] - actual_value, 2);
           ++total;
         }
       }
       std::cout << "Accuracy: " << (100 * double(correct) / total) << "% \n";
+      std::cout << "Avg value loss: " << (total_value_loss / total) << " \n";
     }
 #endif
   }

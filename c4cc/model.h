@@ -39,8 +39,8 @@ class Model {
   std::unique_ptr<tensorflow::Session> session_;
   tensorflow::Tensor true_{tensorflow::DT_BOOL, tensorflow::TensorShape({})};
   tensorflow::Tensor false_{tensorflow::DT_BOOL, tensorflow::TensorShape({})};
-};  // namespace c4ccclassModel
+};
 
-}
+}  // namespace c4cc
 
 #endif
