@@ -1,5 +1,6 @@
 #include "c4cc/negamax.h"
 #include "c4cc/play_game.h"
+#include "c4cc/human_player.h"
 #include "util/init.h"
 
 #include <iostream>

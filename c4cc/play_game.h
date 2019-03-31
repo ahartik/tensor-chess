@@ -7,10 +7,28 @@
 
 namespace c4cc {
 
+// This class is thread-compatible (but not thread-safe).
+class Player {
+ public:
+  virtual ~Player() {}
+
+  // Current board the player is inspecting.
+  virtual const Board& board() const = 0;
+
+  // Switch the board state.
+  //
+  // This slightly-ugly interface allows caching state between different games.
+  virtual void SetBoard(const Board& b) = 0;
+
+  // Returns the move this player wants to make in this position.
+  // Must not be called if board()->is_over() returns true. 
+  virtual int GetMove() = 0;
+
+  virtual void PlayMove(int move);
+};
+
 // Returns end board.
-std::pair<Board, std::vector<int>> PlayGame(
-    const std::function<int(const Board&)>& move_picker_1,
-    const std::function<int(const Board&)>& move_picker_2);
+std::pair<Board, std::vector<int>> PlayGame(Player* player1, Player* player2);
 
 // TODO: This function will have to be made asynchronous once we start training
 // tensorflow.

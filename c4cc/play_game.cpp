@@ -4,26 +4,29 @@
 
 namespace c4cc {
 
-std::pair<Board, std::vector<int>> PlayGame(
-    const std::function<int(const Board&)>& move_picker_1,
-    const std::function<int(const Board&)>& move_picker_2) {
+std::pair<Board, std::vector<int>> PlayGame(Player* player1, Player* player2) {
   std::vector<int> moves;
   Board b;
+  player1->SetBoard(b);
+  player2->SetBoard(b);
   while (!b.is_over()) {
     int m = -1;
     switch (b.turn()) {
       case Color::kOne:
-        m = move_picker_1(b);
+        m = player1->GetMove();
         break;
       case Color::kTwo:
-        m = move_picker_2(b);
+        m = player2->GetMove();
         break;
       default:
         std::cerr << "Impossible location";
         abort();
     }
     moves.push_back(m);
+
     b.MakeMove(m);
+    player1->PlayMove(m);
+    player2->PlayMove(m);
   }
   return {b, moves};
 }
