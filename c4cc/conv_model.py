@@ -8,7 +8,7 @@ is_training = tf.placeholder(dtype=bool, shape=(), name="is_training")
 
 layer = tf.reshape(board, shape=[-1, 2, 7, 6], name='matrix')
 
-# Add a layer full of ones.
+# Add a layer full of ones on each side.
 paddings = tf.constant([[0,0], [0,1], [0,0], [0,0]])
 layer = tf.pad(layer, paddings, constant_values=1.0)
 

@@ -23,89 +23,6 @@
 
 namespace c4cc {
 
-class ShufflingTrainer {
- public:
-  static constexpr int kShuffleBatch = 10000;
-  static constexpr int kTrainBatch = 256;
-
-  explicit ShufflingTrainer(Model* model) : model_(model) {}
-
-  void Train(const Board& b, int move, Color winner) {
-    auto d = std::make_unique<BoardData>();
-    for (int x = 0; x < 7; ++x) {
-      for (int y = 0; y < 6; ++y) {
-        d->board[x * 6 + y] = b.color(x, y);
-      }
-    }
-    d->turn = b.turn();
-    d->move = move;
-    if (winner == Color::kEmpty) {
-      d->score = 0;
-    } else {
-      d->score = b.turn() == winner ? 1.0 : -1.0;
-    }
-    boards_.push_back(std::move(d));
-    if (boards_.size() >= kShuffleBatch) {
-      TrainBatch();
-    }
-  }
-
-  void Flush() {
-    while (boards_.size() >= kTrainBatch) {
-      TrainBatch();
-    }
-  }
-
- private:
-  struct BoardData {
-    Color board[42];
-    Color turn;
-    int move;
-    float score = 0.0;
-  };
-
-  void BoardToTensor(const BoardData& b, tensorflow::Tensor* tensor, int i) {
-    const Color kColorOrder[2][2] = {
-        {Color::kOne, Color::kTwo},
-        {Color::kTwo, Color::kOne},
-    };
-    int j = 0;
-    for (Color c : kColorOrder[b.turn == Color::kOne]) {
-      for (int x = 0; x < 42; ++x) {
-        const bool set = b.board[x] == c;
-        tensor->matrix<float>()(i, j) = set ? 1.0 : 0.0;
-        ++j;
-      }
-    }
-  }
-
-  void TrainBatch() {
-    tensorflow::Tensor board_tensor(tensorflow::DT_FLOAT,
-                                    tensorflow::TensorShape({kTrainBatch, 84}));
-    tensorflow::Tensor move_tensor(tensorflow::DT_FLOAT,
-                                   tensorflow::TensorShape({kTrainBatch, 7}));
-    tensorflow::Tensor value_tensor(tensorflow::DT_FLOAT,
-                                    tensorflow::TensorShape({kTrainBatch}));
-    for (int i = 0; i < kTrainBatch; ++i) {
-      std::uniform_int_distribution<int> dist(0, boards_.size() - 1);
-      const int x = dist(rng_);
-      BoardToTensor(*boards_[x], &board_tensor, i);
-      for (int m = 0; m < 7; ++m) {
-        move_tensor.matrix<float>()(i, m) = (m == boards_[x]->move) ? 1.0 : 0.0;
-      }
-      value_tensor.flat<float>()(i) = boards_[x]->score;
-
-      std::swap(boards_[x], boards_.back());
-      boards_.pop_back();
-    }
-    model_->RunTrainStep(board_tensor, move_tensor, value_tensor);
-  }
-
-  std::mt19937 rng_;
-  std::vector<std::unique_ptr<BoardData>> boards_;
-  Model* const model_;
-};
-
 bool DirectoryExists(const std::string& dir) {
   struct stat buf;
   return stat(dir.c_str(), &buf) == 0;
@@ -154,43 +71,6 @@ void Go() {
   std::mt19937 rand;
 
   while (true) {
-    {
-      auto files = ListDir(prefix + "/games");
-      const std::string games_file = files[rand() % files.size()];
-      util::RecordReader reader(games_file);
-
-      std::string buf;
-      int game_no = 1;
-      while (reader.Read(buf)) {
-        if (game_no % 1000 == 0) {
-          std::cout << "Game #" << game_no << "\n";
-        }
-        ++game_no;
-        GameRecord record;
-        record.ParseFromString(buf);
-        Board board;
-        const Color winner =
-            record.game_result() == 0
-                ? Color::kEmpty
-                : record.game_result() == 1 ? Color::kOne : Color::kTwo;
-        const Color good_ai =
-            record.players(0) == GameRecord::MINMAX ? Color::kOne : Color::kTwo;
-        for (const int move : record.moves()) {
-          CHECK(!board.is_over());
-          const bool train = board.turn() == good_ai;
-          if (train) {
-            trainer.Train(board, move, winner);
-          }
-          board.MakeMove(move);
-        }
-        CHECK(board.is_over());
-      }
-      trainer.Flush();
-    }
-
-    std::cout << "Saving checkpoint\n";
-    model.Checkpoint(checkpoint_prefix);
-
 #if 1
     std::cout << "Running test\n";
     {
@@ -200,7 +80,7 @@ void Go() {
       double total_value_loss = 0;
 
       std::string buf;
-      int game_no = 1;
+      int game_no = 0;
       while (reader.Read(buf)) {
         if (game_no % 1000 == 0) {
           std::cout << "Game #" << game_no << "\n";
@@ -260,6 +140,49 @@ void Go() {
       std::cout << "Avg value loss: " << (total_value_loss / total) << " \n";
     }
 #endif
+    {
+      auto files = ListDir(prefix + "/games");
+      const std::string games_file = files[rand() % files.size()];
+      util::RecordReader reader(games_file);
+
+      std::string buf;
+      int game_no = 1;
+      while (reader.Read(buf)) {
+        if (game_no % 1000 == 0) {
+          std::cout << "Game #" << game_no << "\n";
+        }
+        ++game_no;
+        GameRecord record;
+        record.ParseFromString(buf);
+        Board board;
+        const Color winner =
+            record.game_result() == 0
+                ? Color::kEmpty
+                : record.game_result() == 1 ? Color::kOne : Color::kTwo;
+        const Color good_ai =
+            record.players(0) == GameRecord::MINMAX ? Color::kOne : Color::kTwo;
+        for (const int move : record.moves()) {
+          CHECK(!board.is_over());
+          const bool train = board.turn() == good_ai;
+          if (train) {
+            Prediction pred;
+            for (int i = 0; i < 7; ++i) {
+              pred.move_p[i] = (i == move) ? 1.0 : 0.0;
+            }
+            pred.value = (board.turn() == Color::kOne) ? record.game_result()
+                                                       : -record.game_result();
+            trainer.Train(board, pred);
+          }
+          board.MakeMove(move);
+        }
+        CHECK(board.is_over());
+      }
+      trainer.Flush();
+    }
+
+    std::cout << "Saving checkpoint\n";
+    model.Checkpoint(checkpoint_prefix);
+
   }
 }
 

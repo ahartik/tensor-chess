@@ -142,3 +142,20 @@ tf_cc_binary(
         "//util:init",
     ],
 )
+
+tf_cc_binary(
+    name = "self_play_trainer",
+    srcs = ["self_play_trainer.cpp"],
+    deps = [
+        ":board",
+        ":human_player",
+        ":model",
+        ":mcts_player",
+        ":negamax",
+        ":play_game",
+        "//util:init",
+        "@com_google_absl//absl/synchronization",
+        "@org_tensorflow//tensorflow/core:lib",
+        "@org_tensorflow//tensorflow/core:tensorflow",
+    ],
+)

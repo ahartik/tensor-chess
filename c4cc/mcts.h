@@ -3,6 +3,7 @@
 
 #include <functional>
 #include <memory>
+#include <random>
 
 #include "absl/container/node_hash_map.h"
 #include "absl/types/optional.h"
@@ -66,7 +67,8 @@ class MCTS {
   absl::optional<PredictionRequest> request_;
 
   // TODO: It might be possible to optimize this memory-wise.
-  absl::node_hash_map<Board, std::weak_ptr<mcts::State>> visited_states_;
+  absl::node_hash_map<Board, std::shared_ptr<mcts::State>> visited_states_;
+  std::mt19937 rand_;
 };
 
 }  // namespace c4cc

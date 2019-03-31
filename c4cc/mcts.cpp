@@ -16,41 +16,47 @@ struct Action {
   int num_taken = 0;
   double total_value = 0;
   double mean_value = 0;
-
-  void AddResult(double v) {
-    ++num_taken;
-    total_value += v;
-    mean_value = total_value / num_taken;
-  }
-
   std::shared_ptr<State> state;
+
+  void AddResult(double v);
+
 };
 using Actions = std::array<Action, 7>;
 
 struct State {
-  State(const Board& b, const Prediction& p) : board(b), prior_value(p.value) {
+  State(const Board& b, const Prediction& p) : board(b) {
     for (int i = 0; i < 7; ++i) {
       actions[i].prior = p.move_p[i];
-    }
-
-    // Override predictions and everything if the game is over.
-    if (b.is_over()) {
-      if (b.result() == Color::kEmpty) {
-        prior_value = 0.0;
-      } else {
-        prior_value = b.result() == b.turn() ? 1.0 : -1.0;
-      }
     }
   }
   State(const State&) = delete;
   State& operator=(const State&) = delete;
 
   bool is_terminal() const { return board.is_over(); }
+  double terminal_value() const {
+    CHECK(is_terminal());
+    if (board.result() == Color::kEmpty) {
+      return 0.0;
+    } else {
+      return board.result() == board.turn() ? 1.0 : -1.0;
+    }
+  }
 
   const Board board;
-  double prior_value = 0.0;  // "q"
   Action actions[7];
 };
+
+void Action::AddResult(double v) {
+  ++num_taken;
+  total_value += v;
+  mean_value = total_value / num_taken;
+  CHECK(state != nullptr);
+  if (state != nullptr) {
+    if (state->is_terminal()) {
+      CHECK_EQ(v, -state->terminal_value());
+    }
+  }
+}
 
 // Important points from AlphaGo paper:
 //
@@ -67,21 +73,26 @@ namespace {
 using mcts::Action;
 using mcts::State;
 
-const double kPUCT = 1.0;
+const double kPUCT = 0.1;
 
 double UCB(const State& s, int a) {
   const Action& action = s.actions[a];
-  // Cache these values.
+  // TODO: Cache these values.
   int num_sum = 0;
   for (int i = 0; i < 7; ++i) {
     num_sum += s.actions[i].num_taken;
   }
+  if (num_sum == 0) {
+    // These numbers are only ever compared against other actions in the same
+    // state.
+    return action.prior;
+  }
   // We start with a value strongly based on the prior, but as we know more we
-  // shift to just using the mean value. THis makes some sense as to begin,
-  // results of the simulation may be really really noisy, and the prior is
-  // likely to be more accurate.
-  return action.mean_value +
-         kPUCT * action.prior * std::sqrt(num_sum) / (1.0 + num_sum);
+  // shift to just using the mean value. This makes sense since in the
+  // beginning the simulation results may be really really noisy, and the prior
+  // is likely to be more accurate.
+  return action.mean_value + kPUCT * action.prior * std::sqrt(num_sum) /
+                                 (1.0 + s.actions[a].num_taken);
 }
 
 }  // namespace
@@ -101,39 +112,40 @@ const Board* MCTS::StartIteration() {
   }
   // TODO: Use some tricks to avoid keeping 'cur' a shared ptr.
   std::shared_ptr<State> cur = root_;
+  CHECK(!cur->is_terminal());
   // TODO: Use InlinedVector
   std::vector<ActionRef> picked_path;
   while (true) {
-    if (cur->is_terminal()) {
-      // Terminal node, can't iterate.
-      for (auto e : picked_path) {
-        const double mul = e.s->board.turn() == cur->board.turn() ? 1.0 : -1.0;
-        e.a->AddResult(mul * cur->prior_value);
-      }
-      return nullptr;
-    }
     int best_a = 0;
     double best_score = -1e6;
     // (For virtual iterations, we can look up from a map in case an action
     // should be demoted. Maybe "map<Action*, int> virtual_actions_;")
     for (int a : cur->board.valid_moves()) {
-      double u = UCB(*cur, a);
+      const double u = UCB(*cur, a);
       if (u > best_score) {
         best_score = u;
         best_a = a;
       }
     }
+    CHECK_GT(best_score, -100);
     picked_path.emplace_back(cur.get(), &cur->actions[best_a]);
     if (cur->actions[best_a].num_taken == 0) {
       CHECK_EQ(cur->actions[best_a].state, nullptr);
       // We might have visited this node from another search branch:
       Board board = cur->board;
       board.MakeMove(best_a);
+      // Terminal node, add this to graph and continue.
 
       auto transpose_it = visited_states_.find(board);
       std::shared_ptr<State> transposed;
       if (transpose_it != visited_states_.end()) {
-        transposed = transpose_it->second.lock();
+        // transposed = transpose_it->second.lock();
+        transposed = transpose_it->second;
+      }
+      if (!transposed && board.is_over()) {
+        auto& visit = visited_states_[board];
+        visit = std::make_shared<State>(board, Prediction());
+        transposed = visit;
       }
       if (!transposed) {
         // OK, it's a new node: must request a prediction.
@@ -149,6 +161,16 @@ const Board* MCTS::StartIteration() {
     }
     cur = cur->actions[best_a].state;
     CHECK(cur);
+    if (cur->is_terminal()) {
+      // LOG(INFO) << "path len: " << picked_path.size();
+      // Terminal node, can't iterate.
+      CHECK(!picked_path.empty());
+      for (auto e : picked_path) {
+        const double mul = e.s->board.turn() == cur->board.turn() ? 1.0 : -1.0;
+        e.a->AddResult(mul * cur->terminal_value());
+      }
+      return nullptr;
+    }
   }
 }
 
@@ -158,13 +180,19 @@ void MCTS::FinishIteration(const Prediction& p) {
   if (root_ == nullptr) {
     CHECK_EQ(req.board, current_);
     root_ = std::make_shared<State>(current_, p);
+    LOG(INFO) << "Root prediction: " << p;
+    // Shuffle root priors a little bit.
+    for (int i = 0; i < 7; ++i) {
+      root_->actions[i].prior = 1.0 / 7;
+    }
   } else {
     // Initialize next state.
     auto state = std::make_shared<State>(req.board, p);
     auto& old_state = visited_states_[req.board];
     // We never request predictions for moves that are already visited and
     // found live in the map.
-    CHECK(old_state.expired());
+    // CHECK(old_state.expired());
+    // CHECK(old_state == nullptr);
     old_state = state;
 
     CHECK(req.parent != nullptr);
@@ -172,7 +200,7 @@ void MCTS::FinishIteration(const Prediction& p) {
     req.parent->actions[req.parent_a].state = std::move(state);
     CHECK_EQ(req.picked_path.back().s, req.parent.get());
     for (auto e : req.picked_path) {
-      const double mul = e.s->board.turn() != req.board.turn() ? 1.0 : -1.0;
+      const double mul = e.s->board.turn() == req.board.turn() ? 1.0 : -1.0;
       e.a->AddResult(mul * p.value);
     }
   }
@@ -221,6 +249,10 @@ void MCTS::MakeMove(int a) {
     root_ = root_->actions[a].state;
     if (root_ != nullptr) {
       CHECK_EQ(current_, root_->board);
+      // Shuffle root priors a little bit.
+      for (int i = 0; i < 7; ++i) {
+        root_->actions[i].prior = 1.0 / 7;
+      }
     }
   }
 }
