@@ -101,6 +101,8 @@ cc_library(
     copts = tf_copts(),
     deps = [
         ":board",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/types:optional",
         "@org_tensorflow//tensorflow/core:lib",
         "@org_tensorflow//tensorflow/core:tensorflow",
     ],

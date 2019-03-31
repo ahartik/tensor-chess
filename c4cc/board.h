@@ -2,6 +2,7 @@
 #define _C4CC_BOARD_H_
 
 #include <cassert>
+#include <cstring>
 #include <cstdint>
 
 #include <iostream>
@@ -50,6 +51,13 @@ inline Color OtherColor(Color c) {
 class Board {
  public:
   Board();
+  Board(const Board& b) = default;
+  Board& operator=(const Board& b) = default;
+
+  bool operator==(const Board& o) const {
+    // Turn, result, and valid moves are functions of board data.
+    return memcmp(data_, o.data_, sizeof(data_)) == 0;
+  }
 
   Color turn() const { return turn_; }
 
@@ -70,7 +78,7 @@ class Board {
     int byte = i / 4;
     int offset = 2 * (i % 4);
     const int val = (data_[byte] >> offset) & 3;
-#if 0
+#ifndef NDEBUG
     if (val == 3 || byte > 10) {
       std::cerr << "Invalid bytes: i=" << i << " val=" << val << "\n";
       abort();

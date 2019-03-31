@@ -1,72 +1,85 @@
 #include "c4cc/mcts.h"
 
+#include <array>
 #include <cmath>
 
 #include "tensorflow/core/platform/logging.h"
 
 namespace c4cc {
 
-using State = MCTSState;
+namespace mcts {
 
-struct MCTSState {
-  MCTSState(const Board& b, const Prediction& p)
-      : board(b), pred(p), value(pred.value) {
+struct Action {
+  // Prior and prior value don't change after construction.
+  double prior = 0.0;
+
+  int num_taken = 0;
+  double total_value = 0;
+  double mean_value = 0;
+
+  void AddResult(double v) {
+    ++num_taken;
+    total_value += v;
+    mean_value = total_value / num_taken;
+  }
+
+  std::shared_ptr<State> state;
+};
+using Actions = std::array<Action, 7>;
+
+struct State {
+  State(const Board& b, const Prediction& p) : board(b), prior_value(p.value) {
+    for (int i = 0; i < 7; ++i) {
+      actions[i].prior = p.move_p[i];
+    }
+
+    // Override predictions and everything if the game is over.
     if (b.is_over()) {
       if (b.result() == Color::kEmpty) {
-        value = 0.0;
+        prior_value = 0.0;
       } else {
-        value = b.result() == b.turn() ? 1.0 : -1.0;
+        prior_value = b.result() == b.turn() ? 1.0 : -1.0;
       }
     }
   }
-  int c_num(int a) const {
-    return children[a] == nullptr ? 0 : children[a]->num;
-  }
 
-  double c_value(int a) const {
-    return children[a] == nullptr ? 0.0 : -children[a]->value;
-  }
+  bool is_terminal() const { return board.is_over(); }
 
-  void CheckAssertions() {
-    int total = 0;
-    for (int i = 0; i < 7; ++i) {
-      total += c_value(i);
-    }
-    CHECK_EQ(total, num);
-  }
-
-  void Fix() {
-    is_leaf = false;
-    num = 0;
-    value = 0.0;
-    for (int i = 0; i < 7; ++i) {
-      num += c_num(i);
-    }
-    double inv_num = 1.0 / num;
-    for (int i = 0; i < 7; ++i) {
-      value += (c_value(i) * c_num(i)) * inv_num;
-    }
-    sqrt_num = sqrt(num);
-    CHECK_GT(num, 0);
-  }
-
-  Board board;
-  Prediction pred;
-  bool is_leaf = true;
-  int num = 1;          // "n"
-  double sqrt_num = 1;  // "sqrt(n)"
-  double value = 0.0;   // "q"
-  std::unique_ptr<State> children[7];
-  State* parent = nullptr;
+  const Board board;
+  double prior_value = 0.0;  // "q"
+  Action actions[7];
 };
+
+// Important points from AlphaGo paper:
+//
+// To pick multiple nodes at once, use "virtual loss": Continue search as if
+// the picked move lost (v=-1). Perform updates later. We can implement this
+// with the iteration model: allow starting multiple iterations at once, but
+// must finish together.
+//
+
+}  // namespace mcts
 
 namespace {
 
+using mcts::Action;
+using mcts::State;
+
 const double kPUCT = 1.0;
 
-double UCB(const MCTSState& s, int a) {
-  return s.c_value(a) +
-         kPUCT * s.pred.move_p[a] * s.sqrt_num / (1.0 + s.c_num(a));
+double UCB(const State& s, int a) {
+  const Action& action = s.actions[a];
+  // Cache these values.
+  int num_sum = 0;
+  for (int i = 0; i < 7; ++i) {
+    num_sum += s.actions[i].num_taken;
+  }
+  // We start with a value strongly based on the prior, but as we know more we
+  // shift to just using the mean value. THis makes some sense as to begin,
+  // results of the simulation may be really really noisy, and the prior is
+  // likely to be more accurate.
+  return action.mean_value +
+         kPUCT * action.prior * std::sqrt(num_sum) / (1.0 + num_sum);
 }
 
 }  // namespace
@@ -78,21 +91,27 @@ MCTS::~MCTS() {}
 const Board& MCTS::current_board() const { return current_; }
 
 const Board* MCTS::StartIteration() {
+  CHECK(!request_.has_value());
   if (root_ == nullptr) {
     return &current_;
   }
-  MCTSState* cur = root_.get();
+  ++num_iterations_;
+  // TODO: Use some tricks to avoid keeping 'cur' a shared ptr.
+  std::shared_ptr<State> cur = root_;
+  // TODO: Use InlinedVector
+  std::vector<mcts::Action*> picked_path;
   while (true) {
-    if (cur->board.is_over()) {
-      // Hit terminal node. Just perform updates on counts.
-      ++cur->num;
-      if (cur->parent != nullptr) {
-        BubbleCounts(cur->parent);
+    if (cur->is_terminal()) {
+      // Terminal node, can't iterate.
+      for (auto* a : picked_path) {
+        a->AddResult(cur->prior_value);
       }
       return nullptr;
     }
     int best_a = 0;
     double best_score = -1e6;
+    // (For virtual iterations, we can look up from a map in case an action
+    // should be demoted. Maybe "map<Action*, int> virtual_actions_;")
     for (int a : cur->board.valid_moves()) {
       double u = UCB(*cur, a);
       if (u > best_score) {
@@ -100,63 +119,74 @@ const Board* MCTS::StartIteration() {
         best_a = a;
       }
     }
-    if (cur->children[best_a] == nullptr) {
-      next_parent_ = cur;
-      next_a_ = best_a;
-      next_prediction_ = cur->board;
-      next_prediction_.MakeMove(best_a);
-      if (next_prediction_.is_over()) {
-        // No need for prediction, just finish the iteration with a default
-        // prediction.
-        FinishIteration(Prediction());
-        return nullptr;
-      } else {
-        return &next_prediction_;
+    if (cur->actions[best_a].num_taken == 0) {
+      // We might have visited this node from another search branch:
+      Board next_board = cur->board;
+      next_board.MakeMove(best_a);
+      auto transpose_it = visited_states_.find(next_board);
+      if (transpose_it == visited_states_.end()) {
+        // OK, it's a new node: must request a prediction.
+        request_.emplace();
+        request_->picked_path = std::move(picked_path);
+        request_->next_parent = cur;
+        request_->next_board = cur->board;
+        request_->next_board.MakeMove(best_a);
+        return &(request_->next_board);
       }
+      // In the game of Connect 4, possible states form an acyclic graph, as
+      // each move increments the total number of pieces in the board ("in" as
+      // the Connect4 board is vertical :-).
+      std::shared_ptr<State> transposed = transpose_it->second.lock();
+      CHECK(transposed);
+      cur->actions[best_a].state = transposed;
     }
+    cur = cur->actions[best_a].state;
+    CHECK(cur);
   }
 }
 
 void MCTS::FinishIteration(const Prediction& p) {
+  CHECK(request_.has_value());
   if (root_ == nullptr) {
-    root_ = std::make_unique<MCTSState>(current_, p);
+    root_ = std::make_shared<State>(current_, p);
   } else {
-    next_parent_->children[next_a_] =
-        std::make_unique<MCTSState>(next_prediction_, p);
-    next_parent_->children[next_a_]->parent = next_parent_;
-    BubbleCounts(next_parent_);
-    next_parent_ = nullptr;
-    next_a_ = -1;
+    const auto& req = request_.value();
+    // Initialize next state.
+    req.next_parent->actions[req.next_a].state =
+        std::make_shared<State>(req.next_board, p);
+    for (auto* action : req.picked_path) {
+      action->AddResult(p.value);
+    }
   }
+  request_.reset();
 }
 
-int MCTS::num_iterations() const { return root_ == nullptr ? 0 : root_->num; }
+int MCTS::num_iterations() const { return num_iterations_;}
 
-void MCTS::BubbleCounts(MCTSState* s) {
-  while (s != nullptr) {
-    s->Fix();
-    s = s->parent;
-  }
-}
-
-Prediction MCTS::GetMCTSPrediction() {
+Prediction MCTS::GetMCTSPrediction() const {
   Prediction res;
   if (root_ == nullptr) {
     for (int i = 0; i < 7; ++i) {
       res.move_p[i] = 1.0 / 7;
     }
     res.value = 0;
-  } else {
-    res.value = root_->value;
-    for (int i = 0; i < 7; ++i) {
-      res.move_p[i] = double(root_->c_num(i)) / root_->num;
-    }
+    return res;
+  }
+  int sum_n = 0;
+  for (int i = 0; i < 7; ++i) {
+    sum_n += root_->actions[i].num_taken;
+  }
+  CHECK(sum_n != 0);
+  const double inv_sum = 1.0 / sum_n;
+  res.value = 0;
+  for (int i = 0; i < 7; ++i) {
+    const int num = root_->actions[i].num_taken;
+    res.move_p[i] = num * inv_sum;
+    res.value += num * root_->actions[i].mean_value * inv_sum;
   }
   return res;
 }
 
-void MCTS::MakeMove(int a) {
-  CHECK_EQ(next_parent_, nullptr);
-}
+void MCTS::MakeMove(int a) { }
 
 }  // namespace c4cc
