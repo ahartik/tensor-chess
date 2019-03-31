@@ -25,8 +25,8 @@ std::pair<Board, std::vector<int>> PlayGame(Player* player1, Player* player2) {
     moves.push_back(m);
 
     b.MakeMove(m);
-    player1->PlayMove(m);
-    player2->PlayMove(m);
+    player1->MakeMove(m);
+    player2->MakeMove(m);
   }
   return {b, moves};
 }

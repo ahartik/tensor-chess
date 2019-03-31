@@ -6,14 +6,33 @@
 
 namespace c4cc {
 
-namespace {}  // namespace
+namespace {
 
-MCTSPlayer::MCTSPlayer(Model* m)
-    : model_(m), mcts_(std::make_unique<MCTS>(Board())) {}
+}  // namespace
+
+MCTSPlayer::MCTSPlayer(Model* m, int iters)
+    : model_(m),
+      iters_per_move_(iters),
+      mcts_(std::make_unique<MCTS>(Board())) {}
 
 void MCTSPlayer::SetBoard(const Board& b) {
   if (b != mcts_->current_board()) {
     mcts_ = std::make_unique<MCTS>(b);
+  }
+}
+
+void MCTSPlayer::RunIterations(int n) {
+  // TODO: Do multiple iterations in parallel.
+  tensorflow::Tensor board_tensor = MakeBoardTensor(1);
+  for (int i = 0; i < n; ++i) {
+    const Board* to_predict = mcts_->StartIteration();
+    if (to_predict != nullptr) {
+      Prediction prediction;
+      BoardToTensor(*to_predict, &board_tensor, 0);
+      auto prediction_result = model_->Predict(board_tensor);
+      ReadPredictions(prediction_result, &prediction);
+      mcts_->FinishIteration(prediction);
+    }
   }
 }
 
@@ -22,8 +41,12 @@ int MCTSPlayer::GetMove() {
   const auto valid_moves = board().valid_moves();
   CHECK(valid_moves.size() != 0);
 
-  // TODO: Actually run a few iterations.
-  MCTS::Prediction pred = mcts_->GetPrediction();
+  RunIterations(iters_per_move_);
+
+  Prediction pred = mcts_->GetPrediction();
+  LOG(INFO) << "Got " << pred << " with total " << mcts_->num_iterations()
+            << " mcts iters";
+
   // TODO: Add options for the move selection algorith. For example, we could
 
   double total = 0;

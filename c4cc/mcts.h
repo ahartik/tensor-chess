@@ -4,23 +4,18 @@
 #include <functional>
 #include <memory>
 
-#include "absl/container/flat_hash_map.h"
+#include "absl/container/node_hash_map.h"
 #include "absl/types/optional.h"
 #include "c4cc/board.h"
 
 namespace c4cc {
 
+// MCTS internals, not to be used by callers directly.
 namespace mcts {
 
 struct State;
 struct Action;
 }  // namespace mcts
-
-struct Prediction {
-  double move_p[7] = {1.0 / 7, 1.0 / 7, 1.0 / 7, 1.0 / 7,
-                      1.0 / 7, 1.0 / 7, 1.0 / 7};
-  double value = 0.0;
-};
 
 class MCTS {
  public:
@@ -46,7 +41,7 @@ class MCTS {
   int num_iterations() const;
 
   // This is the prediction for the current board. Requires num_iterations > 1.
-  Prediction GetMCTSPrediction() const;
+  Prediction GetPrediction() const;
 
   // Advances the current state with a move.
   void MakeMove(int a);
@@ -55,18 +50,23 @@ class MCTS {
   Board current_;
   std::shared_ptr<mcts::State> root_;
 
-  int num_iterations_ = 0;
-
+  struct ActionRef {
+    ActionRef(mcts::State* ss, mcts::Action* aa) : s(ss), a(aa) {}
+    mcts::State* s;
+    mcts::Action* a;
+  };
   struct PredictionRequest {
-    std::vector<mcts::Action*> picked_path;
-    std::shared_ptr<mcts::State> next_parent;
-    Board next_board;
-    int next_a = -1;
+    // What board we want to get inspected.
+    Board board;
+    std::vector<ActionRef> picked_path;
+    std::shared_ptr<mcts::State> parent;
+    // The action from 'parent' leading to this board.
+    int parent_a = -1;
   };
   absl::optional<PredictionRequest> request_;
 
   // TODO: It might be possible to optimize this memory-wise.
-  absl::flat_hash_map<Board, std::weak_ptr<mcts::State>> visited_states_;
+  absl::node_hash_map<Board, std::weak_ptr<mcts::State>> visited_states_;
 };
 
 }  // namespace c4cc

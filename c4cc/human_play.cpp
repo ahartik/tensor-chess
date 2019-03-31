@@ -10,38 +10,6 @@ namespace {
 
 const int kDepth = 6;
 
-void PrintBoard(const Board& b) {
-  const char kOne[] = "\u001b[31;1m X \u001b[0m";
-  const char kTwo[] = "\u001b[36;1m O \u001b[0m";
-  PrintBoard(std::cout, b, kOne, kTwo);
-}
-
-int HumanPickMove(const Board& b) {
-  PrintBoard(b);
-  while (true) {
-    std::cout << "Enter move:\n";
-    int x = -1;
-    std::cin >> x;
-    for (const int m : b.valid_moves()) {
-      if (m == x) {
-        return x;
-      }
-    }
-    std::cout << "Invalid move: " << x << "\n";
-  }
-}
-
-int AiPickMove(const Board& b) {
-  auto r = Negamax(b, kDepth);
-#if 0
-    std::cout << "AI ponder for\n";
-    std::cout << b << "\n";
-#endif
-  std::cout << "eval for AI: " << r.eval << "\n";
-  std::cout << "move: " << r.best_move << "\n";
-  return r.best_move;
-};
-
 void Play() {
   std::cout << "Start game!\n";
 

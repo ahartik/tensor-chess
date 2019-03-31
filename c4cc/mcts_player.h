@@ -12,7 +12,7 @@ namespace c4cc {
 
 class MCTSPlayer : public Player {
  public:
-  explicit MCTSPlayer(Model* model);
+  explicit MCTSPlayer(Model* model, int iters);
   ~MCTSPlayer() override {}
 
   const Board& board() const override { return mcts_->current_board(); }
@@ -22,7 +22,10 @@ class MCTSPlayer : public Player {
   void MakeMove(int move) override;
 
  private:
+  void RunIterations(int n);
+
   Model* const model_;
+  const int iters_per_move_;
   std::unique_ptr<MCTS> mcts_;
   std::mt19937 rand_;
 };

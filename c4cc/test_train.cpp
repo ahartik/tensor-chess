@@ -23,23 +23,6 @@
 
 namespace c4cc {
 
-void BoardToTensor(const Board& b, tensorflow::Tensor* tensor, int i) {
-  const Color kColorOrder[2][2] = {
-      {Color::kOne, Color::kTwo},
-      {Color::kTwo, Color::kOne},
-  };
-  int j = 0;
-  for (Color c : kColorOrder[b.turn() == Color::kOne]) {
-    for (int x = 0; x < 7; ++x) {
-      for (int y = 0; y < 6; ++y) {
-        const bool set = b.color(x, y) == c;
-        tensor->matrix<float>()(i, j) = set ? 1.0 : 0.0;
-        ++j;
-      }
-    }
-  }
-}
-
 class ShufflingTrainer {
  public:
   static constexpr int kShuffleBatch = 10000;

@@ -3,7 +3,7 @@
 
 #include <cstdio>
 
-void NiceInit(int argc, const char** argv) {
+void NiceInit(int argc, const char* const* argv) {
   absl::InitializeSymbolizer(argv[0]);
   absl::FailureSignalHandlerOptions opts;
   absl::InstallFailureSignalHandler(opts);

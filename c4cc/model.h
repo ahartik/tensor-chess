@@ -1,6 +1,7 @@
 #ifndef _C4CC_MODEL_H_
 #define _C4CC_MODEL_H_
 
+#include "c4cc/board.h"
 #include "tensorflow/core/framework/tensor.h"
 #include "tensorflow/core/lib/io/path.h"
 #include "tensorflow/core/platform/env.h"
@@ -40,6 +41,14 @@ class Model {
   tensorflow::Tensor true_{tensorflow::DT_BOOL, tensorflow::TensorShape({})};
   tensorflow::Tensor false_{tensorflow::DT_BOOL, tensorflow::TensorShape({})};
 };
+
+tensorflow::Tensor MakeBoardTensor(int batch_size);
+
+// Writes 'b' to tensor batch at index i. 'tensor' should have been created
+// using MakeBoardTensor().
+void BoardToTensor(const Board& b, tensorflow::Tensor* tensor, int i);
+
+void ReadPredictions(const Model::Prediction& tensor_pred, Prediction* out_arr);
 
 }  // namespace c4cc
 

@@ -1,5 +1,6 @@
 #include "c4cc/board.h"
 
+#include <ios>
 #include <iostream>
 #include <cstdint>
 
@@ -197,6 +198,15 @@ void PrintBoard(std::ostream& out, const Board& b, const char* one,
     out << "+---+---+---+---+---+---+---+\n";
   }
   out << "  0   1   2   3   4   5   6 \n";
+}
+
+std::ostream& operator<<(std::ostream& out, const Prediction& p) {
+  out << "p = ";
+  for (int i = 0; i < 7; ++i) {
+    out << " " << std::fixed << p.move_p[i];
+  }
+  out << " v = " << std::fixed << p.value;
+  return out;
 }
 
 }  // namespace c4cc

@@ -42,6 +42,8 @@ struct State {
       }
     }
   }
+  State(const State&) = delete;
+  State& operator=(const State&) = delete;
 
   bool is_terminal() const { return board.is_over(); }
 
@@ -93,18 +95,20 @@ const Board& MCTS::current_board() const { return current_; }
 const Board* MCTS::StartIteration() {
   CHECK(!request_.has_value());
   if (root_ == nullptr) {
-    return &current_;
+    request_.emplace();
+    request_->board = current_;
+    return &(request_->board);
   }
-  ++num_iterations_;
   // TODO: Use some tricks to avoid keeping 'cur' a shared ptr.
   std::shared_ptr<State> cur = root_;
   // TODO: Use InlinedVector
-  std::vector<mcts::Action*> picked_path;
+  std::vector<ActionRef> picked_path;
   while (true) {
     if (cur->is_terminal()) {
       // Terminal node, can't iterate.
-      for (auto* a : picked_path) {
-        a->AddResult(cur->prior_value);
+      for (auto e : picked_path) {
+        const double mul = e.s->board.turn() == cur->board.turn() ? 1.0 : -1.0;
+        e.a->AddResult(mul * cur->prior_value);
       }
       return nullptr;
     }
@@ -119,25 +123,28 @@ const Board* MCTS::StartIteration() {
         best_a = a;
       }
     }
+    picked_path.emplace_back(cur.get(), &cur->actions[best_a]);
     if (cur->actions[best_a].num_taken == 0) {
+      CHECK_EQ(cur->actions[best_a].state, nullptr);
       // We might have visited this node from another search branch:
-      Board next_board = cur->board;
-      next_board.MakeMove(best_a);
-      auto transpose_it = visited_states_.find(next_board);
-      if (transpose_it == visited_states_.end()) {
+      Board board = cur->board;
+      board.MakeMove(best_a);
+
+      auto transpose_it = visited_states_.find(board);
+      std::shared_ptr<State> transposed;
+      if (transpose_it != visited_states_.end()) {
+        transposed = transpose_it->second.lock();
+      }
+      if (!transposed) {
         // OK, it's a new node: must request a prediction.
         request_.emplace();
         request_->picked_path = std::move(picked_path);
-        request_->next_parent = cur;
-        request_->next_board = cur->board;
-        request_->next_board.MakeMove(best_a);
-        return &(request_->next_board);
+        request_->parent = cur;
+        request_->parent_a = best_a;
+        request_->board = board;
+        return &(request_->board);
       }
-      // In the game of Connect 4, possible states form an acyclic graph, as
-      // each move increments the total number of pieces in the board ("in" as
-      // the Connect4 board is vertical :-).
-      std::shared_ptr<State> transposed = transpose_it->second.lock();
-      CHECK(transposed);
+      CHECK(transposed != cur);
       cur->actions[best_a].state = transposed;
     }
     cur = cur->actions[best_a].state;
@@ -147,23 +154,43 @@ const Board* MCTS::StartIteration() {
 
 void MCTS::FinishIteration(const Prediction& p) {
   CHECK(request_.has_value());
+  const auto& req = request_.value();
   if (root_ == nullptr) {
+    CHECK_EQ(req.board, current_);
     root_ = std::make_shared<State>(current_, p);
   } else {
-    const auto& req = request_.value();
     // Initialize next state.
-    req.next_parent->actions[req.next_a].state =
-        std::make_shared<State>(req.next_board, p);
-    for (auto* action : req.picked_path) {
-      action->AddResult(p.value);
+    auto state = std::make_shared<State>(req.board, p);
+    auto& old_state = visited_states_[req.board];
+    // We never request predictions for moves that are already visited and
+    // found live in the map.
+    CHECK(old_state.expired());
+    old_state = state;
+
+    CHECK(req.parent != nullptr);
+    CHECK(req.parent->actions[req.parent_a].state == nullptr);
+    req.parent->actions[req.parent_a].state = std::move(state);
+    CHECK_EQ(req.picked_path.back().s, req.parent.get());
+    for (auto e : req.picked_path) {
+      const double mul = e.s->board.turn() != req.board.turn() ? 1.0 : -1.0;
+      e.a->AddResult(mul * p.value);
     }
   }
   request_.reset();
 }
 
-int MCTS::num_iterations() const { return num_iterations_;}
+int MCTS::num_iterations() const {
+  if (root_ == nullptr) {
+    return 0;
+  }
+  int sum = 0;
+  for (int i = 0; i < 7; ++i) {
+    sum += root_->actions[i].num_taken;
+  }
+  return sum;
+}
 
-Prediction MCTS::GetMCTSPrediction() const {
+Prediction MCTS::GetPrediction() const {
   Prediction res;
   if (root_ == nullptr) {
     for (int i = 0; i < 7; ++i) {
@@ -187,6 +214,15 @@ Prediction MCTS::GetMCTSPrediction() const {
   return res;
 }
 
-void MCTS::MakeMove(int a) { }
+void MCTS::MakeMove(int a) {
+  current_.MakeMove(a);
+  if (root_ != nullptr) {
+    // This may cause multiple refcounts to be zero.
+    root_ = root_->actions[a].state;
+    if (root_ != nullptr) {
+      CHECK_EQ(current_, root_->board);
+    }
+  }
+}
 
 }  // namespace c4cc

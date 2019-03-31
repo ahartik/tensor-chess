@@ -1,0 +1,16 @@
+syntax = "proto2";
+
+package c4cc;
+
+message GameRecord {
+  enum PlayerType {
+    HUMAN = 0;
+    MINMAX = 1;
+    MINMAX_RANDOM = 2;
+  }
+  repeated int32 moves = 1;
+  // 1 if first player won, 0 for draw, -1 if second player won.
+  optional int32 game_result = 2;
+
+  repeated PlayerType players = 3;
+}

@@ -2,13 +2,13 @@
 #define _C4CC_BOARD_H_
 
 #include <cassert>
-#include <cstring>
 #include <cstdint>
+#include <cstring>
 
 #include <iostream>
 #include <ostream>
-#include <vector>
 #include <utility>
+#include <vector>
 
 namespace c4cc {
 
@@ -37,6 +37,13 @@ class MoveList {
   uint8_t moves_[7];
 };
 
+// TODO: Maybe move this to a different library.
+struct Prediction {
+  double move_p[7] = {1.0 / 7, 1.0 / 7, 1.0 / 7, 1.0 / 7,
+                      1.0 / 7, 1.0 / 7, 1.0 / 7};
+  double value = 0.0;
+};
+
 enum class Color : uint8_t {
   kEmpty = 0,
   kOne = 1,
@@ -53,11 +60,6 @@ class Board {
   Board();
   Board(const Board& b) = default;
   Board& operator=(const Board& b) = default;
-
-  bool operator==(const Board& o) const {
-    // Turn, result, and valid moves are functions of board data.
-    return memcmp(data_, o.data_, sizeof(data_)) == 0;
-  }
 
   Color turn() const { return turn_; }
 
@@ -93,6 +95,12 @@ class Board {
   static std::pair<int, int> start_pos(int dir, int x, int y);
   static const std::vector<std::pair<int, int>>& start_pos_list(int dir);
 
+  friend bool operator==(const Board& a, const Board& b) {
+    // Turn, result, and valid moves are functions of board data.
+    return memcmp(a.data_, b.data_, sizeof(a.data_)) == 0;
+  }
+  friend bool operator!=(const Board& a, const Board& b) { return !(a == b); }
+
  private:
   template <typename H>
   friend H AbslHashValue(H h, const Board& b);
@@ -121,10 +129,17 @@ class Board {
 void PrintBoard(std::ostream& out, const Board& b, const char* one,
                 const char* two);
 
+// Overload with nice defaults
+inline void PrintBoardWithColor(std::ostream& out, const Board& b) {
+  PrintBoard(out, b, "\u001b[31;1m X \u001b[0m", "\u001b[36;1m O \u001b[0m");
+}
+
 inline std::ostream& operator<<(std::ostream& out, const Board& b) {
   PrintBoard(out, b, " X ", " O ");
   return out;
 }
+
+std::ostream& operator<<(std::ostream& out, const Prediction& p);
 
 template <typename H>
 H AbslHashValue(H h, const Board& b) {

@@ -18,7 +18,7 @@ class HumanPlayer : public Player {
   // Player implementation.
   const Board& board() const override { return current_board_; }
   void SetBoard(const Board& b) override { current_board_ = b; }
-  void PlayMove(int move) override { current_board_.MakeMove(move); }
+  void MakeMove(int move) override { current_board_.MakeMove(move); }
   // See .cc
   int GetMove() override;
 

@@ -60,16 +60,47 @@ void Model::RunTrainStep(const tensorflow::Tensor& board_batch,
       {}, {"train"}, nullptr));
 }
 
-
 void Model::Checkpoint(const std::string& checkpoint_prefix) {
   SaveOrRestore(checkpoint_prefix, "save/control_dependency");
 }
 
 void Model::SaveOrRestore(const std::string& checkpoint_prefix,
-                   const std::string& op_name) {
+                          const std::string& op_name) {
   tensorflow::Tensor t(tensorflow::DT_STRING, tensorflow::TensorShape());
   t.scalar<std::string>()() = checkpoint_prefix;
   TF_CHECK_OK(session_->Run({{"save/Const", t}}, {}, {op_name}, nullptr));
+}
+
+tensorflow::Tensor MakeBoardTensor(int batch_size) {
+  return tensorflow::Tensor(tensorflow::DT_FLOAT,
+                            tensorflow::TensorShape({batch_size, 84}));
+}
+
+void BoardToTensor(const Board& b, tensorflow::Tensor* tensor, int i) {
+  static const Color kColorOrder[2][2] = {
+      {Color::kOne, Color::kTwo},
+      {Color::kTwo, Color::kOne},
+  };
+  int j = 0;
+  for (Color c : kColorOrder[b.turn() == Color::kOne]) {
+    for (int x = 0; x < 7; ++x) {
+      for (int y = 0; y < 6; ++y) {
+        const bool set = b.color(x, y) == c;
+        tensor->matrix<float>()(i, j) = set ? 1.0 : 0.0;
+        ++j;
+      }
+    }
+  }
+}
+
+void ReadPredictions(const Model::Prediction& tensor_pred, Prediction* out_arr) {
+  const int n = tensor_pred.move_p.dim_size(0);
+  for (int i = 0; i < n; ++i) {
+    for (int m = 0; m < 7; ++m) {
+      out_arr[i].move_p[m] = tensor_pred.move_p.matrix<float>()(i, m);
+    }
+    out_arr[i].value = tensor_pred.value.flat<float>()(i);
+  }
 }
 
 }  // namespace c4cc
