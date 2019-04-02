@@ -26,9 +26,9 @@ enum class PlayerType {
 
 struct Options {
   PlayerType players[2];
-  int negamax_depth = 6;
+  int negamax_depth = 7;
   Model* model;
-  int mcts_iters = 1000;
+  int mcts_iters = 400;
 };
 std::unique_ptr<Player> MakePlayer(PlayerType type, Options opts) {
   switch (type) {
@@ -37,7 +37,8 @@ std::unique_ptr<Player> MakePlayer(PlayerType type, Options opts) {
     case PlayerType::kNegamax:
       return std::make_unique<NegamaxPlayer>(opts.negamax_depth);
     case PlayerType::kMcts:
-      return std::make_unique<MCTSPlayer>(opts.model, opts.mcts_iters);
+      return std::make_unique<MCTSPlayer>(opts.model, opts.mcts_iters, nullptr,
+                                          /*hard=*/true);
   }
   std::cerr << "Invalid PlayerType " << static_cast<int>(type) << "\n";
   abort();
@@ -72,27 +73,13 @@ bool DirectoryExists(const std::string& dir) {
 }
 
 void Go(int argc, char** argv) {
-  const std::string prefix = "/mnt/tensor-data/c4cc";
-  const std::string graph_def_filename = prefix + "/graph.pb";
-  const std::string checkpoint_dir = prefix + "/checkpoints";
-  const std::string checkpoint_prefix = checkpoint_dir + "/checkpoint";
-  bool restore = DirectoryExists(checkpoint_dir);
-
-  std::cout << "Loading graph\n";
-  Model model(graph_def_filename);
-  if (!restore) {
-    std::cout << "Model must be trained before playing\n";
-    exit(1);
-  } else {
-    std::cout << "Restoring model weights from checkpoint\n";
-    model.Restore(checkpoint_prefix);
-  }
+  auto model = CreateDefaultModel(/*allow_init=*/false);
 
   c4cc::Options opts;
-  opts.players[0] = c4cc::PlayerType::kMcts;
-  opts.players[1] = c4cc::PlayerType::kNegamax;
+  opts.players[1] = c4cc::PlayerType::kMcts;
+  opts.players[0] = c4cc::PlayerType::kNegamax;
   opts.mcts_iters = 1000;
-  opts.model = &model;
+  opts.model = model.get();
 
   c4cc::Play(opts);
 }

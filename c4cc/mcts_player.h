@@ -9,9 +9,13 @@
 
 namespace c4cc {
 
+using PredictionCache =
+  absl::node_hash_map<Board, Prediction>;
+
 class MCTSPlayer : public Player {
  public:
-  explicit MCTSPlayer(Model* model, int iters);
+  explicit MCTSPlayer(Model* model, int iters,
+      PredictionCache* cache = nullptr, bool hard = false);
   ~MCTSPlayer() override {}
 
   const Board& board() const override { return mcts_->current_board(); }
@@ -21,11 +25,17 @@ class MCTSPlayer : public Player {
   void MakeMove(int move) override;
 
   Prediction GetPrediction();
+  void Reset();
+
+  void LogStats();
 
  private:
   void RunIterations(int n);
 
   Model* const model_;
+  PredictionCache* const pred_cache_;
+  const bool hard_;
+
   int ply_ = 0;
   const int iters_per_move_;
   Prediction current_pred_;

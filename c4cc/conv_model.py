@@ -78,8 +78,7 @@ policy_loss = tf.nn.softmax_cross_entropy_with_logits_v2(
 
 value_loss = tf.squared_difference(target_value, output_value)
 
-total_loss = policy_loss + value_loss
-
+total_loss = tf.add(policy_loss, value_loss, name='total_loss')
 
 global train_op
 # This weird 'with' thing is required for batch norm to work.

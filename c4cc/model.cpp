@@ -17,7 +17,9 @@ Model::Model(const std::string& graph_def_filename) {
   tensorflow::GraphDef graph_def;
   TF_CHECK_OK(tensorflow::ReadBinaryProto(tensorflow::Env::Default(),
                                           graph_def_filename, &graph_def));
-  session_.reset(tensorflow::NewSession(tensorflow::SessionOptions()));
+  tensorflow::SessionOptions opts;
+  opts.config.mutable_gpu_options()->set_per_process_gpu_memory_fraction(0.2);
+  session_.reset(tensorflow::NewSession(opts));
   TF_CHECK_OK(session_->Create(graph_def));
 
   true_.flat<bool>()(0) = true;
@@ -57,6 +59,8 @@ void Model::RunTrainStep(const tensorflow::Tensor& board_batch,
   CHECK_GE(batch_size, 0);
   CHECK_EQ(move_batch.dim_size(0), batch_size);
   CHECK_EQ(value_batch.dim_size(0), batch_size);
+
+  std::vector<tensorflow::Tensor> out_tensors;
   TF_CHECK_OK(session_->Run(
       {
           {"board", board_batch},
@@ -64,7 +68,16 @@ void Model::RunTrainStep(const tensorflow::Tensor& board_batch,
           {"target_value", value_batch},
           {"is_training", true_},
       },
-      {}, {"train"}, nullptr));
+      {"total_loss"}, {"train"}, &out_tensors));
+  CHECK_EQ(out_tensors.size(), 1);
+  const auto& total_loss = out_tensors[0];
+  CHECK_EQ(total_loss.dims(), 1);
+  CHECK_EQ(total_loss.dim_size(0), batch_size);
+  double loss_sum = 0;
+  for (int i = 0; i < batch_size; ++i) {
+    loss_sum += total_loss.flat<float>()(i);
+  }
+  LOG(INFO) << "Training avg loss: " << (loss_sum / batch_size);
 }
 
 void Model::Checkpoint(const std::string& checkpoint_prefix) {
@@ -83,6 +96,16 @@ bool DirectoryExists(const std::string& dir) {
   struct stat buf;
   return stat(dir.c_str(), &buf) == 0;
 }
+
+std::string GetCheckpointDir(int gen) {
+  // TODO: Create flags out of these.
+  const std::string prefix = "/mnt/tensor-data/c4cc";
+  if (gen < 0) {
+    return prefix + "/current";
+  }
+  return prefix + "/" + std::to_string(gen);
+}
+
 }  // namespace
 
 std::string GetDefaultGraphDef() {
@@ -90,17 +113,18 @@ std::string GetDefaultGraphDef() {
   const std::string prefix = "/mnt/tensor-data/c4cc";
   return prefix + "/graph.pb";
 }
-std::string GetDefaultCheckpoint() {
-  // TODO: Create flags out of these.
-  const std::string prefix = "/mnt/tensor-data/c4cc";
-  const std::string checkpoint_dir = prefix + "/checkpoints";
-  return checkpoint_dir + "/checkpoint";
+
+std::string GetDefaultCheckpoint(int gen) {
+  return GetCheckpointDir(gen) + "/checkpoint";
 }
 
-std::unique_ptr<Model> CreateDefaultModel(bool allow_init) {
+std::unique_ptr<Model> CreateDefaultModel(bool allow_init, int gen) {
+  if (allow_init) {
+    CHECK_LT(gen, 0) << "Initialization only allowed for the current gen";
+  }
   const std::string prefix = "/mnt/tensor-data/c4cc";
-  const std::string checkpoint_dir = prefix + "/checkpoints";
-  const std::string checkpoint_prefix = checkpoint_dir + "/checkpoint";
+  const std::string checkpoint_dir = GetCheckpointDir(gen);
+  const std::string checkpoint_prefix = GetDefaultCheckpoint(gen);
   bool restore = DirectoryExists(checkpoint_dir);
   auto model = absl::make_unique<Model>(GetDefaultGraphDef());
   if (!restore && !allow_init) {
@@ -116,6 +140,13 @@ std::unique_ptr<Model> CreateDefaultModel(bool allow_init) {
   return model;
 }
 
+int GetNumGens() {
+  for (int g = 0;; ++g) {
+    if (!DirectoryExists(GetCheckpointDir(g))) {
+      return g;
+    }
+  }
+}
 
 tensorflow::Tensor MakeBoardTensor(int batch_size) {
   return tensorflow::Tensor(tensorflow::DT_FLOAT,
@@ -150,10 +181,13 @@ void ReadPredictions(const Model::Prediction& tensor_pred,
   }
 }
 
-void ShufflingTrainer::Train(const Board& b, const Prediction& target) {
+bool ShufflingTrainer::Train(const Board& b, const Prediction& target) {
   data_.push_back({b, target});
   if (data_.size() >= shuffle_size_) {
     TrainBatch(batch_size_);
+    return true;
+  } else {
+    return false;
   }
 }
 

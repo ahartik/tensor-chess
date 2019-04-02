@@ -1,6 +1,7 @@
 #include "c4cc/board.h"
 
 #include <ios>
+#include <iomanip>
 #include <iostream>
 #include <cstdint>
 
@@ -145,6 +146,18 @@ MoveList Board::valid_moves() const {
   return list;
 }
 
+Board Board::GetFlipped() const {
+  Board o = *this;
+  for (int x = 0; x < 7; ++x) {
+    for (int y = 0; y < 6; ++y) {
+      o.SetColor(x, y, color(6-x, y));
+    }
+  }
+  o.RedoMoves();
+  return o;
+}
+
+
 // static
 int Board::dx(int dir) { return kDX[dir]; }
 // static
@@ -201,9 +214,9 @@ void PrintBoard(std::ostream& out, const Board& b, const char* one,
 }
 
 std::ostream& operator<<(std::ostream& out, const Prediction& p) {
-  out << "p = ";
+  out << "p =";
   for (int i = 0; i < 7; ++i) {
-    out << " " << std::fixed << p.move_p[i];
+    out << " " << std::fixed << std::setw(4) << p.move_p[i];
   }
   out << " v = " << std::fixed << p.value;
   return out;

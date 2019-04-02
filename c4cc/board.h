@@ -38,10 +38,20 @@ class MoveList {
 };
 
 // TODO: Maybe move this to a different library.
+// TODO: We could use SSE here, but probably not worth the complexity.
 struct Prediction {
   double move_p[7] = {1.0 / 7, 1.0 / 7, 1.0 / 7, 1.0 / 7,
                       1.0 / 7, 1.0 / 7, 1.0 / 7};
   double value = 0.0;
+
+  Prediction GetFlipped() const {
+    Prediction o;
+    o.value = value;
+    for (int i = 0; i < 7; ++i) {
+      o.move_p[i] = move_p[6 - i];
+    }
+    return o;
+  }
 };
 
 enum class Color : uint8_t {
@@ -88,6 +98,8 @@ class Board {
 #endif
     return static_cast<Color>(val);
   }
+
+  Board GetFlipped() const;
 
   static constexpr int kNumDirs = 4;
   static int dx(int dir);

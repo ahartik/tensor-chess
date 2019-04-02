@@ -10,8 +10,10 @@ namespace c4cc {
 
 namespace {}  // namespace
 
-MCTSPlayer::MCTSPlayer(Model* m, int iters)
+MCTSPlayer::MCTSPlayer(Model* m, int iters, PredictionCache* cache, bool hard)
     : model_(m),
+      pred_cache_(cache),
+      hard_(hard),
       iters_per_move_(iters),
       mcts_(std::make_unique<MCTS>(Board())) {
   rand_.seed(time(0));
@@ -19,7 +21,7 @@ MCTSPlayer::MCTSPlayer(Model* m, int iters)
 
 void MCTSPlayer::SetBoard(const Board& b) {
   if (b != mcts_->current_board()) {
-    mcts_ = std::make_unique<MCTS>(b);
+    mcts_->SetBoard(b);
   }
   pred_ready_ = false;
   for (int i = 0; i < 7; ++i) {
@@ -33,27 +35,72 @@ void MCTSPlayer::SetBoard(const Board& b) {
 
 void MCTSPlayer::RunIterations(int n) {
   // TODO: Do multiple iterations in parallel.
-  tensorflow::Tensor board_tensor = MakeBoardTensor(1);
-  for (int i = 0; i < n; ++i) {
-    const Board* to_predict = mcts_->StartIteration();
-    if (to_predict != nullptr) {
-      CHECK(!to_predict->is_over());
-      Prediction prediction;
-      BoardToTensor(*to_predict, &board_tensor, 0);
-      auto prediction_result = model_->Predict(board_tensor);
-      ReadPredictions(prediction_result, &prediction);
-      mcts_->FinishIteration(prediction);
+  const int K = 8;
+  tensorflow::Tensor board_tensor = MakeBoardTensor(K);
+  int predicted = 0;
+  std::vector<std::unique_ptr<MCTS::PredictionRequest>> requests;
+  Prediction predictions[K];
+
+  const auto flush = [&] {
+    CHECK_LE(requests.size(), K);
+    const bool flip_all = rand_() % 3 == 0;
+    for (int i = 0; i < requests.size(); ++i) {
+      CHECK(!requests[i]->board().is_over());
+      if (flip_all) {
+        BoardToTensor(requests[i]->board().GetFlipped(), &board_tensor, i);
+      } else {
+        BoardToTensor(requests[i]->board(), &board_tensor, i);
+      }
+    }
+    auto prediction_result = model_->Predict(board_tensor);
+    ReadPredictions(prediction_result, predictions);
+    for (int i = 0; i < requests.size(); ++i) {
+      if (flip_all) {
+        predictions[i] = predictions[i].GetFlipped();
+      }
+      if (pred_cache_ != nullptr) {
+        pred_cache_->emplace(requests[i]->board(), predictions[i]);
+      }
+      mcts_->FinishIteration(std::move(requests[i]), predictions[i]);
+    }
+    requests.clear();
+  };
+
+  for (int iter = 0; iter < n; ++iter) {
+    auto pred_req = mcts_->StartIteration();
+    if (pred_req != nullptr) {
+      bool cached = false;
+      if (pred_cache_ != nullptr) {
+        auto it = pred_cache_->find(pred_req->board());
+        if (it != pred_cache_->end()) {
+          mcts_->FinishIteration(std::move(pred_req), it->second);
+          cached = true;
+        }
+      }
+      if (!cached) {
+        requests.push_back(std::move(pred_req));
+      }
+    }
+    if (requests.size() == K) {
+      flush();
     }
   }
+  flush();
+}
+
+void MCTSPlayer::LogStats() {
+  Prediction pred = GetPrediction();
+  PrintBoardWithColor(std::cerr, board());
+  LOG(INFO) << "Got " << pred << " with total " << mcts_->num_iterations()
+            << " mcts iters";
+  LOG(INFO) << "Pri " << mcts_->GetPrior();
+  LOG(INFO) << "Chi " << mcts_->GetChildValues();
 }
 
 int MCTSPlayer::GetMove() {
   CHECK(!board().is_over());
 
   Prediction pred = GetPrediction();
-  PrintBoardWithColor(std::cerr, board());
-  LOG(INFO) << "Got " << pred << " with total " << mcts_->num_iterations()
-            << " mcts iters";
 
   // TODO: Add options for move selection (i.e. temperature).
   const auto valid_moves = board().valid_moves();
@@ -70,11 +117,13 @@ int MCTSPlayer::GetMove() {
   CHECK_GT(total, 0.0);
   CHECK_LE(total, 1.001);
   CHECK_GE(best_move, 0);
-  if (ply_ > 10) {
+
+  // USe random for early moves.
+  double r = std::uniform_real_distribution<double>(0.0, 1.0)(rand_);
+  if (hard_ || (ply_ > 10 && r > 0.05)) {
     return best_move;
   }
-  // USe random for early moves.
-  const double r = std::uniform_real_distribution<double>(0.0, total)(rand_);
+  r *= total;
   double sum = 0;
   for (const int move : valid_moves) {
     sum += pred.move_p[move];

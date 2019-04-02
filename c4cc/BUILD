@@ -155,7 +155,20 @@ tf_cc_binary(
         ":play_game",
         "//util:init",
         "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/time",
         "@org_tensorflow//tensorflow/core:lib",
         "@org_tensorflow//tensorflow/core:tensorflow",
+    ],
+)
+
+tf_cc_binary(
+    name =  "evaluate",
+    srcs = ["evaluate.cpp"],
+    deps = [
+        ":board",
+        ":model",
+        ":mcts_player",
+        ":play_game",
+        "//util:init",
     ],
 )

@@ -57,7 +57,8 @@ class ShufflingTrainer {
       : model_(model), batch_size_(batch_size), shuffle_size_(shuffle_size) {
     CHECK_GE(shuffle_size, batch_size);
   }
-  void Train(const Board& b, const Prediction& target);
+  // Returns whether training was actually performed.
+  bool Train(const Board& b, const Prediction& target);
 
   void Flush();
 
@@ -76,9 +77,11 @@ class ShufflingTrainer {
 };
 
 std::string GetDefaultGraphDef();
-std::string GetDefaultCheckpoint();
+std::string GetDefaultCheckpoint(int gen = -1);
+int GetNumGens();
 
-std::unique_ptr<Model> CreateDefaultModel(bool allow_init);
+std::unique_ptr<Model> CreateDefaultModel(bool allow_init, int gen = -1);
+
 
 }  // namespace c4cc
 
