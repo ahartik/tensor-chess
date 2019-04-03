@@ -28,3 +28,48 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name =  "refcount",
+    hdrs = ["refcount.h"],
+    deps = [
+    ]
+)
+
+cc_library(
+    name =  "persistent-int-map",
+    hdrs = ["persistent-int-map.h"],
+    deps = [
+        ":refcount"
+    ]
+)
+
+cc_test(
+    name = "persistent-int-map_test",
+    srcs = ["persistent-int-map_test.cc"],
+    copts = ["-Iexternal/gtest/include"],
+    deps = [
+        ":persistent-int-map",
+        "@googletest//:gtest_main",
+        "@com_google_absl//absl/time",
+        ],
+)
+
+cc_library(
+    name =  "int-set",
+    hdrs = ["int-set.h"],
+    deps = [
+        ":refcount"
+    ]
+)
+
+cc_test(
+    name =  "int-set_test",
+    srcs = ["int-set_test.cpp"],
+    copts = ["-Iexternal/gtest/include"],
+    deps = [
+        ":int-set",
+        "@googletest//:gtest_main",
+        "@com_google_absl//absl/time",
+        ],
+)

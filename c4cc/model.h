@@ -1,6 +1,8 @@
 #ifndef _C4CC_MODEL_H_
 #define _C4CC_MODEL_H_
 
+#include <atomic>
+
 #include "c4cc/board.h"
 #include "tensorflow/core/framework/tensor.h"
 #include "tensorflow/core/lib/io/path.h"
@@ -12,6 +14,7 @@
 
 namespace c4cc {
 
+// This class is thread-safe.
 class Model {
  public:
   explicit Model(const std::string& graph_def_filename);
@@ -33,6 +36,10 @@ class Model {
 
   void Checkpoint(const std::string& checkpoint_prefix);
 
+  int64_t num_predictions() const {
+    return num_preds_.load(std::memory_order::memory_order_relaxed);
+  }
+
  private:
   void SaveOrRestore(const std::string& checkpoint_prefix,
                      const std::string& op_name);
@@ -40,6 +47,8 @@ class Model {
   std::unique_ptr<tensorflow::Session> session_;
   tensorflow::Tensor true_{tensorflow::DT_BOOL, tensorflow::TensorShape({})};
   tensorflow::Tensor false_{tensorflow::DT_BOOL, tensorflow::TensorShape({})};
+
+  std::atomic<int64_t> num_preds_;
 };
 
 tensorflow::Tensor MakeBoardTensor(int batch_size);
@@ -81,7 +90,6 @@ std::string GetDefaultCheckpoint(int gen = -1);
 int GetNumGens();
 
 std::unique_ptr<Model> CreateDefaultModel(bool allow_init, int gen = -1);
-
 
 }  // namespace c4cc
 

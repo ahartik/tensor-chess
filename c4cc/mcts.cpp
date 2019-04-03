@@ -18,7 +18,7 @@ struct Action {
   double total_value = 0;
   std::shared_ptr<State> state;
 
-  void AddResult(double v, int n =1);
+  void AddResult(double v);
 };
 using Actions = std::array<Action, 7>;
 
@@ -51,10 +51,9 @@ struct State {
   Action actions[7];
 };
 
-void Action::AddResult(double v, int n) {
-  CHECK_GT(n, 0);
-  num_taken += n;
-  total_value += v * n;
+void Action::AddResult(double v) {
+  num_taken += 1;
+  total_value += v;
   // mean_value = total_value / num_taken;
   CHECK(state != nullptr);
   if (state != nullptr) {
@@ -115,9 +114,7 @@ int PickAction(std::mt19937& rand, const State& s) {
 
 }  // namespace
 
-MCTS::MCTS(const Board& start) {
-  SetBoard(start);
-}
+MCTS::MCTS(const Board& start) { SetBoard(start); }
 
 MCTS::~MCTS() {}
 
@@ -154,11 +151,9 @@ std::unique_ptr<MCTS::PredictionRequest> MCTS::StartIteration() {
         // OK, it's a new node: must request a prediction.
 
         // Increment virtual counts - this will be undone by Finish.
-#if 1
         for (auto e : picked_path) {
           ++e.a->num_virtual;
         }
-#endif
         std::unique_ptr<PredictionRequest> request(new PredictionRequest());
         request->picked_path_ = std::move(picked_path);
         request->parent_ = cur;
@@ -208,7 +203,7 @@ void MCTS::FinishIteration(std::unique_ptr<PredictionRequest> req,
     // Bias all values towards the mean, so that actual terminal nodes have
     // more weight than strong prediction outputs. This hopefully makes us seek
     // winning terminal nodes and avoid losing ones harder.
-    const double kUncertainty = 0.9;
+    const double kUncertainty = 1.0;
     e.a->AddResult(mul * p.value * kUncertainty);
     --e.a->num_virtual;
   }

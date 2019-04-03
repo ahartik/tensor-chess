@@ -16,7 +16,7 @@ MCTSPlayer::MCTSPlayer(Model* m, int iters, PredictionCache* cache, bool hard)
       hard_(hard),
       iters_per_move_(iters),
       mcts_(std::make_unique<MCTS>(Board())) {
-  rand_.seed(time(0));
+  rand_.seed(time(0) ^ reinterpret_cast<intptr_t>(this));
 }
 
 void MCTSPlayer::SetBoard(const Board& b) {
@@ -34,7 +34,6 @@ void MCTSPlayer::SetBoard(const Board& b) {
 }
 
 void MCTSPlayer::RunIterations(int n) {
-  // TODO: Do multiple iterations in parallel.
   const int K = 8;
   tensorflow::Tensor board_tensor = MakeBoardTensor(K);
   int predicted = 0;
@@ -43,21 +42,13 @@ void MCTSPlayer::RunIterations(int n) {
 
   const auto flush = [&] {
     CHECK_LE(requests.size(), K);
-    const bool flip_all = rand_() % 3 == 0;
     for (int i = 0; i < requests.size(); ++i) {
       CHECK(!requests[i]->board().is_over());
-      if (flip_all) {
-        BoardToTensor(requests[i]->board().GetFlipped(), &board_tensor, i);
-      } else {
-        BoardToTensor(requests[i]->board(), &board_tensor, i);
-      }
+      BoardToTensor(requests[i]->board(), &board_tensor, i);
     }
     auto prediction_result = model_->Predict(board_tensor);
     ReadPredictions(prediction_result, predictions);
     for (int i = 0; i < requests.size(); ++i) {
-      if (flip_all) {
-        predictions[i] = predictions[i].GetFlipped();
-      }
       if (pred_cache_ != nullptr) {
         pred_cache_->emplace(requests[i]->board(), predictions[i]);
       }

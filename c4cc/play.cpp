@@ -77,7 +77,7 @@ void Go(int argc, char** argv) {
 
   c4cc::Options opts;
   opts.players[1] = c4cc::PlayerType::kMcts;
-  opts.players[0] = c4cc::PlayerType::kNegamax;
+  opts.players[0] = c4cc::PlayerType::kHuman;
   opts.mcts_iters = 1000;
   opts.model = model.get();
 

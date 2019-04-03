@@ -49,6 +49,7 @@ Model::Prediction Model::Predict(const tensorflow::Tensor& batch) {
   pred.value = out_tensors[1];
   CHECK_EQ(pred.move_p.dim_size(0), num_boards);
   CHECK_EQ(pred.value.dim_size(0), num_boards);
+  num_preds_.fetch_add(num_boards, std::memory_order::memory_order_relaxed);
   return pred;
 }
 

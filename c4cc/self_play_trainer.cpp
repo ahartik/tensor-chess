@@ -96,15 +96,25 @@ void Go() {
     }
   };
   std::vector<std::thread> threads;
-  const int kNumThreads = 2;  // be_simple ? 1 : 2;
+  const int kNumThreads = 5;  // be_simple ? 1 : 2;
   for (int i = 0; i < kNumThreads; ++i) {
     threads.emplace_back(train_thread);
     CHECK(threads.back().joinable());
   }
+  absl::Time last_log = absl::Now();
+  int last_preds = 0;
+  int last_boards = 0;
   while (true) {
-    absl::SleepFor(absl::Seconds(1));
-    int64_t count = num_boards.exchange(0);
-    LOG(INFO) << count << " boards last sec";
+    absl::SleepFor(absl::Seconds(5));
+    const absl::Time now = absl::Now();
+    const int64_t preds = t.model_->num_predictions();
+    const int64_t boards = num_boards.load(std::memory_order_relaxed);
+    const double secs =absl::ToDoubleSeconds(now - last_log);
+    LOG(INFO) << (preds - last_preds) / secs << " preds/s";
+    LOG(INFO) << (boards - last_boards) / secs << " boards/s";
+    last_preds = preds;
+    last_boards = boards;
+    last_log = now;
   }
   for (int i = 0; i < kNumThreads; ++i) {
     threads[i].join();
