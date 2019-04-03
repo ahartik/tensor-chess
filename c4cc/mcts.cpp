@@ -24,14 +24,12 @@ using Actions = std::array<Action, 7>;
 
 struct State {
   State(const Board& b, const Prediction& p) : board(b) {
-    const double add = 0.1;
+    // Give a positive prior to all moves, so that we still sometimes explore
+    // them in case the prediction network gives a zero weight for the move.
+    const double add = 0.05;
     const double new_total = 1.0 + 7 * add;
     for (int i = 0; i < 7; ++i) {
-#if 0
-      actions[i].prior = 1.0 / 7; // p.move_p[i];
-#else
       actions[i].prior = (p.move_p[i] + add) / new_total;
-#endif
     }
   }
   State(const State&) = delete;
@@ -97,6 +95,7 @@ int PickAction(std::mt19937& rand, const State& s) {
       score = action.prior;
     } else {
       const int num = action.num_taken + action.num_virtual;
+      // Reminder: virtual moves are counted as losses for both players.
       double mean_value =
           num == 0 ? 0 : (action.total_value - action.num_virtual) / num;
       score =
@@ -185,6 +184,9 @@ void MCTS::FinishIteration(std::unique_ptr<PredictionRequest> req,
 
   CHECK(req->parent_ != nullptr);
   auto& action = req->parent_->actions[req->parent_a_];
+  // It's possible that 'state' was already added by a previous call to
+  // FinishIteration(). StartIteration() may return the same position twice in
+  // case the first iteration has not yet been finished.
   if (action.state == nullptr) {
     // Initialize next state.
     auto state = std::make_shared<State>(req->board(), p);
@@ -263,7 +265,6 @@ Prediction MCTS::GetChildValues() const {
 
 void MCTS::MakeMove(int a) {
   current_.MakeMove(a);
-  // This may cause multiple refcounts to be zero.
   root_ = root_->actions[a].state;
   if (root_ != nullptr) {
     CHECK_EQ(current_, root_->board);

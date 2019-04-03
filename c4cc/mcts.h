@@ -51,14 +51,15 @@ class MCTS {
   const Board& current_board() const;
   // Iteration is split in two steps: StartIteration() and FinishIteration().
   //
-  // Finds a new leaf node to explore and returns it. FinishIteration() must be
-  // called with predictions for this position to complete the iteration. New
-  // iteration must not be started before calling FinishIteration().
+  // Finds a new leaf node to explore and returns a prediction request.
+  // FinishIteration() must be called with predictions for this position to
+  // complete the iteration. New iteration must not be started before calling
+  // FinishIteration().
   //
   // May return null in case no new leaf node was found (i.e. we hit a terminal
   // node). In that case FinishIteration() must not be called.
-  //
   std::unique_ptr<PredictionRequest> StartIteration();
+
   // Given predictions for the position previously returned by StartIteration(),
   // adds the new node to the tree and propagates new weights.
   void FinishIteration(std::unique_ptr<PredictionRequest> req,
@@ -67,8 +68,10 @@ class MCTS {
   // Number of times an iteration has been completed.
   int num_iterations() const;
 
-  // This is the prediction for the current board. Requires num_iterations > 1.
+  // This is the prediction for the current board.
+  // Must not be called if there are outstanding
   Prediction GetPrediction() const;
+  // Returns the prior prediction for the current (root) position.
   Prediction GetPrior() const;
   Prediction GetChildValues() const;
 
@@ -79,7 +82,7 @@ class MCTS {
   Board current_;
   std::shared_ptr<mcts::State> root_;
 
-  // TODO: It might be possible to optimize this memory-wise.
+  // TODO: Optimize this memory-wise.
   absl::node_hash_map<Board, std::shared_ptr<mcts::State>> visited_states_;
   std::mt19937 rand_;
 };
