@@ -8,9 +8,13 @@ is_training = tf.placeholder(dtype=bool, shape=(), name="is_training")
 
 layer = tf.reshape(board, shape=[-1, 2, 7, 6], name='matrix')
 
-# Add a layer full of ones on each side.
+# Add one layer of just values 1.0. Idea is that this helps convolutions know
+# when they're at the edges of the boards when using SAME padding, as SAME
+# padding zero-pads outside values.
 paddings = tf.constant([[0,0], [0,1], [0,0], [0,0]])
 layer = tf.pad(layer, paddings, constant_values=1.0)
+
+print("Shape after pad: {}".format(layer.shape))
 
 def add_conv2d(y, res=True, bn=True, filters=64, kernel=(4,4)):
     if not res:
