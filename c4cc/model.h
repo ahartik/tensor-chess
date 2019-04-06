@@ -64,33 +64,6 @@ void ReadPredictions(const Model::Prediction& tensor_pred, Prediction* out_arr,
     int offset,
     int n);
 
-// This class is thread-compatible.
-class ShufflingTrainer {
- public:
-  explicit ShufflingTrainer(Model* model, int batch_size = 256,
-                            int shuffle_size = 10000)
-      : model_(model), batch_size_(batch_size), shuffle_size_(shuffle_size) {
-    CHECK_GE(shuffle_size, batch_size);
-  }
-  // Returns whether training was actually performed.
-  bool Train(const Board& b, const Prediction& target);
-
-  void Flush();
-
- private:
-  struct BoardData {
-    Board b;
-    Prediction target;
-  };
-  void TrainBatch(int size);
-
-  Model* const model_;
-  const int batch_size_;
-  const int shuffle_size_;
-  std::mt19937 rng_;
-  int64_t since_full_flush_ = 0;
-  std::vector<BoardData> data_;
-};
 
 std::string GetDefaultGraphDef();
 std::string GetDefaultCheckpoint(int gen = -1);

@@ -19,6 +19,7 @@
 #include "c4cc/mcts_player.h"
 #include "c4cc/model.h"
 #include "c4cc/play_game.h"
+#include "c4cc/shuffling_trainer.h"
 #include "tensorflow/core/platform/env.h"
 #include "tensorflow/core/platform/init_main.h"
 #include "tensorflow/core/platform/logging.h"
@@ -58,8 +59,6 @@ class Trainer {
  private:
   void TrainGame(std::vector<Board> boards, std::vector<Prediction> preds,
                  Color winner) {
-    absl::MutexLock lock(&mu_);
-    bool trained = false;
     for (int i = 0; i < boards.size(); ++i) {
       if (winner == Color::kEmpty) {
         preds[i].value = 0.0;
@@ -70,20 +69,25 @@ class Trainer {
           preds[i].value = -1.0;
         }
       }
-      trained |= trainer_.Train(boards[i], preds[i]);
-      trained |= trainer_.Train(boards[i].GetFlipped(), preds[i].GetFlipped());
+      trainer_.Train(boards[i], preds[i]);
+      trainer_.Train(boards[i].GetFlipped(), preds[i].GetFlipped());
       CHECK_EQ(boards[i].GetFlipped().GetFlipped(), boards[i]);
     }
-    if (trained) {
+
+    absl::MutexLock lock(&mu_);
+    const int64_t num = trainer_.num_trained();
+    if (num != last_num_trained_) {
       model_->Checkpoint(GetDefaultCheckpoint());
+      last_num_trained_ = num;
     }
   }
 
   std::unique_ptr<Model> model_ = CreateDefaultModel(true);
   mutable PredictionQueue queue_{model_.get()};
 
-  absl::Mutex mu_;
   ShufflingTrainer trainer_{model_.get(), 256, 2048};
+  absl::Mutex mu_;
+  int64_t last_num_trained_ = 0;
 };
 
 void Go() {
@@ -95,7 +99,7 @@ void Go() {
     while (true) {
       ++i;
       t.PlayGame(player.get());
-      if (i % 2 == 0) {
+      if (i % 10 == 0) {
         player = std::make_unique<MCTSPlayer>(t.queue(), iters);
       }
     }

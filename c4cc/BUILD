@@ -146,6 +146,20 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "shuffling_trainer",
+    hdrs = ["shuffling_trainer.h"],
+    srcs = ["shuffling_trainer.cpp"],
+    copts = tf_copts(),
+    deps = [
+        ":board",
+        ":model",
+        "@com_google_absl//absl/synchronization",
+        "@org_tensorflow//tensorflow/core:lib",
+        "@org_tensorflow//tensorflow/core:tensorflow",
+    ],
+)
+
 tf_cc_binary(
     name = "play",
     srcs = ["play.cpp"],
@@ -171,6 +185,7 @@ tf_cc_binary(
         ":mcts_player",
         ":negamax",
         ":play_game",
+        ":shuffling_trainer",
         "//util:init",
         "@com_google_absl//absl/synchronization",
         "@com_google_absl//absl/time",
