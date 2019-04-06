@@ -86,23 +86,29 @@ int PickAction(std::mt19937& rand, const State& s) {
   }
   double best_score = -10000;
   int best_a = -1;
-  for (int m : s.board.valid_moves()) {
+  const auto score_move = [&s, num_sum](int m) -> double {
     const auto& action = s.actions[m];
-    double score;
     if (num_sum == 0) {
-      score = action.prior;
+      return action.prior;
     } else {
       const int num = action.num_taken + action.num_virtual;
       // Reminder: virtual moves are counted as losses for both players.
       double mean_value =
           num == 0 ? 0 : (action.total_value - action.num_virtual) / num;
-      score =
-          mean_value + kPUCT * action.prior * std::sqrt(num_sum) / (1.0 + num);
+      return mean_value +
+             kPUCT * action.prior * std::sqrt(num_sum) / (1.0 + num);
     }
-    score += rand_dist(rand);
+  };
+  for (int m : s.board.valid_moves()) {
+    const double score = score_move(m) + rand_dist(rand);
     if (score > best_score) {
       best_score = score;
       best_a = m;
+    }
+  }
+  if (best_a < 0) {
+    for (int m : s.board.valid_moves()) {
+      LOG(INFO) << "m " << m << " s " << score_move(m);
     }
   }
   CHECK_GE(best_a, 0);

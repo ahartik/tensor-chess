@@ -1,6 +1,7 @@
 #ifndef _C4CC_PREDICTION_QUEUE_H_
 #define _C4CC_PREDICTION_QUEUE_H_
 
+#include <deque>
 #include <atomic>
 #include <cstdint>
 #include <memory>
@@ -24,6 +25,15 @@ class PredictionQueue {
     return pred_count_.load(std::memory_order_relaxed);
   }
 
+  double avg_batch_size() const {
+    const int preds = num_predictions();
+    const int batches = batch_count_.load(std::memory_order_relaxed);
+    if (batches == 0) {
+      return 0.0;
+    }
+    return static_cast<double>(preds) / batches;
+  }
+
  private:
   struct Request {
     int offset = 0;
@@ -34,15 +44,17 @@ class PredictionQueue {
 
   void WorkerThread();
 
-  const int max_batch_size_ = 64;
+  const int max_batch_size_ = 384;
   Model* const model_;
 
   std::atomic<int64_t> pred_count_{0};
+  std::atomic<int64_t> batch_count_{0};
 
   absl::Mutex mu_;
   struct WorkBatch {
     WorkBatch(int n) : tensor(MakeBoardTensor(n)) {}
     tensorflow::Tensor tensor;
+    Model::Prediction prediction;
     std::vector<Request*> requests;
     int size() const {
       if (requests.empty()) {
@@ -51,7 +63,7 @@ class PredictionQueue {
       return requests.back()->offset + requests.back()->n;
     }
   };
-  std::unique_ptr<WorkBatch> next_batch_;
+  std::deque<std::unique_ptr<WorkBatch>> batches_;
   bool stopped_ = false;
 
   std::thread worker_;

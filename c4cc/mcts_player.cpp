@@ -40,7 +40,7 @@ void MCTSPlayer::RunIterations(int n) {
   const int minibatch_size = 8;
   tensorflow::Tensor board_tensor = MakeBoardTensor(minibatch_size);
   std::vector<std::unique_ptr<MCTS::PredictionRequest>> requests;
-  std::vector<Board> boards;
+  Board boards[minibatch_size];
   Prediction predictions[minibatch_size];
 
   const auto flush = [&] {
@@ -49,7 +49,7 @@ void MCTSPlayer::RunIterations(int n) {
       CHECK(!requests[i]->board().is_over());
       BoardToTensor(requests[i]->board(), &board_tensor, i);
     }
-    queue_->GetPredictions(boards.data(), predictions, boards.size());
+    queue_->GetPredictions(boards, predictions, requests.size());
     for (int i = 0; i < requests.size(); ++i) {
       if (pred_cache_ != nullptr) {
         pred_cache_->emplace(requests[i]->board(), predictions[i]);
@@ -57,7 +57,6 @@ void MCTSPlayer::RunIterations(int n) {
       mcts_->FinishIteration(std::move(requests[i]), predictions[i]);
     }
     requests.clear();
-    boards.clear();
   };
 
   for (int iter = 0; iter < n; ++iter) {
@@ -72,7 +71,7 @@ void MCTSPlayer::RunIterations(int n) {
         }
       }
       if (!cached) {
-        boards.push_back(pred_req->board());
+        boards[requests.size()] = pred_req->board();
         requests.push_back(std::move(pred_req));
       }
     }

@@ -49,7 +49,7 @@ class Trainer {
       preds.push_back(pred);
       player->MakeMove(player->GetMove());
     }
-    PrintBoardWithColor(std::cout, player->board());
+    // PrintBoardWithColor(std::cout, player->board());
     TrainGame(std::move(boards), std::move(preds), player->board().result());
   }
 
@@ -83,7 +83,7 @@ class Trainer {
   mutable PredictionQueue queue_{model_.get()};
 
   absl::Mutex mu_;
-  ShufflingTrainer trainer_{model_.get(), 128, 2048};
+  ShufflingTrainer trainer_{model_.get(), 384, 2048};
 };
 
 void Go() {
@@ -101,7 +101,7 @@ void Go() {
     }
   };
   std::vector<std::thread> threads;
-  const int kNumThreads = 8;  // be_simple ? 1 : 2;
+  const int kNumThreads = 97;  // be_simple ? 1 : 2;
   for (int i = 0; i < kNumThreads; ++i) {
     threads.emplace_back(train_thread);
     CHECK(threads.back().joinable());
@@ -118,6 +118,7 @@ void Go() {
     LOG(INFO) << (preds - last_preds) / secs << " preds/s (" << preds
               << " total)";
     LOG(INFO) << (boards - last_boards) / secs << " boards/s";
+    LOG(INFO) << "bpb: " << t.queue()->avg_batch_size();
     last_preds = preds;
     last_boards = boards;
     last_log = now;
