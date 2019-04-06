@@ -5,6 +5,7 @@
 #include <memory>
 #include <random>
 
+#include "absl/container/inlined_vector.h"
 #include "absl/container/node_hash_map.h"
 #include "absl/types/optional.h"
 #include "c4cc/board.h"
@@ -13,7 +14,6 @@ namespace c4cc {
 
 // MCTS internals, not to be used by callers directly.
 namespace mcts {
-
 struct State;
 struct Action;
 struct ActionRef {
@@ -28,24 +28,7 @@ class MCTS {
   explicit MCTS(const Board& start = {});
   ~MCTS();
 
-  class PredictionRequest {
-   public:
-    PredictionRequest(const PredictionRequest&) = delete;
-    PredictionRequest& operator=(const PredictionRequest&) = delete;
-    const Board& board() const { return board_; }
-
-   private:
-    PredictionRequest() {}
-    // What board we want to get inspected.
-    Board board_;
-    std::vector<mcts::ActionRef> picked_path_;
-    std::shared_ptr<mcts::State> parent_;
-    // The action from 'parent' leading to this board.
-    int parent_a_ = -1;
-
-    friend class MCTS;
-  };
-
+  // Resets position to 'b'.
   void SetBoard(const Board& b);
 
   const Board& current_board() const;
@@ -58,6 +41,26 @@ class MCTS {
   //
   // May return null in case no new leaf node was found (i.e. we hit a terminal
   // node). In that case FinishIteration() must not be called.
+  class PredictionRequest {
+   public:
+    PredictionRequest(const PredictionRequest&) = delete;
+    PredictionRequest& operator=(const PredictionRequest&) = delete;
+    const Board& board() const { return board_; }
+
+   private:
+    using PathVec = absl::InlinedVector<mcts::ActionRef, 8>;
+
+    // Only MCTS can construct this.
+    PredictionRequest() {}
+    // What board we want to get inspected.
+    Board board_;
+    PathVec picked_path_;
+    std::shared_ptr<mcts::State> parent_;
+    // The action from 'parent' leading to this board.
+    int parent_a_ = -1;
+
+    friend class MCTS;
+  };
   std::unique_ptr<PredictionRequest> StartIteration();
 
   // Given predictions for the position previously returned by StartIteration(),

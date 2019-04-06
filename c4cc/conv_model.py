@@ -16,28 +16,32 @@ layer = tf.pad(layer, paddings, constant_values=1.0)
 
 print("Shape after pad: {}".format(layer.shape))
 
-def add_conv2d(y, res=True, bn=True, filters=64, kernel=(4,4)):
+
+channel_setup = 'channels_first'
+fused_bn = True
+
+def add_conv2d(y, res=True, bn=True, filters=64, kernel=(3,3)):
     if not res:
         y = tf.layers.conv2d(y, filters, kernel,
-                data_format = 'channels_first', padding='same')
+                data_format = channel_setup, padding='same')
         if bn:
             y = tf.layers.batch_normalization(
-                y, axis=1, training=is_training, fused=True)
+                y, axis=1, training=is_training, fused=fused_bn)
         y = tf.nn.leaky_relu(y, alpha=0.01)
     else:
         init = tf.variance_scaling_initializer(scale=0.1)
         shortcut = y
-        y = tf.layers.conv2d(y, filters, kernel, data_format = 'channels_first',
+        y = tf.layers.conv2d(y, filters, kernel, data_format = channel_setup,
                 use_bias=False, padding='same', kernel_initializer=init)
         if bn:
             y = tf.layers.batch_normalization(
-                y, axis=1, training=is_training, fused=True)
+                y, axis=1, training=is_training, fused=fused_bn)
         y = tf.nn.leaky_relu(y, alpha=0.01)
-        y = tf.layers.conv2d(y, filters, kernel, data_format = 'channels_first',
+        y = tf.layers.conv2d(y, filters, kernel, data_format = channel_setup,
                 use_bias=False, padding='same', kernel_initializer=init)
         if bn:
             y = tf.layers.batch_normalization(
-                y, axis=1, training=is_training, fused=True)
+                y, axis=1, training=is_training, fused=fused_bn)
         y = tf.add(y, shortcut)
         y = tf.nn.leaky_relu(y, alpha=0.01)
     return y
@@ -45,6 +49,8 @@ def add_conv2d(y, res=True, bn=True, filters=64, kernel=(4,4)):
 # layer = add_conv2d(layer, res=False)
 # layer = add_conv2d(layer, res=False)
 layer = add_conv2d(layer, res=False)
+layer = add_conv2d(layer, res=True)
+layer = add_conv2d(layer, res=True)
 layer = add_conv2d(layer, res=True)
 layer = add_conv2d(layer, res=True)
 layer = add_conv2d(layer, res=True)
@@ -70,7 +76,7 @@ layer = add_conv2d(layer, res=True)
 
 # Flatten to one value per column to get output.
 layer = tf.layers.conv2d(layer, 1, (1, 6),
-        data_format = 'channels_first', padding='valid')
+        data_format = channel_setup, padding='valid')
 
 logits = tf.reshape(tensor=layer, shape=[-1, 7], name = 'logits')
 

@@ -6,16 +6,16 @@
 #include "c4cc/mcts.h"
 #include "c4cc/model.h"
 #include "c4cc/play_game.h"
+#include "c4cc/prediction_queue.h"
 
 namespace c4cc {
 
-using PredictionCache =
-  absl::node_hash_map<Board, Prediction>;
+using PredictionCache = absl::node_hash_map<Board, Prediction>;
 
 class MCTSPlayer : public Player {
  public:
-  explicit MCTSPlayer(Model* model, int iters,
-      PredictionCache* cache = nullptr, bool hard = false);
+  explicit MCTSPlayer(PredictionQueue* queue, int iters,
+                      PredictionCache* cache = nullptr, bool hard = false);
   ~MCTSPlayer() override {}
 
   const Board& board() const override { return mcts_->current_board(); }
@@ -32,7 +32,7 @@ class MCTSPlayer : public Player {
  private:
   void RunIterations(int n);
 
-  Model* const model_;
+  PredictionQueue* const queue_;
   PredictionCache* const pred_cache_;
   const bool hard_;
 

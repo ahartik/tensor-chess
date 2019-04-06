@@ -27,20 +27,24 @@ enum class PlayerType {
 struct Options {
   PlayerType players[2];
   int negamax_depth = 7;
-  Model* model;
+  Model* models[2];
   int mcts_iters = 400;
+  int num_games = 100;
+  bool hard = false;
 };
-std::unique_ptr<Player> MakePlayer(PlayerType type, Options opts) {
-  switch (type) {
+std::unique_ptr<Player> MakePlayer(int p, Options opts) {
+  switch (opts.players[p]) {
     case PlayerType::kHuman:
       return std::make_unique<HumanPlayer>();
     case PlayerType::kNegamax:
       return std::make_unique<NegamaxPlayer>(opts.negamax_depth);
     case PlayerType::kMcts:
-      return std::make_unique<MCTSPlayer>(opts.model, opts.mcts_iters, nullptr,
-                                          /*hard=*/true);
+      return std::make_unique<MCTSPlayer>(opts.models[p], opts.mcts_iters,
+                                          nullptr,
+                                          /*hard=*/opts.hard);
   }
-  std::cerr << "Invalid PlayerType " << static_cast<int>(type) << "\n";
+  std::cerr << "Invalid PlayerType " << static_cast<int>(opts.players[p])
+            << "\n";
   abort();
   return nullptr;
 }
@@ -48,38 +52,44 @@ std::unique_ptr<Player> MakePlayer(PlayerType type, Options opts) {
 void Play(Options opts) {
   std::cout << "Start game!\n";
 
-  const auto player1 = MakePlayer(opts.players[0], opts);
-  const auto player2 = MakePlayer(opts.players[1], opts);
-
-  const Board result = PlayGame(player1.get(), player2.get()).first;
-  PrintBoardWithColor(std::cout, result);
-  switch (result.result()) {
-    case Color::kEmpty:
-      std::cout << "Draw!\n";
-      break;
-    case Color::kOne:
-      std::cout << "X won!\n";
-      break;
-    case Color::kTwo:
-      std::cout << "O won!\n";
-      break;
+  int score[2] = {};
+  for (int i = 0; i < opts.num_games; ++i) {
+    const int p1_num = i % 2;
+    const int p2_num = (i + 1) % 2;
+    const auto player1 = MakePlayer(p1_num, opts);
+    const auto player2 = MakePlayer(p2_num, opts);
+    const Board result = PlayGame(player1.get(), player2.get()).first;
+    PrintBoardWithColor(std::cout, result);
+    switch (result.result()) {
+      case Color::kEmpty:
+        score[0] += 1;
+        score[1] += 1;
+        std::cout << "Draw!\n";
+        break;
+      case Color::kOne:
+        score[p1_num] += 2;
+        std::cout << "X won!\n";
+        break;
+      case Color::kTwo:
+        score[p2_num] += 2;
+        std::cout << "O won!\n";
+        break;
+    }
+    std::cout << score[0] << " - " << score[1] << " after " << (i + 1)
+              << " games\n";
   }
 }
 
-// TODO: Move this to common lib.
-bool DirectoryExists(const std::string& dir) {
-  struct stat buf;
-  return stat(dir.c_str(), &buf) == 0;
-}
-
 void Go(int argc, char** argv) {
-  auto model = CreateDefaultModel(/*allow_init=*/false);
+  auto model1 = CreateDefaultModel(/*allow_init=*/false, -1);
+  auto model2 = CreateDefaultModel(/*allow_init=*/false, -1, "golden");
 
   c4cc::Options opts;
+  opts.players[0] = c4cc::PlayerType::kMcts;
   opts.players[1] = c4cc::PlayerType::kMcts;
-  opts.players[0] = c4cc::PlayerType::kHuman;
   opts.mcts_iters = 1000;
-  opts.model = model.get();
+  opts.models[0] = model1.get();
+  opts.models[1] = model2.get();
 
   c4cc::Play(opts);
 }
@@ -88,7 +98,7 @@ void Go(int argc, char** argv) {
 }  // namespace c4cc
 
 int main(int argc, char** argv) {
-  const char* const * cargv = argv;
+  const char* const* cargv = argv;
   NiceInit(argc, cargv);
   tensorflow::port::InitMain(argv[0], &argc, &argv);
 

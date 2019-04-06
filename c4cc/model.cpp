@@ -33,6 +33,8 @@ void Model::Restore(const std::string& checkpoint_prefix) {
 }
 
 Model::Prediction Model::Predict(const tensorflow::Tensor& batch) {
+  absl::ReaderMutexLock lock(&mu_);
+
   CHECK_EQ(batch.dims(), 2);
   const int num_boards = batch.dim_size(0);
   CHECK_EQ(batch.dim_size(1), 84);
@@ -49,6 +51,7 @@ Model::Prediction Model::Predict(const tensorflow::Tensor& batch) {
   pred.value = out_tensors[1];
   CHECK_EQ(pred.move_p.dim_size(0), num_boards);
   CHECK_EQ(pred.value.dim_size(0), num_boards);
+
   num_preds_.fetch_add(num_boards, std::memory_order::memory_order_relaxed);
   return pred;
 }
@@ -56,6 +59,7 @@ Model::Prediction Model::Predict(const tensorflow::Tensor& batch) {
 void Model::RunTrainStep(const tensorflow::Tensor& board_batch,
                          const tensorflow::Tensor& move_batch,
                          const tensorflow::Tensor& value_batch) {
+  absl::MutexLock lock(&mu_);
   const int batch_size = board_batch.dim_size(0);
   CHECK_GE(batch_size, 0);
   CHECK_EQ(move_batch.dim_size(0), batch_size);
@@ -119,15 +123,17 @@ std::string GetDefaultCheckpoint(int gen) {
   return GetCheckpointDir(gen) + "/checkpoint";
 }
 
-std::unique_ptr<Model> CreateDefaultModel(bool allow_init, int gen) {
+std::unique_ptr<Model> CreateDefaultModel(bool allow_init, int gen,
+                                          const std::string& dir) {
   if (allow_init) {
     CHECK_LT(gen, 0) << "Initialization only allowed for the current gen";
   }
-  const std::string prefix = "/mnt/tensor-data/c4cc";
+  const std::string prefix =
+      "/mnt/tensor-data/c4cc" + (dir.empty() ? "" : "/" + dir);
   const std::string checkpoint_dir = GetCheckpointDir(gen);
   const std::string checkpoint_prefix = GetDefaultCheckpoint(gen);
   bool restore = DirectoryExists(checkpoint_dir);
-  auto model = absl::make_unique<Model>(GetDefaultGraphDef());
+  std::unique_ptr<Model> model = absl::make_unique<Model>(GetDefaultGraphDef());
   if (!restore && !allow_init) {
     LOG(FATAL)
         << "No network data found and initializing from scratch not allowed\n";

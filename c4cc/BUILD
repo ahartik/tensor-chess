@@ -68,6 +68,7 @@ cc_library (
     copts = tf_copts(),
     deps = [
         ":board",
+        "@com_google_absl//absl/synchronization",
         "@org_tensorflow//tensorflow/core:lib",
         "@org_tensorflow//tensorflow/core:tensorflow",
         "@org_tensorflow//tensorflow/core:framework",
@@ -106,6 +107,7 @@ cc_library(
     deps = [
         ":board",
         "@com_google_absl//absl/container:node_hash_map",
+        "@com_google_absl//absl/container:inlined_vector",
         "@com_google_absl//absl/types:optional",
         # This is only for logging, this library itself should not use
         # tensorflow for computation.
@@ -124,6 +126,21 @@ cc_library(
         ":board",
         ":model",
         ":play_game",
+        ":prediction_queue",
+        "@org_tensorflow//tensorflow/core:lib",
+        "@org_tensorflow//tensorflow/core:tensorflow",
+    ],
+)
+
+cc_library(
+    name = "prediction_queue",
+    hdrs = ["prediction_queue.h"],
+    srcs = ["prediction_queue.cpp"],
+    copts = tf_copts(),
+    deps = [
+        ":board",
+        ":model",
+        "@com_google_absl//absl/synchronization",
         "@org_tensorflow//tensorflow/core:lib",
         "@org_tensorflow//tensorflow/core:tensorflow",
     ],

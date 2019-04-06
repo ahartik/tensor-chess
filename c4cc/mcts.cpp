@@ -1,6 +1,5 @@
 #include "c4cc/mcts.h"
 
-#include <array>
 #include <cmath>
 
 #include "tensorflow/core/platform/logging.h"
@@ -20,7 +19,6 @@ struct Action {
 
   void AddResult(double v);
 };
-using Actions = std::array<Action, 7>;
 
 struct State {
   State(const Board& b, const Prediction& p) : board(b) {
@@ -125,7 +123,7 @@ std::unique_ptr<MCTS::PredictionRequest> MCTS::StartIteration() {
   std::shared_ptr<State> cur = root_;
   CHECK(!cur->is_terminal());
   // TODO: Use InlinedVector
-  std::vector<ActionRef> picked_path;
+  PredictionRequest::PathVec picked_path;
   while (true) {
     const int best_a = PickAction(rand_, *cur);
     picked_path.emplace_back(cur.get(), &cur->actions[best_a]);

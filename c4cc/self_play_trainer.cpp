@@ -2,8 +2,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include <chrono>
 #include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
@@ -26,22 +26,24 @@
 
 namespace c4cc {
 namespace {
-  
+
 const bool be_simple = false;
 
 std::atomic<int64_t> num_boards;
 
+// This class is thread-safe.
 class Trainer {
  public:
   Trainer() {}
 
+  // As MCTSPlayer is not thread-safe, don't call this with the same player
+  // from multiple threads.
   void PlayGame(MCTSPlayer* player) {
     player->SetBoard(Board());
     std::vector<Board> boards;
     std::vector<Prediction> preds;
     while (!player->board().is_over()) {
       ++num_boards;
-      absl::ReaderMutexLock lock(&mu_);
       auto pred = player->GetPrediction();
       boards.push_back(player->board());
       preds.push_back(pred);
@@ -51,7 +53,7 @@ class Trainer {
     TrainGame(std::move(boards), std::move(preds), player->board().result());
   }
 
-  std::unique_ptr<Model> model_ = CreateDefaultModel(true);
+  PredictionQueue* queue() const { return &queue_; }
 
  private:
   void TrainGame(std::vector<Board> boards, std::vector<Prediction> preds,
@@ -77,26 +79,29 @@ class Trainer {
     }
   }
 
+  std::unique_ptr<Model> model_ = CreateDefaultModel(true);
+  mutable PredictionQueue queue_{model_.get()};
+
   absl::Mutex mu_;
-  ShufflingTrainer trainer_{model_.get(), 64, 1024};
+  ShufflingTrainer trainer_{model_.get(), 128, 2048};
 };
 
 void Go() {
   Trainer t;
   auto train_thread = [&t] {
     static constexpr int iters = 400;
-    auto player = std::make_unique<MCTSPlayer>(t.model_.get(), iters);
+    auto player = std::make_unique<MCTSPlayer>(t.queue(), iters);
     int i = 0;
     while (true) {
       ++i;
       t.PlayGame(player.get());
       if (i % 100 == 0) {
-        player = std::make_unique<MCTSPlayer>(t.model_.get(), iters);
+        player = std::make_unique<MCTSPlayer>(t.queue(), iters);
       }
     }
   };
   std::vector<std::thread> threads;
-  const int kNumThreads = 5;  // be_simple ? 1 : 2;
+  const int kNumThreads = 8;  // be_simple ? 1 : 2;
   for (int i = 0; i < kNumThreads; ++i) {
     threads.emplace_back(train_thread);
     CHECK(threads.back().joinable());
@@ -107,10 +112,11 @@ void Go() {
   while (true) {
     absl::SleepFor(absl::Seconds(5));
     const absl::Time now = absl::Now();
-    const int64_t preds = t.model_->num_predictions();
+    const int64_t preds = t.queue()->num_predictions();
     const int64_t boards = num_boards.load(std::memory_order_relaxed);
-    const double secs =absl::ToDoubleSeconds(now - last_log);
-    LOG(INFO) << (preds - last_preds) / secs << " preds/s";
+    const double secs = absl::ToDoubleSeconds(now - last_log);
+    LOG(INFO) << (preds - last_preds) / secs << " preds/s (" << preds
+              << " total)";
     LOG(INFO) << (boards - last_boards) / secs << " boards/s";
     last_preds = preds;
     last_boards = boards;

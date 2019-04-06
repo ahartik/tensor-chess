@@ -3,6 +3,7 @@
 
 #include <atomic>
 
+#include "absl/synchronization/mutex.h"
 #include "c4cc/board.h"
 #include "tensorflow/core/framework/tensor.h"
 #include "tensorflow/core/lib/io/path.h"
@@ -44,11 +45,12 @@ class Model {
   void SaveOrRestore(const std::string& checkpoint_prefix,
                      const std::string& op_name);
 
+  absl::Mutex mu_;
   std::unique_ptr<tensorflow::Session> session_;
   tensorflow::Tensor true_{tensorflow::DT_BOOL, tensorflow::TensorShape({})};
   tensorflow::Tensor false_{tensorflow::DT_BOOL, tensorflow::TensorShape({})};
 
-  std::atomic<int64_t> num_preds_;
+  std::atomic<int64_t> num_preds_{0};
 };
 
 tensorflow::Tensor MakeBoardTensor(int batch_size);
@@ -89,7 +91,8 @@ std::string GetDefaultGraphDef();
 std::string GetDefaultCheckpoint(int gen = -1);
 int GetNumGens();
 
-std::unique_ptr<Model> CreateDefaultModel(bool allow_init, int gen = -1);
+std::unique_ptr<Model> CreateDefaultModel(bool allow_init, int gen = -1,
+                                          const std::string& dir = "");
 
 }  // namespace c4cc
 
