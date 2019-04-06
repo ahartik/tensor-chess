@@ -1,9 +1,9 @@
 #ifndef _C4CC_PREDICTION_QUEUE_H_
 #define _C4CC_PREDICTION_QUEUE_H_
 
-#include <deque>
 #include <atomic>
 #include <cstdint>
+#include <deque>
 #include <memory>
 #include <thread>
 #include <vector>
@@ -35,38 +35,33 @@ class PredictionQueue {
   }
 
  private:
-  struct Request {
-    int offset = 0;
-    int n = 0;
-    Prediction* output = nullptr;
+  struct WorkBatch {
+    WorkBatch(int n) : tensor(MakeBoardTensor(n)) {}
+    tensorflow::Tensor tensor;
+    Model::Prediction prediction;
+    int size = 0;
     bool ready = false;
+    int pending_requests = 0;
   };
 
-  void WorkerThread();
+  void WorkerThread(int worker_id);
 
-  const int max_batch_size_ = 384;
+  std::shared_ptr<WorkBatch> CreateBatch() EXCLUSIVE_LOCKS_REQUIRED(mu_);
+
+  const int max_batch_size_ = 256;
   Model* const model_;
 
   std::atomic<int64_t> pred_count_{0};
   std::atomic<int64_t> batch_count_{0};
 
   absl::Mutex mu_;
-  struct WorkBatch {
-    WorkBatch(int n) : tensor(MakeBoardTensor(n)) {}
-    tensorflow::Tensor tensor;
-    Model::Prediction prediction;
-    std::vector<Request*> requests;
-    int size() const {
-      if (requests.empty()) {
-        return 0;
-      }
-      return requests.back()->offset + requests.back()->n;
-    }
-  };
-  std::deque<std::unique_ptr<WorkBatch>> batches_;
+  std::deque<std::shared_ptr<WorkBatch>> batches_ GUARDED_BY(mu_);
+  std::vector<std::shared_ptr<WorkBatch>> freelist_ GUARDED_BY(mu_);
+  // TODO: Add freelist for work batch items.
   bool stopped_ = false;
+  int num_working_ = 0;
 
-  std::thread worker_;
+  std::vector<std::thread> workers_;
   // TODO: Possible to put prediction cache here.
 };
 

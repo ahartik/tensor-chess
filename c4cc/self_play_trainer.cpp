@@ -83,7 +83,7 @@ class Trainer {
   mutable PredictionQueue queue_{model_.get()};
 
   absl::Mutex mu_;
-  ShufflingTrainer trainer_{model_.get(), 384, 2048};
+  ShufflingTrainer trainer_{model_.get(), 256, 2048};
 };
 
 void Go() {
@@ -101,7 +101,7 @@ void Go() {
     }
   };
   std::vector<std::thread> threads;
-  const int kNumThreads = 97;  // be_simple ? 1 : 2;
+  const int kNumThreads = 140;  // be_simple ? 1 : 2;
   for (int i = 0; i < kNumThreads; ++i) {
     threads.emplace_back(train_thread);
     CHECK(threads.back().joinable());

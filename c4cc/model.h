@@ -60,6 +60,9 @@ tensorflow::Tensor MakeBoardTensor(int batch_size);
 void BoardToTensor(const Board& b, tensorflow::Tensor* tensor, int i);
 
 void ReadPredictions(const Model::Prediction& tensor_pred, Prediction* out_arr);
+void ReadPredictions(const Model::Prediction& tensor_pred, Prediction* out_arr,
+    int offset,
+    int n);
 
 class ShufflingTrainer {
  public:

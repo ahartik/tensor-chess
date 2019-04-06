@@ -177,15 +177,20 @@ void BoardToTensor(const Board& b, tensorflow::Tensor* tensor, int i) {
   }
 }
 
+void ReadPredictions(const Model::Prediction& tensor_pred, Prediction* out_arr,
+                     int offset, int n) {
+  for (int i = 0; i < n; ++i) {
+    for (int m = 0; m < 7; ++m) {
+      out_arr[i].move_p[m] = tensor_pred.move_p.matrix<float>()(offset + i, m);
+    }
+    out_arr[i].value = tensor_pred.value.flat<float>()(offset + i);
+  }
+}
+
 void ReadPredictions(const Model::Prediction& tensor_pred,
                      Prediction* out_arr) {
   const int n = tensor_pred.move_p.dim_size(0);
-  for (int i = 0; i < n; ++i) {
-    for (int m = 0; m < 7; ++m) {
-      out_arr[i].move_p[m] = tensor_pred.move_p.matrix<float>()(i, m);
-    }
-    out_arr[i].value = tensor_pred.value.flat<float>()(i);
-  }
+  ReadPredictions(tensor_pred, out_arr, 0, n);
 }
 
 bool ShufflingTrainer::Train(const Board& b, const Prediction& target) {
