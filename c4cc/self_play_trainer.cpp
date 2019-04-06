@@ -95,7 +95,7 @@ void Go() {
     while (true) {
       ++i;
       t.PlayGame(player.get());
-      if (i % 100 == 0) {
+      if (i % 2 == 0) {
         player = std::make_unique<MCTSPlayer>(t.queue(), iters);
       }
     }

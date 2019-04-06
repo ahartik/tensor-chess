@@ -33,7 +33,7 @@ void Model::Restore(const std::string& checkpoint_prefix) {
 }
 
 Model::Prediction Model::Predict(const tensorflow::Tensor& batch) {
-  absl::ReaderMutexLock lock(&mu_);
+  // absl::ReaderMutexLock lock(&mu_);
 
   CHECK_EQ(batch.dims(), 2);
   const int num_boards = batch.dim_size(0);
@@ -59,7 +59,7 @@ Model::Prediction Model::Predict(const tensorflow::Tensor& batch) {
 void Model::RunTrainStep(const tensorflow::Tensor& board_batch,
                          const tensorflow::Tensor& move_batch,
                          const tensorflow::Tensor& value_batch) {
-  absl::MutexLock lock(&mu_);
+  // absl::MutexLock lock(&mu_);
   const int batch_size = board_batch.dim_size(0);
   CHECK_GE(batch_size, 0);
   CHECK_EQ(move_batch.dim_size(0), batch_size);
@@ -195,6 +195,13 @@ void ReadPredictions(const Model::Prediction& tensor_pred,
 
 bool ShufflingTrainer::Train(const Board& b, const Prediction& target) {
   data_.push_back({b, target});
+  ++since_full_flush_;
+  if (since_full_flush_ > 10 * shuffle_size_) {
+    Flush();
+    since_full_flush_ = 0;
+    return true;
+  }
+
   if (data_.size() >= shuffle_size_) {
     TrainBatch(batch_size_);
     return true;

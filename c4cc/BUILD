@@ -157,6 +157,7 @@ tf_cc_binary(
         ":negamax",
         ":play_game",
         "//util:init",
+        "@com_google_absl//absl/synchronization",
     ],
 )
 

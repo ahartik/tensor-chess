@@ -64,6 +64,7 @@ void ReadPredictions(const Model::Prediction& tensor_pred, Prediction* out_arr,
     int offset,
     int n);
 
+// This class is thread-compatible.
 class ShufflingTrainer {
  public:
   explicit ShufflingTrainer(Model* model, int batch_size = 256,
@@ -87,6 +88,7 @@ class ShufflingTrainer {
   const int batch_size_;
   const int shuffle_size_;
   std::mt19937 rng_;
+  int64_t since_full_flush_ = 0;
   std::vector<BoardData> data_;
 };
 
