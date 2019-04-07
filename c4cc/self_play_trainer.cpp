@@ -76,15 +76,17 @@ class Trainer {
 
     absl::MutexLock lock(&mu_);
     const int64_t num = trainer_.num_trained();
-    if (num != last_num_trained_) {
+    if (num > last_num_trained_ + checkpoint_interval_) {
       model_->Checkpoint(GetDefaultCheckpoint());
       last_num_trained_ = num;
+      LOG(INFO) << "Checkpointed";
     }
   }
 
   std::unique_ptr<Model> model_ = CreateDefaultModel(true);
   mutable PredictionQueue queue_{model_.get()};
 
+  const int checkpoint_interval_ = 10 * 1024;
   ShufflingTrainer trainer_{model_.get(), 256, 2048};
   absl::Mutex mu_;
   int64_t last_num_trained_ = 0;
@@ -99,9 +101,11 @@ void Go() {
     while (true) {
       ++i;
       t.PlayGame(player.get());
+#if 1
       if (i % 10 == 0) {
         player = std::make_unique<MCTSPlayer>(t.queue(), iters);
       }
+#endif
     }
   };
   std::vector<std::thread> threads;

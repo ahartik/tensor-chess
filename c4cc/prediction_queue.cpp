@@ -12,6 +12,7 @@ PredictionQueue::PredictionQueue(Model* model) : model_(model) {
 }
 
 PredictionQueue::~PredictionQueue() {
+  LOG(INFO) << "Destroying queue";
   {
     absl::MutexLock lock(&mu_);
     stopped_ = true;
@@ -19,6 +20,7 @@ PredictionQueue::~PredictionQueue() {
   for (auto& t : workers_) {
     t.join();
   }
+  LOG(INFO) << "Joined";
 }
 
 void PredictionQueue::WorkerThread(int worker_id) {

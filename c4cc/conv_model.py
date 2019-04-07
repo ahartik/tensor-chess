@@ -49,13 +49,11 @@ def add_conv2d(y, res=True, bn=True, filters=64, kernel=(3,3)):
 # layer = add_conv2d(layer, res=False)
 # layer = add_conv2d(layer, res=False)
 layer = add_conv2d(layer, res=False)
-layer = add_conv2d(layer, res=True)
-layer = add_conv2d(layer, res=True)
-layer = add_conv2d(layer, res=True)
-layer = add_conv2d(layer, res=True)
-layer = add_conv2d(layer, res=True)
-layer = add_conv2d(layer, res=True)
-layer = add_conv2d(layer, res=True)
+
+num_blocks = 10
+
+for i in range(0, num_blocks):
+    layer = add_conv2d(layer, res=True)
 
 # Have one dense layer at this point 
 print("Conv layer shape: {}".format(layer.shape));
@@ -86,7 +84,8 @@ output_move = tf.nn.softmax(logits, name='output_move')
 policy_loss = tf.nn.softmax_cross_entropy_with_logits_v2(
         labels=target_move, logits=logits, name='policy_loss')
 
-value_loss = tf.squared_difference(target_value, output_value)
+value_loss = tf.squared_difference(target_value, output_value,
+        name='value_loss')
 
 total_loss = tf.add(policy_loss, value_loss, name='total_loss')
 

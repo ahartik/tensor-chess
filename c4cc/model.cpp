@@ -73,16 +73,21 @@ void Model::RunTrainStep(const tensorflow::Tensor& board_batch,
           {"target_value", value_batch},
           {"is_training", true_},
       },
-      {"total_loss"}, {"train"}, &out_tensors));
-  CHECK_EQ(out_tensors.size(), 1);
+      {"total_loss", "value_loss"}, {"train"}, &out_tensors));
+  CHECK_EQ(out_tensors.size(), 2);
   const auto& total_loss = out_tensors[0];
+  const auto& value_loss = out_tensors[1];
   CHECK_EQ(total_loss.dims(), 1);
   CHECK_EQ(total_loss.dim_size(0), batch_size);
+  CHECK_EQ(value_loss.dim_size(0), batch_size);
   double loss_sum = 0;
+  double value_loss_sum = 0;
   for (int i = 0; i < batch_size; ++i) {
     loss_sum += total_loss.flat<float>()(i);
+    value_loss_sum += value_loss.flat<float>()(i);
   }
-  LOG(INFO) << "Training avg loss: " << (loss_sum / batch_size);
+  LOG(INFO) << "Training avg loss: " << (loss_sum / batch_size) << " value "
+            << (value_loss_sum / batch_size);
 }
 
 void Model::Checkpoint(const std::string& checkpoint_prefix) {

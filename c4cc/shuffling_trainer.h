@@ -1,6 +1,7 @@
 #ifndef _C4CC_SHUFFLING_TRAINER_H_
 #define _C4CC_SHUFFLING_TRAINER_H_
 
+#include <deque>
 #include <atomic>
 #include <cstdint>
 #include <random>
@@ -19,7 +20,7 @@ class ShufflingTrainer {
   explicit ShufflingTrainer(Model* model, int batch_size = 256,
                             int shuffle_size = 10000);
   ~ShufflingTrainer();
-  // Returns whether training was actually performed.
+
   void Train(const Board& b, const Prediction& target);
 
   int64_t num_trained() const {
@@ -39,14 +40,17 @@ class ShufflingTrainer {
   Model* const model_;
   const int batch_size_;
   const int shuffle_size_;
+  // 4 minutes of boards.
+  const int max_size_ = 400 * 60 * 4 * 2;
 
   std::atomic<int64_t> num_trained_;
 
   absl::Mutex mu_;
-  bool stopped_ = false;
-  std::mt19937 rng_;
-  int64_t since_full_flush_ = 0;
-  std::vector<BoardData> data_;
+  bool stopped_ GUARDED_BY(mu_) = false;
+  std::mt19937 rng_ GUARDED_BY(mu_);
+  int64_t since_full_flush_ GUARDED_BY(mu_) = 0;
+  std::deque<BoardData> data_ GUARDED_BY(mu_);
+
   std::thread worker_;
 };
 

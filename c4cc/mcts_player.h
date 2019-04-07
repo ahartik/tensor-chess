@@ -36,7 +36,6 @@ class MCTSPlayer : public Player {
   PredictionCache* const pred_cache_;
   const bool hard_;
 
-  int ply_ = 0;
   const int iters_per_move_;
   Prediction current_pred_;
   bool pred_ready_;

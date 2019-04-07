@@ -155,6 +155,7 @@ cc_library(
         ":board",
         ":model",
         "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/time",
         "@org_tensorflow//tensorflow/core:lib",
         "@org_tensorflow//tensorflow/core:tensorflow",
     ],
@@ -203,5 +204,6 @@ tf_cc_binary(
         ":mcts_player",
         ":play_game",
         "//util:init",
+        "@com_google_absl//absl/time",
     ],
 )

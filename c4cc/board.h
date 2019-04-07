@@ -82,6 +82,10 @@ class Board {
     return result_;
   }
 
+  int ply() const {
+    return ply_;
+  }
+
   void MakeMove(int move_x);
   void UndoMove(int move_x);
 
@@ -132,6 +136,7 @@ class Board {
 
   // 2 * 42 = 84 / 8 = 10.5.
   uint8_t data_[11] = {};
+  uint8_t ply_ = 0;
   bool is_over_ = false;
   uint8_t valid_moves_;
   Color turn_ = Color::kOne;

@@ -34,7 +34,7 @@ struct Options {
   PredictionQueue* queues[2];
   int mcts_iters = 400;
   int num_games = 100;
-  bool hard = true;
+  bool hard = false;
 };
 std::unique_ptr<Player> MakePlayer(int p, Options opts) {
   switch (opts.players[p]) {
@@ -58,8 +58,9 @@ void Play(Options opts) {
 
   absl::Mutex mu;
   int score[2] = {};
+  int num_finished = 0;
 
-  const auto play_game = [&opts, &mu, &score](int i) {
+  const auto play_game = [&opts, &mu, &score, &num_finished](int i) {
     const int p1_num = i % 2;
     const int p2_num = (i + 1) % 2;
     const auto player1 = MakePlayer(p1_num, opts);
@@ -83,7 +84,8 @@ void Play(Options opts) {
         std::cout << "O won!\n";
         break;
     }
-    std::cout << score[0] << " - " << score[1] << " after " << (i + 1)
+    ++num_finished;
+    std::cout << score[0] << " - " << score[1] << " after " << num_finished
               << " games\n";
   };
 
@@ -107,7 +109,7 @@ void Go(int argc, char** argv) {
   PredictionQueue q2(model2.get());
 
   c4cc::Options opts;
-  opts.players[0] = c4cc::PlayerType::kNegamax;
+  opts.players[0] = c4cc::PlayerType::kMcts;
   opts.players[1] = c4cc::PlayerType::kMcts;
   opts.mcts_iters = 1000;
   opts.models[0] = model1.get();

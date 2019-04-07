@@ -1,6 +1,12 @@
 #include "c4cc/shuffling_trainer.h"
 
+#include "absl/time/time.h"
+
 namespace c4cc {
+
+namespace {
+  constexpr bool kKeepPool = false;
+}
 
 ShufflingTrainer::ShufflingTrainer(Model* model, int batch_size,
                                    int shuffle_size)
@@ -21,12 +27,21 @@ ShufflingTrainer::~ShufflingTrainer() {
 
 void ShufflingTrainer::Train(const Board& b, const Prediction& target) {
   absl::MutexLock lock(&mu_);
+  if (b.ply() < 10) {
+    // Discard half of early states to increase variance.
+    if (rng_() % 2 == 0) {
+      return;
+    }
+  }
 
   data_.push_back({b, target});
   ++since_full_flush_;
   if (since_full_flush_ > 10 * shuffle_size_) {
     Flush();
     since_full_flush_ = 0;
+  }
+  while (data_.size() > max_size_) {
+    data_.pop_front();
   }
 }
 
@@ -59,13 +74,17 @@ void ShufflingTrainer::WorkerThread() {
         move_tensor.matrix<float>()(i, m) = data_[x].target.move_p[m];
       }
       value_tensor.flat<float>()(i) = data_[x].target.value;
-      std::swap(data_[x], data_.back());
-      data_.pop_back();
+      if (!kKeepPool) {
+        std::swap(data_[x], data_.back());
+        data_.pop_back();
+      }
     }
     mu_.Unlock();
 
     model_->RunTrainStep(board_tensor, move_tensor, value_tensor);
     num_trained_.fetch_add(batch_size_, std::memory_order_relaxed);
+
+    absl::SleepFor(absl::Milliseconds(50));
 
     mu_.Lock();
   }

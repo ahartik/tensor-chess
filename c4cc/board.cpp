@@ -100,13 +100,14 @@ void Board::MakeMove(int move_x) {
   if (move_y == 5) {
     // Last move for this column, update the list of valid moves.
     RedoMoves();
-    if (!is_over_ && valid_moves_  == 0) {
+    if (!is_over_ && valid_moves_ == 0) {
       // Draw, no more moves left.
       is_over_ = true;
       result_ = Color::kEmpty;
     }
   }
   turn_ = OtherColor(turn_);
+  ++ply_;
 }
 
 void Board::UndoMove(int move_x) {
@@ -123,6 +124,7 @@ void Board::UndoMove(int move_x) {
     }
   }
   assert(false);
+  --ply_;
 }
 
 void Board::RedoMoves() {
@@ -150,7 +152,7 @@ Board Board::GetFlipped() const {
   Board o = *this;
   for (int x = 0; x < 7; ++x) {
     for (int y = 0; y < 6; ++y) {
-      o.SetColor(x, y, color(6-x, y));
+      o.SetColor(x, y, color(6 - x, y));
     }
   }
   o.RedoMoves();

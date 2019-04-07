@@ -78,7 +78,7 @@ using mcts::State;
 const double kPUCT = 1.0;
 
 int PickAction(std::mt19937& rand, const State& s) {
-  static const double rand_add = 0.01;
+  static const double rand_add = 0.001;
   std::uniform_real_distribution<double> rand_dist(0.0, rand_add);
   int num_sum = 0;
   for (int i = 0; i < 7; ++i) {
@@ -86,7 +86,8 @@ int PickAction(std::mt19937& rand, const State& s) {
   }
   double best_score = -10000;
   int best_a = -1;
-  const auto score_move = [&s, num_sum](int m) -> double {
+  const double num_sum_sqrt = sqrt(num_sum);
+  const auto score_move = [&s, num_sum, num_sum_sqrt](int m) -> double {
     const auto& action = s.actions[m];
     if (num_sum == 0) {
       return action.prior;
@@ -96,7 +97,7 @@ int PickAction(std::mt19937& rand, const State& s) {
       double mean_value =
           num == 0 ? 0 : (action.total_value - action.num_virtual) / num;
       return mean_value +
-             kPUCT * action.prior * std::sqrt(num_sum) / (1.0 + num);
+             kPUCT * action.prior * num_sum_sqrt / (1.0 + num);
     }
   };
   for (int m : s.board.valid_moves()) {

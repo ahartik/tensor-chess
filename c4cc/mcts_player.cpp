@@ -25,13 +25,6 @@ void MCTSPlayer::SetBoard(const Board& b) {
     mcts_->SetBoard(b);
   }
   pred_ready_ = false;
-  for (int i = 0; i < 7; ++i) {
-    for (int j = 0; j < 6; ++j) {
-      if (mcts_->current_board().color(i, j) != Color::kEmpty) {
-        ++ply_;
-      }
-    }
-  }
 }
 
 void MCTSPlayer::RunIterations(int n) {
@@ -112,9 +105,9 @@ int MCTSPlayer::GetMove() {
   CHECK_LE(total, 1.001);
   CHECK_GE(best_move, 0);
 
-  // USe random for early moves.
+  // USe more random for early moves.
   double r = std::uniform_real_distribution<double>(0.0, 1.0)(rand_);
-  if (hard_ || (ply_ > 10 && r > 0.05)) {
+  if (hard_ || (board().ply() > 11 && r > 0.05)) {
     return best_move;
   }
   r *= total;
@@ -126,7 +119,7 @@ int MCTSPlayer::GetMove() {
     }
   }
   std::cerr << "weird random move, r=" << r << " sum=" << sum
-            << ", returning first legal move";
+            << ", returning first legal move\n";
   return *valid_moves.begin();
   // Sum should be ~1 now, if not, return the frs
 }
@@ -148,7 +141,6 @@ Prediction MCTSPlayer::GetPrediction() {
 void MCTSPlayer::MakeMove(int move) {
   mcts_->MakeMove(move);
   pred_ready_ = false;
-  ++ply_;
 }
 
 }  // namespace c4cc
