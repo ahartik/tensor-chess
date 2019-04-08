@@ -5,7 +5,7 @@
 namespace c4cc {
 
 namespace {
-  constexpr bool kKeepPool = false;
+  constexpr bool kKeepPool = true;
 }
 
 ShufflingTrainer::ShufflingTrainer(Model* model, int batch_size,

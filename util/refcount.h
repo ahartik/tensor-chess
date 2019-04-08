@@ -24,6 +24,9 @@ class RefCount {
     return false;
   }
 
+  // Should only be used for debugging, not for logic.
+  int count() const { return count_.load(std::memory_order_relaxed); }
+
  private:
   std::atomic<uint32_t> count_;
 };

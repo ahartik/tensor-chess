@@ -93,7 +93,7 @@ global train_op
 # This weird 'with' thing is required for batch norm to work.
 update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 with tf.control_dependencies(update_ops):
-    optimizer = tf.train.AdamOptimizer(learning_rate=0.001, use_locking=True)
+    optimizer = tf.train.AdamOptimizer(learning_rate=0.005, use_locking=True)
     train_op = optimizer.minimize(total_loss, name='train')
 
 init = tf.global_variables_initializer()
