@@ -58,6 +58,7 @@ cc_test(
 cc_library(
     name =  "int-set",
     hdrs = ["int-set.h"],
+    srcs = ["int-set.cpp"],
     deps = [
         ":refcount"
     ]

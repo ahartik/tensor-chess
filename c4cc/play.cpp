@@ -33,8 +33,8 @@ struct Options {
   Model* models[2];
   PredictionQueue* queues[2];
   int mcts_iters = 400;
-  int num_games = 100;
-  bool hard = false;
+  int num_games = 1;
+  bool hard = true;
 };
 std::unique_ptr<Player> MakePlayer(int p, Options opts) {
   switch (opts.players[p]) {
@@ -109,10 +109,10 @@ void Go(int argc, char** argv) {
   PredictionQueue q2(model2.get());
 
   c4cc::Options opts;
-  opts.players[0] = c4cc::PlayerType::kMcts;
+  opts.players[0] = c4cc::PlayerType::kHuman;
   opts.players[1] = c4cc::PlayerType::kMcts;
   opts.mcts_iters = 1000;
-  opts.models[0] = model1.get();
+  opts.models[0] = model2.get();
   opts.models[1] = model2.get();
   opts.queues[0] = &q1;
   opts.queues[1] = &q2;

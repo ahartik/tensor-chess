@@ -13,8 +13,11 @@ constexpr bool kDebugMode = true;
 #endif
 
 // static constexpr int kKeyBits = 64;
-static constexpr int kBitsPerLevel = 5;
+static constexpr int kBitsPerLevel = 4;
 static constexpr int kFanOut = 1 << kBitsPerLevel;
+
+using SetType = uint16_t;
+static_assert(sizeof(SetType) * 8 >= kFanOut, "");
 
 bool IsTerminalOffset(int bit_offset) {
   return bit_offset + kBitsPerLevel >= 64;
@@ -28,8 +31,8 @@ inline int first_bit(uint64_t x) {
 
 struct Node {
   mutable RefCount refcount{1};
-  uint32_t set;
-  uint32_t leaf_set;
+  SetType set;
+  SetType leaf_set;
 
   Node* child(int i) const { return reinterpret_cast<Node*>(leaf_value(i)); }
 
@@ -109,7 +112,8 @@ int GetBits(uint64_t x, int bit_offset) {
   return x & (kFanOut - 1);
 }
 
-Node* CreateSetFromArr(uint64_t* values, const int n, const int bit_offset) {
+Node* CreateSetFromArr(const uint64_t* values, const int n,
+                       const int bit_offset) {
   if (kDebugMode) {
     const bool sorted = std::is_sorted(
         values, values + n, [bit_offset](uint64_t a, uint64_t b) {
@@ -240,9 +244,31 @@ Node* InsertCopy(Node* root, int bit_offset, uint64_t x) {
   }
 }
 
+bool Contains(Node* n, int offset, uint64_t x) {
+  const uint32_t bits = GetBits(x, offset);
+  if (!n->has_bit(bits)) {
+    return false;
+  }
+  if (IsTerminalOffset(offset)) {
+    return true;
+  }
+
+  const int ind = n->bit_index(bits);
+  if (n->child_is_leaf(bits)) {
+    return n->leaf_value(ind) == x;
+  } else {
+    return Contains(n->child(ind), offset + kBitsPerLevel, x);
+  }
+}
+
 }  // namespace int_set
 
 IntSet::IntSet() {}
+
+IntSet::IntSet(std::vector<uint64_t> vec) {
+  std::sort(vec.begin(), vec.end());
+  root_ = int_set::CreateSetFromArr(vec.data(), vec.size(), 0);
+}
 
 IntSet::IntSet(const IntSet& o) : root_(Ref(o.root_)) {}
 
@@ -261,4 +287,9 @@ IntSet IntSet::Insert(uint64_t x) const {
   return IntSet(InsertCopy(root_, 0, x));
 }
 
-bool IntSet::Contains(uint64_t x) const { return false; }
+bool IntSet::Contains(uint64_t x) const {
+  if (root_ == nullptr) {
+    return false;
+  }
+  return int_set::Contains(root_, 0, x);
+}
