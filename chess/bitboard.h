@@ -1,14 +1,16 @@
 #ifndef _CHESS_BITBOARD_H_
 #define _CHESS_BITBOARD_H_
 
+#include <x86intrin.h>
+
+#include <cassert>
 #include <cstdint>
 #include <iterator>
+#include <string>
 
 namespace chess {
 
-using Bitboard = uint64_t;
-
-constexpr Bitboard kAllSet = ~(0ULL);
+constexpr uint64_t kAllBits = ~(0ULL);
 
 class BitIterator {
  public:
@@ -17,7 +19,7 @@ class BitIterator {
   using reference = const int&;
   using iterator_category = std::forward_iterator_tag;
 
-  explicit BitIterator(Bitboard v) : x_(v) {
+  explicit BitIterator(uint64_t v) : x_(v) {
     if (x_ != 0) {
       bit_ = __builtin_ctzll(x_);
     }
@@ -39,7 +41,7 @@ class BitIterator {
     return *this;
   }
 
-  // Post-increment.
+  // Squaret-increment.
   BitIterator operator++(int) {
     BitIterator ret = *this;
     x_ ^= (1ull << bit_);
@@ -51,18 +53,53 @@ class BitIterator {
 
  private:
   int bit_ = 0;
-  Bitboard x_;
+  uint64_t x_;
 };
 
 class BitRange {
  public:
-  explicit BitRange(Bitboard x) : x_(x) {}
+  explicit BitRange(uint64_t x) : x_(x) {}
   BitIterator begin() const { return BitIterator(x_); }
   BitIterator end() const { return BitIterator(0); }
 
  private:
-  Bitboard x_;
+  uint64_t x_;
 };
+
+inline uint64_t OneHot(int p) { return 1ull << p; }
+
+inline bool BitIsSet(uint64_t x, int p) { return (x >> p) & 1; }
+
+inline int MakeSquare(int rank, int file) { return rank * 8 + file; }
+inline int SquareRank(int pos) { return pos / 8; }
+inline int SquareFile(int pos) { return pos % 8; }
+inline bool SquareOnBoard(int rank, int file) {
+  return rank >= 0 && rank < 8 && file >= 0 && file < 8;
+}
+
+int PopCount(uint64_t x) { return __builtin_popcountll(x); }
+// Returns the index of bit with 'rank'. Requires PopCount(x) > rank.
+int BitSelect(uint64_t x, int rank) {
+  assert(PopCount(x) > rank);
+  // https://stackoverflow.com/questions/7669057/find-nth-set-bit-in-an-int
+  return _pdep_u64(1ULL << rank, x);
+}
+
+std::string BitboardToString(uint64_t b) {
+  std::string s;
+  s.reserve(64 + 10);
+  for (int r = 0; r < 8; ++r) {
+    for (int f = 0; f < 8; ++f) {
+      if (BitIsSet(b, MakeSquare(r, f))) {
+        s.push_back('1');
+      } else {
+        s.push_back('0');
+      }
+    }
+    s.push_back('\n');
+  }
+  return s;
+}
 
 }  // namespace chess
 

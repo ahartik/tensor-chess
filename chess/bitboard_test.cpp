@@ -17,5 +17,21 @@ TEST(BitboardTest, Iterate) {
   EXPECT_THAT(bits, testing::ElementsAre(0, 1, 2, 3, 8, 9, 10));
 }
 
+TEST(BitboardTest, Allbits) {
+  std::vector<int> bits;
+  for (int x : BitRange(kAllBits)) {
+    bits.push_back(x);
+  }
+  EXPECT_THAT(bits, testing::SizeIs(64));
 }
+
+TEST(BitboardTest, Zero) {
+  std::vector<int> bits;
+  for (int x : BitRange(0)) {
+    bits.push_back(x);
+  }
+  EXPECT_THAT(bits, testing::IsEmpty());
+}
+
+}  // namespace
 }  // namespace chess

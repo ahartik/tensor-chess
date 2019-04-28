@@ -125,14 +125,14 @@ class SmallIntSet {
 
   SmallIntSet Insert(uint64_t x) const {
     SmallIntSet o = *this;
-    if (o.inlined_size_ == inlined_.size()) {
+    if (o.inlined_size_ == static_cast<int>(inlined_.size())) {
       auto* n = new linked_set::Node;
       for (int i = 0; i < o.inlined_size_; ++i) {
         n->vals[i] = o.inlined_[i];
       }
       n->vals[o.inlined_size_] = x;
       n->summary = 0;
-      for (int i = 0; i < n->vals.size(); ++i) {
+      for (size_t i = 0; i < n->vals.size(); ++i) {
         n->summary |= (n->vals[i] & 0xff) << (8 * i);
       }
       n->next = rest_;
