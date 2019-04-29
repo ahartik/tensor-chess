@@ -2,6 +2,7 @@ cc_library(
     name = "bitboard",
     hdrs = ["bitboard.h"],
     deps = [
+        "@com_google_absl//absl/strings",
     ],
 )
 

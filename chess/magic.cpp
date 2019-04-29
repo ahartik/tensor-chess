@@ -112,7 +112,7 @@ void GenerateMagic(const int dr[4], const int df[4], int square,
   }
   uint64_t mul = 0;
   while (true) {
-    // This should result in every 8th bit being set.
+    // Why do we do AND 2 times? That's for you to figure out ;)
     mul = mt() & mt() & mt();
     std::fill(output, output + output_size, kUnsetSentinel);
     bool success = true;
@@ -182,20 +182,19 @@ void InitializeMagicInternal() {
 
 }  // namespace
 
-// Low-level move masks.
-uint64_t KnightMoveMask(int square, uint64_t my, uint64_t opp) {
-  return knight_masks[square] & (~my);
+uint64_t KnightMoveMask(int square) {
+  return knight_masks[square];
 }
 
-uint64_t BishopMoveMask(int square, uint64_t my, uint64_t opp) {
-  const uint64_t occ = (my | opp) & bishop_magics.rel_occ[square];
+uint64_t BishopMoveMask(int square, uint64_t occ) {
+  occ &= bishop_magics.rel_occ[square];
   uint64_t x = (occ * bishop_magics.mul[square]) >> (64 - kBishopLogSize);
   assert(x < bishop_magics.mask_size());
   return bishop_magics.mask[square][x];
 }
 
-uint64_t RookMask(int square, uint64_t my, uint64_t opp) {
-  const uint64_t occ = (my | opp) & rook_magics.rel_occ[square];
+uint64_t RookMoveMask(int square, uint64_t occ) {
+  occ &= rook_magics.rel_occ[square];
   uint64_t x = (occ * rook_magics.mul[square]) >> (64 - kRookLogSize);
   assert(x < rook_magics.mask_size());
   return rook_magics.mask[square][x];

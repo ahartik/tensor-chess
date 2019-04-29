@@ -5,8 +5,11 @@
 
 #include <cassert>
 #include <cstdint>
+#include <iostream>
 #include <iterator>
 #include <string>
+
+#include "absl/strings/string_view.h"
 
 namespace chess {
 
@@ -101,6 +104,23 @@ std::string BitboardToString(uint64_t b) {
   return s;
 }
 
-}  // namespace chess
+uint64_t BitboardFromString(absl::string_view str) {
+  uint64_t result = 0;
+  int i = 0;
+  for (char c : str) {
+    if (c == '0' || c == '1') {
+      if (c == '1') {
+        result += 1ull << i;
+      }
+      ++i;
+    }
+  }
+  if (i != 64) {
+    std::cerr << "Invalid bitboard string: '" << str << "', i=" << i << "\n";
+    abort();
+  }
+  return result;
+}
 
+}  // namespace chess
 #endif
