@@ -71,6 +71,9 @@ struct Node {
 }  // namespace linked_set
 
 // This class is thread-compatible (but most operations are const).
+//
+// TODO: Convert this to stack, so that it's possible to pop. That would help
+// when undoing moves.
 class SmallIntSet {
  public:
   SmallIntSet() {}

@@ -14,18 +14,19 @@ enum class Color : uint8_t {
   kEmpty = 2,
 };
 
-enum class Piece {
+enum class Piece : uint8_t {
   kPawn = 0,
   kKnight = 1,
   kBishop = 2,
   kRook = 3,
   kQueen = 4,
-  kKing = 5
+  kKing = 5,
 };
+constexpr int kNumPieces = 6;
 
 struct Move {
-  int from;
-  int to;
+  int8_t from;
+  int8_t to;
   Piece promotion = Piece::kQueen;
 };
 
@@ -40,8 +41,8 @@ using MoveList = std::vector<Move>;
 //
 class Board {
  public:
-   // Initializes the board at the starting position.
-   Board();
+  // Initializes the board at the starting position.
+  Board();
   bool is_over() const;
   // If the game is over, this returns the winner of the game, or Color::kEmpty
   // in case of a draw.
@@ -52,6 +53,8 @@ class Board {
   }
 
   MoveList valid_moves() const;
+
+  Board MakeMove(m
 
   bool operator==(const Board& b) const;
 

@@ -22,6 +22,7 @@ cc_library(
     srcs = ["board.cpp"],
     deps = [
         ":bitboard",
+        ":magic",
         "//util:int-set",
     ],
 )
