@@ -54,8 +54,8 @@ MoveList Board::valid_moves() const {
   const uint64_t occ = all[0] | all[1];
   const int t = static_cast<int>(turn());
 
-  // Start with 
-
+  // Start with computing king danger. These are
+  return list;
 }
 
 }  // namespace chess

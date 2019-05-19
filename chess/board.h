@@ -38,11 +38,25 @@ using MoveList = std::vector<Move>;
 // Good blog post:
 // https://peterellisjones.com/posts/generating-legal-chess-moves-efficiently/
 //
+// Implementation plan:
+// 1. Create million test cases by using python-chess and downloaded games
+// 2. Implement basic moves.
+// 3. Keep iterating until my code agrees with python-chess in 100% of cases.
 //
+// Use cases and "correctness":
+// 1. Actual game: always have full history.
+// 2. Actual game training: always have full history.
+// 3. Puzzle cases (testing or training): No full history, or last move.
+//
+// 
 class Board {
  public:
   // Initializes the board at the starting position.
   Board();
+
+  // TODO: Add constructor for puzzle cases.
+  // static Board MakeTestCase();
+
   bool is_over() const;
   // If the game is over, this returns the winner of the game, or Color::kEmpty
   // in case of a draw.
@@ -54,7 +68,10 @@ class Board {
 
   MoveList valid_moves() const;
 
-  Board MakeMove(m
+  // Hash value for the board, to be used for detecting repetitions.
+  uint64_t board_hash() const;
+  // Hash value of the state, includes history.
+  uint64_t state_hash() const;
 
   bool operator==(const Board& b) const;
 
@@ -69,12 +86,12 @@ class Board {
   int half_move_count_ = 0;
   int no_progress_count_ = 0;
   SmallIntSet history_;
+  uint64_t history_hash_ = 0;
 };
 
 template <typename H>
 H AbslHashValue(H h, const Board& b) {
-  // XXX: Implement
-  return h;
+  return H::combine(std::move(h), b.state_hash());
 }
 
 void InitializeMovegen();

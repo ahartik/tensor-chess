@@ -126,7 +126,10 @@ class SmallIntSet {
     return *this;
   }
 
-  SmallIntSet Insert(uint64_t x) const {
+  std::pair<SmallIntSet, bool> InsertWithStatus(uint64_t x) const {
+    if (Contains(x)) {
+      return {*this, false};
+    }
     SmallIntSet o = *this;
     if (o.inlined_size_ == static_cast<int>(inlined_.size())) {
       auto* n = new linked_set::Node;
@@ -146,7 +149,11 @@ class SmallIntSet {
       o.inlined_[o.inlined_size_] = x;
       ++o.inlined_size_;
     }
-    return o;
+    return {std::move(o), true};
+  }
+
+  SmallIntSet Insert(uint64_t x) const {
+    return InsertWithStatus(x).first;
   }
 
   bool Contains(uint64_t x) const {
@@ -180,6 +187,36 @@ class SmallIntSet {
   std::array<uint64_t, linked_set::kNodeSize - 1> inlined_;
   int inlined_size_ = 0;
   linked_set::Node* rest_ = nullptr;
+};
+
+class SmallIntSetWithHash {
+ public:
+  SmallIntSetWithHash() = default;
+  SmallIntSetWithHash(const SmallIntSetWithHash&) = default;
+  SmallIntSetWithHash(SmallIntSetWithHash&&) = default;
+  SmallIntSetWithHash& operator=(const SmallIntSetWithHash&) = default;
+  SmallIntSetWithHash& operator=(SmallIntSetWithHash&&) = default;
+
+  SmallIntSetWithHash Insert(uint64_t x) const {
+    auto n = s_.InsertWithStatus(x);
+    if (n.second) {
+      return SmallIntSetWithHash(std::move(n.first), h_);
+    }
+    // Mix bits around.
+    x *= 101;
+    x += x >> 5;
+    return SmallIntSetWithHash(std::move(n.first), h_ ^ x);
+  }
+
+  bool Contains(uint64_t x) const { return s_.Contains(x); }
+
+  uint64_t hash() const { return h_; }
+
+ private:
+  SmallIntSetWithHash(SmallIntSet&& s, uint64_t h) : s_(s), h_(h) {}
+
+  SmallIntSet s_;
+  uint64_t h_ = 0;
 };
 
 #endif

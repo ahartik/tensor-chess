@@ -30,7 +30,6 @@ enum class PlayerType {
 struct Options {
   PlayerType players[2];
   int negamax_depth = 7;
-  Model* models[2];
   PredictionQueue* queues[2];
   int mcts_iters = 400;
   int num_games = 1;
@@ -102,19 +101,17 @@ void Play(Options opts) {
 }
 
 void Go(int argc, char** argv) {
-  auto model1 = CreateDefaultModel(/*allow_init=*/false, -1, "golden");
+  // auto model1 = CreateDefaultModel(/*allow_init=*/false, -1, "golden");
   auto model2 = CreateDefaultModel(/*allow_init=*/false, -1);
 
-  PredictionQueue q1(model1.get());
+  PredictionQueue q1(model2.get());
   PredictionQueue q2(model2.get());
 
   c4cc::Options opts;
   opts.players[0] = c4cc::PlayerType::kHuman;
   opts.players[1] = c4cc::PlayerType::kMcts;
   opts.mcts_iters = 1000;
-  opts.models[0] = model2.get();
-  opts.models[1] = model2.get();
-  opts.queues[0] = &q1;
+  opts.queues[0] = &q2;
   opts.queues[1] = &q2;
 
   c4cc::Play(opts);
