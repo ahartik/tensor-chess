@@ -20,7 +20,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='chess',
   syntax='proto2',
   serialized_options=None,
-  serialized_pb=_b('\n\ngame.proto\x12\x05\x63hess\"\xae\x01\n\nBoardProto\x12\x11\n\tbitboards\x18\x01 \x03(\x06\x12\x12\n\nen_passant\x18\x02 \x01(\x06\x12\x17\n\x0fhalf_move_count\x18\x03 \x01(\x05\x12\x19\n\x11no_progress_count\x18\x04 \x01(\x05\x12\x16\n\x0elast_move_from\x18\x05 \x01(\x05\x12\x14\n\x0clast_move_to\x18\x06 \x01(\x05\x12\x17\n\x0f\x63\x61stling_rights\x18\x07 \x03(\x06\";\n\tMoveProto\x12\x0c\n\x04\x66rom\x18\x01 \x01(\x05\x12\n\n\x02to\x18\x02 \x01(\x05\x12\x14\n\tpromotion\x18\x03 \x01(\x05:\x01\x34\"T\n\nGameRecord\x12-\n\x07players\x18\x03 \x03(\x0e\x32\x1c.chess.GameRecord.PlayerType\"\x17\n\nPlayerType\x12\t\n\x05HUMAN\x10\x00')
+  serialized_pb=_b('\n\ngame.proto\x12\x05\x63hess\"\xc8\x01\n\nBoardProto\x12\x11\n\tbitboards\x18\x01 \x03(\x06\x12\x12\n\nen_passant\x18\x02 \x01(\x06\x12\x17\n\x0fhalf_move_count\x18\x03 \x01(\x05\x12\x19\n\x11no_progress_count\x18\x04 \x01(\x05\x12\x18\n\x10repetition_count\x18\x05 \x01(\x05\x12\x16\n\x0elast_move_from\x18\x06 \x01(\x05\x12\x14\n\x0clast_move_to\x18\x07 \x01(\x05\x12\x17\n\x0f\x63\x61stling_rights\x18\x08 \x01(\x06\"g\n\tMoveProto\x12\x13\n\x0b\x66rom_square\x18\x01 \x01(\x05\x12\x11\n\tto_square\x18\x02 \x01(\x05\x12\x14\n\tpromotion\x18\x03 \x01(\x05:\x01\x34\x12\x0e\n\x06resign\x18\x04 \x01(\x08\x12\x0c\n\x04\x64raw\x18\x05 \x01(\x08\"\x93\x01\n\nGameRecord\x12-\n\x07players\x18\x01 \x03(\x0e\x32\x1c.chess.GameRecord.PlayerType\x12\x1f\n\x05moves\x18\x02 \x03(\x0b\x32\x10.chess.MoveProto\x12\x0e\n\x06result\x18\x03 \x01(\x11\"%\n\nPlayerType\x12\t\n\x05HUMAN\x10\x00\x12\x0c\n\x08OVERMIND\x10\x01\"W\n\x0cMoveTestCase\x12 \n\x05\x62oard\x18\x01 \x01(\x0b\x32\x11.chess.BoardProto\x12%\n\x0bvalid_moves\x18\x02 \x03(\x0b\x32\x10.chess.MoveProto')
 )
 
 
@@ -35,11 +35,15 @@ _GAMERECORD_PLAYERTYPE = _descriptor.EnumDescriptor(
       name='HUMAN', index=0, number=0,
       serialized_options=None,
       type=None),
+    _descriptor.EnumValueDescriptor(
+      name='OVERMIND', index=1, number=1,
+      serialized_options=None,
+      type=None),
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=320,
-  serialized_end=343,
+  serialized_start=440,
+  serialized_end=477,
 )
 _sym_db.RegisterEnumDescriptor(_GAMERECORD_PLAYERTYPE)
 
@@ -80,23 +84,30 @@ _BOARDPROTO = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='last_move_from', full_name='chess.BoardProto.last_move_from', index=4,
+      name='repetition_count', full_name='chess.BoardProto.repetition_count', index=4,
       number=5, type=5, cpp_type=1, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='last_move_to', full_name='chess.BoardProto.last_move_to', index=5,
+      name='last_move_from', full_name='chess.BoardProto.last_move_from', index=5,
       number=6, type=5, cpp_type=1, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='castling_rights', full_name='chess.BoardProto.castling_rights', index=6,
-      number=7, type=6, cpp_type=4, label=3,
-      has_default_value=False, default_value=[],
+      name='last_move_to', full_name='chess.BoardProto.last_move_to', index=6,
+      number=7, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='castling_rights', full_name='chess.BoardProto.castling_rights', index=7,
+      number=8, type=6, cpp_type=4, label=1,
+      has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
@@ -113,7 +124,7 @@ _BOARDPROTO = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=22,
-  serialized_end=196,
+  serialized_end=222,
 )
 
 
@@ -125,14 +136,14 @@ _MOVEPROTO = _descriptor.Descriptor(
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='from', full_name='chess.MoveProto.from', index=0,
+      name='from_square', full_name='chess.MoveProto.from_square', index=0,
       number=1, type=5, cpp_type=1, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='to', full_name='chess.MoveProto.to', index=1,
+      name='to_square', full_name='chess.MoveProto.to_square', index=1,
       number=2, type=5, cpp_type=1, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
@@ -142,6 +153,20 @@ _MOVEPROTO = _descriptor.Descriptor(
       name='promotion', full_name='chess.MoveProto.promotion', index=2,
       number=3, type=5, cpp_type=1, label=1,
       has_default_value=True, default_value=4,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='resign', full_name='chess.MoveProto.resign', index=3,
+      number=4, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='draw', full_name='chess.MoveProto.draw', index=4,
+      number=5, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
@@ -157,8 +182,8 @@ _MOVEPROTO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=198,
-  serialized_end=257,
+  serialized_start=224,
+  serialized_end=327,
 )
 
 
@@ -171,8 +196,22 @@ _GAMERECORD = _descriptor.Descriptor(
   fields=[
     _descriptor.FieldDescriptor(
       name='players', full_name='chess.GameRecord.players', index=0,
-      number=3, type=14, cpp_type=8, label=3,
+      number=1, type=14, cpp_type=8, label=3,
       has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='moves', full_name='chess.GameRecord.moves', index=1,
+      number=2, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='result', full_name='chess.GameRecord.result', index=2,
+      number=3, type=17, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
@@ -189,15 +228,57 @@ _GAMERECORD = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=259,
-  serialized_end=343,
+  serialized_start=330,
+  serialized_end=477,
+)
+
+
+_MOVETESTCASE = _descriptor.Descriptor(
+  name='MoveTestCase',
+  full_name='chess.MoveTestCase',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='board', full_name='chess.MoveTestCase.board', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='valid_moves', full_name='chess.MoveTestCase.valid_moves', index=1,
+      number=2, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto2',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=479,
+  serialized_end=566,
 )
 
 _GAMERECORD.fields_by_name['players'].enum_type = _GAMERECORD_PLAYERTYPE
+_GAMERECORD.fields_by_name['moves'].message_type = _MOVEPROTO
 _GAMERECORD_PLAYERTYPE.containing_type = _GAMERECORD
+_MOVETESTCASE.fields_by_name['board'].message_type = _BOARDPROTO
+_MOVETESTCASE.fields_by_name['valid_moves'].message_type = _MOVEPROTO
 DESCRIPTOR.message_types_by_name['BoardProto'] = _BOARDPROTO
 DESCRIPTOR.message_types_by_name['MoveProto'] = _MOVEPROTO
 DESCRIPTOR.message_types_by_name['GameRecord'] = _GAMERECORD
+DESCRIPTOR.message_types_by_name['MoveTestCase'] = _MOVETESTCASE
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 BoardProto = _reflection.GeneratedProtocolMessageType('BoardProto', (_message.Message,), dict(
@@ -220,6 +301,13 @@ GameRecord = _reflection.GeneratedProtocolMessageType('GameRecord', (_message.Me
   # @@protoc_insertion_point(class_scope:chess.GameRecord)
   ))
 _sym_db.RegisterMessage(GameRecord)
+
+MoveTestCase = _reflection.GeneratedProtocolMessageType('MoveTestCase', (_message.Message,), dict(
+  DESCRIPTOR = _MOVETESTCASE,
+  __module__ = 'game_pb2'
+  # @@protoc_insertion_point(class_scope:chess.MoveTestCase)
+  ))
+_sym_db.RegisterMessage(MoveTestCase)
 
 
 # @@protoc_insertion_point(module_scope)

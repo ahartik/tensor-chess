@@ -1,3 +1,16 @@
+# load('@com_google_protobuf//:protobuf.bzl', 'proto_library')
+# load('@com_google_protobuf//:protobuf.bzl', 'cc_proto_library')
+
+proto_library(
+    name = "game_proto",
+    srcs = ["game.proto"],
+)
+
+cc_proto_library(
+    name = "game_cc_proto",
+    deps = [":game_proto"],
+)
+
 cc_library(
     name = "bitboard",
     hdrs = ["bitboard.h"],
@@ -23,6 +36,7 @@ cc_library(
     deps = [
         ":bitboard",
         ":magic",
+        ":game_cc_proto",
         "//util:int-set",
     ],
 )
@@ -46,6 +60,17 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cc_binary(
+    name = "board_test_recordio",
+    srcs = ["board_test_recordio.cpp"],
+    deps = [
+        ":board",
+        ":game_cc_proto",
+        "//util:recordio",
+    ],
+)
+
 
 # cc_test(
 #     name = "board_test",

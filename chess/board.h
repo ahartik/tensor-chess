@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "util/int-set.h"
+#include "chess/game.pb.h"
 
 namespace chess {
 
@@ -21,14 +22,45 @@ enum class Piece : uint8_t {
   kRook = 3,
   kQueen = 4,
   kKing = 5,
+  kNone = 6,
 };
 constexpr int kNumPieces = 6;
 
 struct Move {
-  int8_t from;
-  int8_t to;
-  Piece promotion = Piece::kQueen;
+  Move() = default;
+  MoveProto ToProto() const {
+    MoveProto p;
+    p.set_from_square(from);
+    p.set_to_square(to);
+    if (promotion != Piece::kNone) {
+      p.set_promotion(static_cast<int>(promotion));
+    }
+    return p;
+  }
+
+  static Move FromProto(const MoveProto& p) {
+    Move m;
+    m.from = p.from_square();
+    m.to = p.to_square();
+    if (p.has_promotion()) {
+      m.promotion = static_cast<Piece>(p.promotion());
+    }
+    return m;
+  }
+
+  int8_t from = 0;
+  int8_t to = 0;
+  Piece promotion = Piece::kNone;
+
+  bool operator==(const Move& o) const {
+    return from == o.from && to == o.to && promotion == o.promotion;
+  }
 };
+
+template <typename H>
+H AbslHashValue(H h, const Move& m) {
+  return H::combine(std::move(h), m.from, m.to, m.promotion);
+}
 
 using MoveList = std::vector<Move>;
 

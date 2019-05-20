@@ -29,6 +29,14 @@ cc_test(
     ],
 )
 
+cc_binary(
+    name = "test_recordio",
+    srcs = ["test_recordio.cpp"],
+    deps = [
+        ":recordio",
+    ],
+)
+
 cc_library(
     name =  "refcount",
     hdrs = ["refcount.h"],

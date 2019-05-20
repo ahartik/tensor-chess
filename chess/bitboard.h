@@ -82,11 +82,14 @@ inline bool SquareOnBoard(int rank, int file) {
 
 int PopCount(uint64_t x) { return __builtin_popcountll(x); }
 // Returns the index of bit with 'rank'. Requires PopCount(x) > rank.
+
+#if 0
 int BitSelect(uint64_t x, int rank) {
   assert(PopCount(x) > rank);
   // https://stackoverflow.com/questions/7669057/find-nth-set-bit-in-an-int
   return _pdep_u64(1ULL << rank, x);
 }
+#endif
 
 std::string BitboardToString(uint64_t b) {
   std::string s;

@@ -44,6 +44,7 @@ void InitializeMovegen() { InitializeMagic(); }
 MoveList Board::valid_moves() const {
   MoveList list;
 
+  // Collect 
   uint64_t all[2] = {};
   for (int i = 0; i < 2; ++i) {
     for (int p = 0; p < kNumPieces; ++p) {
