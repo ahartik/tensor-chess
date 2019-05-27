@@ -38,6 +38,7 @@ cc_library(
         ":magic",
         ":game_cc_proto",
         "//util:int-set",
+        "@com_google_absl//absl/strings",
     ],
 )
 

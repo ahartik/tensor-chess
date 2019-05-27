@@ -44,7 +44,7 @@ class BitIterator {
     return *this;
   }
 
-  // Squaret-increment.
+  // Post-increment.
   BitIterator operator++(int) {
     BitIterator ret = *this;
     x_ ^= (1ull << bit_);
@@ -70,6 +70,10 @@ class BitRange {
 };
 
 inline uint64_t OneHot(int p) { return 1ull << p; }
+inline int GetFirstBit(uint64_t x) {
+  assert(x != 0);
+  return __builtin_ctzll(x);
+}
 
 inline bool BitIsSet(uint64_t x, int p) { return (x >> p) & 1; }
 
@@ -80,7 +84,7 @@ inline bool SquareOnBoard(int rank, int file) {
   return rank >= 0 && rank < 8 && file >= 0 && file < 8;
 }
 
-int PopCount(uint64_t x) { return __builtin_popcountll(x); }
+inline int PopCount(uint64_t x) { return __builtin_popcountll(x); }
 // Returns the index of bit with 'rank'. Requires PopCount(x) > rank.
 
 #if 0
@@ -91,7 +95,7 @@ int BitSelect(uint64_t x, int rank) {
 }
 #endif
 
-std::string BitboardToString(uint64_t b) {
+inline std::string BitboardToString(uint64_t b) {
   std::string s;
   s.reserve(64 + 10);
   for (int r = 0; r < 8; ++r) {
@@ -107,7 +111,7 @@ std::string BitboardToString(uint64_t b) {
   return s;
 }
 
-uint64_t BitboardFromString(absl::string_view str) {
+inline uint64_t BitboardFromString(absl::string_view str) {
   uint64_t result = 0;
   int i = 0;
   for (char c : str) {

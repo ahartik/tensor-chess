@@ -2,10 +2,12 @@
 #define _CHESS_BOARD_H_
 
 #include <cstdint>
+#include <string>
 #include <vector>
 
-#include "util/int-set.h"
+#include "absl/strings/string_view.h"
 #include "chess/game.pb.h"
+#include "util/int-set.h"
 
 namespace chess {
 
@@ -26,8 +28,30 @@ enum class Piece : uint8_t {
 };
 constexpr int kNumPieces = 6;
 
+extern const Piece kPromoPieces[4];
+
+struct PieceColor {
+  Piece p;
+  Color c;
+};
+
+inline char PieceChar(Piece p, Color c = Color::kWhite) {
+  const char kLetters[3 * 7 + 1] =
+      "pnbrqk."
+      "PNBRQK."
+      ".......";
+  return kLetters[int(p) + 7 * int(c)];
+}
+
+inline char PieceChar(PieceColor pc) {
+  return PieceChar(pc.p, pc.c);
+}
+
 struct Move {
   Move() = default;
+  Move(int f, int t, Piece promo = Piece::kNone)
+      : from(f), to(t), promotion(promo) {}
+
   MoveProto ToProto() const {
     MoveProto p;
     p.set_from_square(from);
@@ -48,13 +72,25 @@ struct Move {
     return m;
   }
 
-  int8_t from = 0;
-  int8_t to = 0;
-  Piece promotion = Piece::kNone;
+  std::string ToString() const;
 
   bool operator==(const Move& o) const {
     return from == o.from && to == o.to && promotion == o.promotion;
   }
+
+  bool operator<(const Move& o) const {
+    if (from != o.from) {
+      return from < o.from;
+    }
+    if (to != o.to) {
+      return to < o.to;
+    }
+    return promotion < o.promotion;
+  }
+
+  int8_t from = 0;
+  int8_t to = 0;
+  Piece promotion = Piece::kNone;
 };
 
 template <typename H>
@@ -80,11 +116,16 @@ using MoveList = std::vector<Move>;
 // 2. Actual game training: always have full history.
 // 3. Puzzle cases (testing or training): No full history, or last move.
 //
-// 
+//
 class Board {
  public:
   // Initializes the board at the starting position.
   Board();
+
+  explicit Board(const BoardProto& p);
+
+  // crashes on failure
+  explicit Board(absl::string_view fen);
 
   // TODO: Add constructor for puzzle cases.
   // static Board MakeTestCase();
@@ -107,18 +148,30 @@ class Board {
 
   bool operator==(const Board& b) const;
 
+  std::string ToPrintString() const;
+
+  PieceColor square(int sq) const;
+
+
  private:
   template <typename H>
   friend H AbslHashValue(H h, const Board& b);
 
-  uint64_t bitboards_[2][6];
+  uint64_t ComputeKingDanger() const;
+
+  bool ComputeCheck(uint64_t occ,
+      uint64_t* capture_mask, uint64_t* push_mask) const;
+
+  uint64_t bitboards_[2][kNumPieces] = {};
   // Squares where en-passant capture is possible for the current player.
-  uint64_t en_passant_;
+  uint64_t en_passant_ = 0;
+  uint64_t castling_rights_;
   int16_t repetition_count_ = 0;
-  int half_move_count_ = 0;
-  int no_progress_count_ = 0;
-  SmallIntSet history_;
-  uint64_t history_hash_ = 0;
+  int16_t no_progress_count_ = 0;
+  int32_t half_move_count_ = 0;
+
+  // SmallIntSet history_;
+  // uint64_t history_hash_ = 0;
 };
 
 template <typename H>
@@ -127,6 +180,40 @@ H AbslHashValue(H h, const Board& b) {
 }
 
 void InitializeMovegen();
+
+// Squares
+class Square {
+ public:
+#define SQ(rank, rank_num)                         \
+  static constexpr int rank##1 = 0 * 8 + rank_num; \
+  static constexpr int rank##2 = 1 * 8 + rank_num; \
+  static constexpr int rank##3 = 2 * 8 + rank_num; \
+  static constexpr int rank##4 = 3 * 8 + rank_num; \
+  static constexpr int rank##5 = 4 * 8 + rank_num; \
+  static constexpr int rank##6 = 5 * 8 + rank_num; \
+  static constexpr int rank##7 = 6 * 8 + rank_num; \
+  static constexpr int rank##8 = 7 * 8 + rank_num
+
+  SQ(A, 0);
+  SQ(B, 1);
+  SQ(C, 2);
+  SQ(D, 3);
+  SQ(E, 4);
+  SQ(F, 5);
+  SQ(G, 6);
+  SQ(H, 7);
+#undef SQ
+  static int Rank(int sq) {
+    return sq / 8;
+  }
+  static int File(int sq) {
+    return sq % 8;
+  }
+
+  static std::string ToString(int sq);
+};
+static_assert(Square::A1 == 0);
+static_assert(Square::H8 == 63);
 
 }  // namespace chess
 

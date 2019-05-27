@@ -15,8 +15,17 @@ namespace {
 std::once_flag generated;
 
 uint64_t knight_masks[64];
+uint64_t king_masks[64];
+#ifdef NDEBUG
+// Faster and smaller, but takes longer to generate (about 1s).
 constexpr int kBishopLogSize = 10;
 constexpr int kRookLogSize = 12;
+#else
+constexpr int kBishopLogSize = 12;
+constexpr int kRookLogSize = 14;
+#endif
+
+uint64_t push_masks[64][64];
 
 template <int LogSize>
 struct Magics {
@@ -137,7 +146,69 @@ void GenerateMagic(const int dr[4], const int df[4], int square,
   *out_mul = mul;
 }
 
+int OnlySign(int x) {
+  if (x == 0) {
+    return 0;
+  } else if (x < 0) {
+    return -1;
+  }
+  return 1;
+}
+
+uint64_t GenPushMask(int f, int t) {
+  if (f == t) {
+    return 0;
+  }
+  if (f > t) {
+    std::swap(f, t);
+  }
+  const int fr = SquareRank(f);
+  const int ff = SquareFile(f);
+  const int tr = SquareRank(t);
+  const int tf = SquareFile(t);
+  // std::cout << "p " << f << " " << t << "\n";
+
+  int dr = tr - fr;
+  int df = tf - ff;
+  uint64_t m = 0;
+  if (dr == 0) {
+    assert(ff < tf);
+    for (int f = ff + 1; f < tf; ++f) {
+      m |= OneHot(MakeSquare(fr, f));
+    }
+  } else if (df == 0) {
+    assert(fr < tr);
+    for (int r = fr + 1; r < tr; ++r) {
+      m |= OneHot(MakeSquare(r, ff));
+    }
+  } else {
+    assert(fr < tr);
+    // Not a rook move, check that deltas are equal.
+    if (abs(dr) != abs(df)) {
+      return 0;
+    }
+    dr = OnlySign(dr);
+    df = OnlySign(df);
+    int r = fr + dr;
+    int f = ff + df;
+    while (r != tr) {
+      m |= OneHot(MakeSquare(r, f));
+      r += dr;
+      f += df;
+    }
+  }
+  return m;
+}
+
+
 void InitializeMagicInternal() {
+  // Push masks.
+  for (int f = 0; f < 64; ++f) {
+    for (int t = 0; t < 64; ++t) {
+      push_masks[f][t] = GenPushMask(f, t);
+    }
+  }
+
   // Knights.
   for (int r = 0; r < 8; ++r) {
     for (int f = 0; f < 8; ++f) {
@@ -155,6 +226,26 @@ void InitializeMagicInternal() {
         }
       }
       knight_masks[p] = mask;
+    }
+  }
+  // King
+  for (int r = 0; r < 8; ++r) {
+    for (int f = 0; f < 8; ++f) {
+      const int p = MakeSquare(r, f);
+      uint64_t mask = 0;
+      for (int dr : {1, 0, -1}) {
+        for (int df : {1, 0, -1}) {
+          if (df == 0 && dr == 0) {
+            continue;
+          }
+          int result_r = r + dr;
+          int result_f = f + df;
+          if (SquareOnBoard(result_r, result_f)) {
+            mask |= (1ull << MakeSquare(result_r, result_f));
+          }
+        }
+      }
+      king_masks[p] = mask;
     }
   }
   // Bishops.
@@ -186,6 +277,10 @@ uint64_t KnightMoveMask(int square) {
   return knight_masks[square];
 }
 
+uint64_t KingMoveMask(int square) {
+  return king_masks[square];
+}
+
 uint64_t BishopMoveMask(int square, uint64_t occ) {
   occ &= bishop_magics.rel_occ[square];
   uint64_t x = (occ * bishop_magics.mul[square]) >> (64 - kBishopLogSize);
@@ -198,6 +293,10 @@ uint64_t RookMoveMask(int square, uint64_t occ) {
   uint64_t x = (occ * rook_magics.mul[square]) >> (64 - kRookLogSize);
   assert(x < rook_magics.mask_size());
   return rook_magics.mask[square][x];
+}
+
+uint64_t PushMask(int from, int to) {
+  return push_masks[from][to];
 }
 
 void InitializeMagic() { std::call_once(generated, &InitializeMagicInternal); }
