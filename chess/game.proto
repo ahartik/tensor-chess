@@ -1,0 +1,73 @@
+syntax = "proto2";
+
+package chess;
+
+// Serialized version of Board class.
+// Doesn't contain full history, but contains everything necessary for move
+// prediction and move generation.
+message BoardProto {
+
+  // 12 bitboards, one for each type
+  repeated fixed64 bitboards = 1;
+
+  // bitboard of 
+  optional fixed64 en_passant = 2;
+
+  // This also determines the turn. h % 2 == 0 means white, 1 means black.
+  optional int32 half_move_count = 3;
+  // Number of moves taken towards 50 move draw.
+  optional int32 no_progress_count = 4;
+  // Number of times we've been in this same board state.
+  optional int32 repetition_count = 5;
+
+  // These are missing in "puzzle" cases, and sometimes not used in training.
+  optional int32 last_move_from = 6;
+  optional int32 last_move_to = 7;
+
+  // Squares of rooks which can still castle, for both sides.
+  optional fixed64 castling_rights = 8;
+}
+
+message MoveProto {
+  optional int32 from_square = 1;
+  optional int32 to_square = 2;
+  optional int32 promotion = 3 [default = 4];
+
+  // True if the moving player resigned, and thus lost. Also true if
+  optional bool resign = 4;
+
+  // True if players agreed to a draw.
+  optional bool draw = 5;
+
+  // TODO: Add more stuff here, like if the resignation was by time, and
+  // information about the time taken for each move. Like
+  //
+  // optional bool timeout = 6;
+  // optional int32 nodes_explored = 7;
+
+  // TODO: Add support for offering draws, like
+  // optional bool offer_draw = 8;
+}
+
+message GameRecord {
+  enum PlayerType {
+    HUMAN = 0;
+    OVERMIND = 1;
+  }
+
+  repeated PlayerType players = 1;
+
+  // 
+  repeated MoveProto moves = 2;
+
+  // One of:
+  // *  1 if white won,
+  // *  0 for a draw,
+  // * -1 if black won.
+  optional sint32 result = 3;
+}
+
+message MoveTestCase {
+  optional BoardProto board = 1;
+  repeated MoveProto valid_moves = 2;
+}
