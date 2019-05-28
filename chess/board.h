@@ -162,6 +162,8 @@ class Board {
   bool ComputeCheck(uint64_t occ,
       uint64_t* capture_mask, uint64_t* push_mask) const;
 
+  uint64_t ComputePinnedPieces(uint64_t occ) const;
+
   uint64_t bitboards_[2][kNumPieces] = {};
   // Squares where en-passant capture is possible for the current player.
   uint64_t en_passant_ = 0;

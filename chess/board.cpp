@@ -43,6 +43,7 @@ void PawnMoves(const MoveInput& in, MoveList* out) {
   const int file = Square::File(sq);
   assert(rank != 0);
   assert(rank != 7);
+  const uint64_t capture_ok = in.check_ok | in.en_passant;
 
   const auto try_forward = [&](int to) {
     if ((occ & OneHot(to)) == 0 && (OneHot(to) & in.check_ok)) {
@@ -56,8 +57,9 @@ void PawnMoves(const MoveInput& in, MoveList* out) {
       }
     }
   };
+
   const auto try_capture = [&](int to) {
-    if ((in.opp_pieces & OneHot(to) & in.check_ok) != 0) {
+    if (((in.opp_pieces | in.en_passant) & OneHot(to) & capture_ok) != 0) {
       const int to_rank = Square::Rank(to);
       if (to_rank == 0 || to_rank == 7) {
         for (Piece p : kPromoPieces) {
@@ -71,7 +73,7 @@ void PawnMoves(const MoveInput& in, MoveList* out) {
   // Single forward move:
   try_forward(sq + dr);
   if (((rank == 1 && in.turn == Color::kWhite) ||
-      (rank == 6 && in.turn == Color::kBlack)) &&
+       (rank == 6 && in.turn == Color::kBlack)) &&
       (OneHot(sq + dr) & occ) == 0) {
     try_forward(sq + 2 * dr);
   }
@@ -138,6 +140,13 @@ void GenPieceMoves(Piece p, const MoveInput& in, MoveList* out) {
   }
 }
 
+// For pinned pieces, we can only move them towards or away from the king.
+bool SameDirection(int king, int from, int to) {
+  uint64_t pt = PushMask(king, to) | OneHot(to);
+  uint64_t pf = PushMask(king, from) | OneHot(from);
+  return (pt & pf) != 0;
+}
+
 
 }  // namespace
 
@@ -168,7 +177,6 @@ MoveList Board::valid_moves() const {
   MoveList list;
   const Color t = turn();
   const int ti = int(t);
-  const int other_ti = int(t);
 
   // Collect
   MoveInput input = {};
@@ -189,18 +197,10 @@ MoveList Board::valid_moves() const {
   uint64_t capture_mask = 0;
   uint64_t push_mask = 0;
   const bool is_check = ComputeCheck(input.occ, &capture_mask, &push_mask);
-  if (is_check && push_mask) {
-    printf("push mask: %016llx\n", push_mask);
-  }
 
   input.check_ok = capture_mask | push_mask;
-//   if (capture_mask == 0) {
-//     // Only king moves are allowed.
-//     const int sq = GetFirstBit(bitboards_[t][5]);
-//     input.square = sq;
-//     KingMoves(input, &list);
-//     return list;
-//   }
+  
+  const uint64_t pinned = ComputePinnedPieces(input.occ);
 
   for (int p = 0; p < kNumPieces; ++p) {
     for (int sq : BitRange(bitboards_[ti][p])) {
@@ -219,15 +219,32 @@ MoveList Board::valid_moves() const {
                                OneHot(MakeSquare(king_rank, 3));
     const uint64_t short_mask =
         OneHot(MakeSquare(king_rank, 5)) | OneHot(MakeSquare(king_rank, 6));
+    const uint64_t castle_occ = input.occ |
+      (input.king_danger & ~(OneHot(Square::B1) | OneHot(Square::B8)));
+    // std::cout << "castle occ:\n" << BitboardToString(input.king_danger) << "\n";
     if ((castling_rights_ & OneHot(long_castle)) &&
-        ((input.occ & long_mask) == 0)) {
-      list.emplace_back(king_square, MakeSquare(king_rank, 1));
+        (castle_occ & long_mask) == 0) {
+      list.emplace_back(king_square, MakeSquare(king_rank, 2));
     }
     if ((castling_rights_ & OneHot(short_castle)) &&
-        ((input.occ & short_mask) == 0)) {
+        ((castle_occ & short_mask) == 0)) {
       list.emplace_back(king_square, MakeSquare(king_rank, 6));
     }
   }
+
+  if (pinned != 0) {
+    const int king_s = GetFirstBit(bitboards_[ti][5]);
+    // Erase moves for pinned pieces.
+    auto new_end = std::remove_if(list.begin(), list.end(),
+        [pinned, king_s] (const Move& m) -> bool {
+          if (BitIsSet(pinned, m.from)) {
+            return !SameDirection(king_s, m.from, m.to);
+          }
+          return false;
+        });
+    list.erase(new_end, list.end());
+  }
+
   return list;
 }
 
@@ -249,7 +266,8 @@ uint64_t Board::ComputeKingDanger() const {
 
   // Pawns
   for (int s : BitRange(bitboards_[other_ti][0])) {
-    int dr = t == Color::kWhite ? 1 : -1;
+    // This is reverse, as we're imitating opponent's pawns.
+    int dr = t == Color::kWhite ? -1 : 1;
     const int r = SquareRank(s);
     const int f = SquareFile(s);
     if (SquareOnBoard(r + dr, f - 1)) {
@@ -292,16 +310,18 @@ bool Board::ComputeCheck(uint64_t occ, uint64_t* capture_mask,
   uint64_t slider_threats = 0;
   // Pawn
   {
-    // This is reverse, as we're imitating opponent's pawns.
-    const int dr = t == Color::kWhite ? -1 : 1;
+    const int dr = t == Color::kWhite ? 1 : -1;
     uint64_t pawn_mask = 0;
     if (SquareOnBoard(r + dr, f - 1)) {
-      pawn_mask |= MakeSquare(r + dr, f - 1);
+      pawn_mask |= OneHot(MakeSquare(r + dr, f - 1));
     }
     if (SquareOnBoard(r + dr, f + 1)) {
-      pawn_mask |= MakeSquare(r + dr, f + 1);
+      pawn_mask |= OneHot(MakeSquare(r + dr, f + 1));
     }
     threats |= pawn_mask & bitboards_[other_ti][0];
+    // if (pawn_mask) {
+    //   printf("Pawn threat at %i\n", GetFirstBit(pawn_mask));
+    // }
   }
 
   threats |= KnightMoveMask(king_s) & bitboards_[other_ti][1];
@@ -328,6 +348,34 @@ bool Board::ComputeCheck(uint64_t occ, uint64_t* capture_mask,
     }
   }
   return true;
+}
+
+uint64_t Board::ComputePinnedPieces(uint64_t occ) const {
+  const Color t = turn();
+  const int ti = int(t);
+  const int other_ti = 1 - ti;
+
+  const int king_s = GetFirstBit(bitboards_[ti][5]);
+
+  uint64_t pinned = 0;
+
+  const uint64_t king_bishop_mask = BishopMoveMask(king_s, occ);
+  const uint64_t possible_bishops =
+      (bitboards_[other_ti][2] | bitboards_[other_ti][4]) &
+      BishopMoveMask(king_s, 0);
+  for (int s : BitRange(possible_bishops)) {
+    const uint64_t move_mask = BishopMoveMask(s, occ);
+    pinned |= (move_mask & king_bishop_mask);
+  }
+  const uint64_t king_rook_mask = RookMoveMask(king_s, occ);
+  const uint64_t possible_rooks =
+      (bitboards_[other_ti][3] | bitboards_[other_ti][4]) &
+      RookMoveMask(king_s, 0);
+  for (int s : BitRange(possible_rooks)) {
+    const uint64_t move_mask = RookMoveMask(s, occ);
+    pinned |= (move_mask & king_rook_mask);
+  }
+  return pinned;
 }
 
 Board::Board() {}

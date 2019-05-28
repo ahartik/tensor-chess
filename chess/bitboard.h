@@ -98,7 +98,7 @@ int BitSelect(uint64_t x, int rank) {
 inline std::string BitboardToString(uint64_t b) {
   std::string s;
   s.reserve(64 + 10);
-  for (int r = 0; r < 8; ++r) {
+  for (int r = 7; r >=0; --r) {
     for (int f = 0; f < 8; ++f) {
       if (BitIsSet(b, MakeSquare(r, f))) {
         s.push_back('1');

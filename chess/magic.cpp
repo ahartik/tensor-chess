@@ -21,8 +21,8 @@ uint64_t king_masks[64];
 constexpr int kBishopLogSize = 10;
 constexpr int kRookLogSize = 12;
 #else
-constexpr int kBishopLogSize = 12;
-constexpr int kRookLogSize = 14;
+constexpr int kBishopLogSize = 10;
+constexpr int kRookLogSize = 12;
 #endif
 
 uint64_t push_masks[64][64];
@@ -34,6 +34,14 @@ struct Magics {
 
   size_t log_size() const { return kLogSize; }
   size_t mask_size() const { return kSize; }
+
+  uint64_t GetMask(int sq, uint64_t occ) const {
+    occ &= rel_occ[sq];
+    uint64_t x = (occ * mul[sq]) >> (64 - log_size());
+    assert(x < mask_size());
+    return mask[sq][x];
+  }
+
   uint64_t mul[64];
   uint64_t rel_occ[64];
   uint64_t mask[64][kSize];
@@ -121,7 +129,8 @@ void GenerateMagic(const int dr[4], const int df[4], int square,
   }
   uint64_t mul = 0;
   while (true) {
-    // Why do we do AND 2 times? That's for you to figure out ;)
+    // Do AND multiple times in order to generate a random number with fewer
+    // bits. Somehow they work better here.
     mul = mt() & mt() & mt();
     std::fill(output, output + output_size, kUnsetSentinel);
     bool success = true;
@@ -282,17 +291,11 @@ uint64_t KingMoveMask(int square) {
 }
 
 uint64_t BishopMoveMask(int square, uint64_t occ) {
-  occ &= bishop_magics.rel_occ[square];
-  uint64_t x = (occ * bishop_magics.mul[square]) >> (64 - kBishopLogSize);
-  assert(x < bishop_magics.mask_size());
-  return bishop_magics.mask[square][x];
+  return bishop_magics.GetMask(square, occ);
 }
 
 uint64_t RookMoveMask(int square, uint64_t occ) {
-  occ &= rook_magics.rel_occ[square];
-  uint64_t x = (occ * rook_magics.mul[square]) >> (64 - kRookLogSize);
-  assert(x < rook_magics.mask_size());
-  return rook_magics.mask[square][x];
+  return rook_magics.GetMask(square, occ);
 }
 
 uint64_t PushMask(int from, int to) {
