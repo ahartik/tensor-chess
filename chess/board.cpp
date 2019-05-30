@@ -17,6 +17,8 @@ struct MoveInput {
   Color turn = Color::kEmpty;
   // Position of the piece we're generating moves for.
   int square = 0;
+  // Position of my king.
+  uint64_t king_s = 0;
   // Square occupation.
   uint64_t occ = 0;
   // Masks of my and opponent pieces.
@@ -197,6 +199,10 @@ MoveList Board::valid_moves() const {
   uint64_t capture_mask = 0;
   uint64_t push_mask = 0;
   const bool is_check = ComputeCheck(input.occ, &capture_mask, &push_mask);
+  if (is_check && push_mask != 0) {
+    // We're in check with a sliding piece, en passant capture won't save us.
+    input.en_passant &= push_mask;
+  }
 
   input.check_ok = capture_mask | push_mask;
   

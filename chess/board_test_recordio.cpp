@@ -56,6 +56,7 @@ int main(int argc, char** argv) {
   }
   chess::InitializeMovegen();
   for (int i = 1; i < argc; ++i) {
+    std::cout << "Testing " << argv[i] << "\n";
     chess::Go(argv[i]);
   }
   return 0;
