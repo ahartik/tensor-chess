@@ -26,6 +26,7 @@ constexpr int kRookLogSize = 12;
 #endif
 
 uint64_t push_masks[64][64];
+uint64_t ray_masks[64][64];
 
 template <int LogSize>
 struct Magics {
@@ -209,12 +210,51 @@ uint64_t GenPushMask(int f, int t) {
   return m;
 }
 
+uint64_t GenRayMask(int f, int t) {
+  if (f == t) {
+    return 0;
+  }
+  const int fr = SquareRank(f);
+  const int ff = SquareFile(f);
+  const int tr = SquareRank(t);
+  const int tf = SquareFile(t);
+  // std::cout << "p " << f << " " << t << "\n";
+
+  int dr = tr - fr;
+  int df = tf - ff;
+  uint64_t mask = 0;
+  if (dr == 0) {
+    const int d = OnlySign(df);
+    for (int x = ff; (x >=0 && x < 8); x += d) {
+      mask |= OneHot(MakeSquare(fr, x));
+    }
+  } else if (df == 0) {
+    const int d = OnlySign(dr);
+    for (int x = fr; (x >=0 && x < 8); x += d) {
+      mask |= OneHot(MakeSquare(x, ff));
+    }
+  } else if (abs(dr) == abs(df)) {
+    // Diagonal.
+    dr = OnlySign(dr);
+    df = OnlySign(df);
+    int nf = ff;
+    int nr = fr;
+    while (SquareOnBoard(nr, nf)) {
+      mask |= OneHot(MakeSquare(nr, nf));
+      nr += dr;
+      nf += df;
+    }
+  }
+  return mask;
+}
+
 
 void InitializeMagicInternal() {
   // Push masks.
   for (int f = 0; f < 64; ++f) {
     for (int t = 0; t < 64; ++t) {
       push_masks[f][t] = GenPushMask(f, t);
+      ray_masks[f][t] = GenRayMask(f, t);
     }
   }
 
@@ -300,6 +340,17 @@ uint64_t RookMoveMask(int square, uint64_t occ) {
 
 uint64_t PushMask(int from, int to) {
   return push_masks[from][to];
+}
+
+uint64_t RayMask(int from, int to) {
+  return ray_masks[from][to];
+}
+
+uint64_t RankMask(int r) { return uint64_t{0xff} << (8 * r); }
+
+uint64_t FileMask(int r) {
+  const uint64_t first_file = 0x01010101010101010101010101010101;
+  return (first_file << r) | (first_file >> (64 - r));
 }
 
 void InitializeMagic() { std::call_once(generated, &InitializeMagicInternal); }

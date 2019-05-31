@@ -16,6 +16,10 @@ uint64_t BishopMoveMask(int pos, uint64_t occ);
 uint64_t RookMoveMask(int pos, uint64_t occ);
 
 uint64_t PushMask(int from, int to);
+uint64_t RayMask(int from, int to);
+
+uint64_t RankMask(int r);
+uint64_t FileMask(int r);
 
 // TODO: Consider if we should have only "occ" instead of both "my" and "opp"
 // here. Maybe the removal of self-captures belongs higher up?
