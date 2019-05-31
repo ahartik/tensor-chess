@@ -28,7 +28,9 @@ void Go(absl::string_view fname) {
     const std::set<Move> actual_moves(actual_moves_v.begin(),
                                       actual_moves_v.end());
     if (actual_moves != expected_moves) {
-      std::cout << b.ToPrintString() << "\nMissing moves:\n";
+      std::cout << b.ToPrintString() << "\n";
+      std::cout << b.ToFEN() << "\n";
+      std::cout << "Missing moves:\n";
       // First log missing moves.
       for (const auto& m : expected_moves) {
         if (actual_moves.count(m) == 0) {

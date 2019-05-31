@@ -76,6 +76,8 @@ class MoveGenerator {
     const int file = Square::File(sq);
     assert(rank != 0);
     assert(rank != 7);
+    // This is cheating a little bit by always allowing en passants. We must do
+    // a second check for those.
     const uint64_t capture_ok = check_ok_ | b_.en_passant_;
 
     const auto try_forward = [&](int to) {
@@ -102,15 +104,16 @@ class MoveGenerator {
           return;
         }
         if (b_.en_passant_ & OneHot(to)) {
+          // This is the mask of the pawn we just captured.
+          const uint64_t other_pawn = (turn_ == Color::kWhite)
+                                          ? b_.en_passant_ >> 8
+                                          : b_.en_passant_ << 8;
           // This is en passant capture. We need to check if this leaves us in
           // check (which would be illegal).
           if (SquareRank(king_s_) == SquareRank(sq)) {
             // Captured piece and our king are on the same rank. Check if they
             // have other pieces in-between than 'sq' and the pawn previously
             // next to us.
-            const uint64_t other_pawn = (turn_ == Color::kWhite)
-                                            ? b_.en_passant_ >> 8
-                                            : b_.en_passant_ << 8;
             const uint64_t removed_sqs = OneHot(sq) | other_pawn;
             const uint64_t king_rook_moves =
                 RookMoveMask(king_s_, (occ_ ^ removed_sqs)) &
@@ -129,6 +132,12 @@ class MoveGenerator {
             if (king_rook_moves & opp_rooks) {
               return;
             }
+          }
+          // Also, we must double-check that this capture is legal in case
+          // we're in check.
+          if ((other_pawn & check_ok_) == 0 &&
+              (b_.en_passant_ & check_ok_) == 0) {
+            return;
           }
         }
         const int to_rank = Square::Rank(to);
@@ -219,6 +228,7 @@ class MoveGenerator {
 
   MoveList GenerateMoves() const {
     MoveList list;
+    list.reserve(128);
     for (int p = 0; p < kNumPieces; ++p) {
       for (int sq : BitRange(b_.bitboards_[ti_][p])) {
         GenPieceMoves(Piece(p), sq, &list);
@@ -312,9 +322,6 @@ class MoveGenerator {
         pawn_mask |= OneHot(MakeSquare(r + dr, f + 1));
       }
       threats |= pawn_mask & b_.bitboards_[other_ti][0];
-      // if (pawn_mask) {
-      //   printf("Pawn threat at %i\n", GetFirstBit(pawn_mask));
-      // }
     }
 
     threats |= KnightMoveMask(king_s_) & b_.bitboards_[other_ti][1];
@@ -468,13 +475,64 @@ std::string Board::ToPrintString() const {
     str.push_back('1' + r);
     str.push_back(' ');
     for (int f = 0; f < 8; ++f) {
-      int sq = r * 8 + f;
-      str.push_back(PieceChar(square(sq)));
+      str.push_back(PieceColorChar(square(r, f)));
       str.push_back(' ');
     }
     str.push_back('\n');
   }
   return str;
+}
+
+std::string Board::ToFEN() const {
+  std::string fen;
+  for (int r = 7; r >= 0; --r) {
+    int rep = 0;
+    for (int f = 0; f < 8; ++f) {
+      PieceColor pc = square(r, f);
+      if (pc.c != Color::kEmpty) {
+        if (rep != 0) {
+          fen.push_back('0' + rep);
+          rep = 0;
+        }
+        fen.push_back(PieceColorChar(pc));
+      } else {
+        ++rep;
+      }
+    }
+    if (rep != 0) {
+      fen.push_back('0' + rep);
+    }
+    if (r != 0) {
+      fen.push_back('/');
+    }
+  }
+  fen.push_back(' ');
+  fen.push_back(turn() == Color::kWhite ? 'w' : 'b');
+  fen.push_back(' ');
+  if (castling_rights_ & Square::H1) {
+    fen.push_back('K');
+  }
+  if (castling_rights_ & Square::A1) {
+    fen.push_back('Q');
+  }
+  if (castling_rights_ & Square::H8) {
+    fen.push_back('k');
+  }
+  if (castling_rights_ & Square::A8) {
+    fen.push_back('k');
+  }
+  if (castling_rights_ == 0) {
+    fen.push_back('-');
+  }
+  fen.push_back(' ');
+  if (en_passant_) {
+    fen += Square::ToString(GetFirstBit(en_passant_));
+  } else {
+    fen.push_back('-');
+  }
+  absl::StrAppend(&fen, " ", no_progress_count_, " ", half_move_count_);
+
+  return fen;
 }
 
 }  // namespace chess

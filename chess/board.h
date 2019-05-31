@@ -37,13 +37,13 @@ struct PieceColor {
 
 inline char PieceChar(Piece p, Color c = Color::kWhite) {
   const char kLetters[3 * 7 + 1] =
-      "pnbrqk."
       "PNBRQK."
+      "pnbrqk."
       ".......";
   return kLetters[int(p) + 7 * int(c)];
 }
 
-inline char PieceChar(PieceColor pc) {
+inline char PieceColorChar(PieceColor pc) {
   return PieceChar(pc.p, pc.c);
 }
 
@@ -149,8 +149,12 @@ class Board {
   bool operator==(const Board& b) const;
 
   std::string ToPrintString() const;
+  std::string ToFEN() const;
 
   PieceColor square(int sq) const;
+  PieceColor square(int r, int f) const {
+    return square(r * 8 + f);
+  }
 
 
  private:
