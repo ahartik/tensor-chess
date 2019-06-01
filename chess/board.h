@@ -48,9 +48,24 @@ inline char PieceColorChar(PieceColor pc) {
 }
 
 struct Move {
+  enum class Type : uint8_t {
+    kUnknown = 0,
+    // Non-capture moves of (non-pawn) pieces.
+    kReversible = 1,
+    // Captures and all pawn moves.
+    kRegular = 2,
+    kPromotion = 3,
+    kCastling = 4,
+    kEnPassant = 5,
+  };
   Move() = default;
-  Move(int f, int t, Piece promo = Piece::kNone)
-      : from(f), to(t), promotion(promo) {}
+  Move(int f, int t, Piece promo) : from(f), to(t), promotion(promo) {
+    if (promo != Piece::kNone) {
+      type = Type::kPromotion;
+    }
+  }
+
+  Move(int f, int t, Type ty ) : from(f), to(t), type(ty) {}
 
   MoveProto ToProto() const {
     MoveProto p;
@@ -91,7 +106,10 @@ struct Move {
   int8_t from = 0;
   int8_t to = 0;
   Piece promotion = Piece::kNone;
+  // Flags follow:
+  Type type = Type::kUnknown;
 };
+static_assert(sizeof(Move) == 4);
 
 template <typename H>
 H AbslHashValue(H h, const Move& m) {
@@ -144,6 +162,23 @@ class Board {
 
   MoveList valid_moves() const;
 
+  // For the most efficient interface, implement function like:
+  enum class State {
+    kNotOver = 0,
+    // Check and the current player has no legal moves.
+    kCheckmate,
+    // Not a check, but current player has no moves.
+    kStalemate,
+    // Threefold repetition (possibly returning earlier).
+    kRepetitionDraw,
+    // 50-move rule or so.
+    kNoProgressDraw,
+  };
+
+  // For F callable with signature void(const Move& m);
+  template <typename F>
+  State EnumerateMoves(F f);
+
   // Hash value for the board, to be used for detecting repetitions.
   uint64_t board_hash() const;
   // Hash value of the state, includes history.
@@ -159,6 +194,7 @@ class Board {
     return square(r * 8 + f);
   }
 
+  Move::Type GetMoveType(const Move& m) const;
 
  private:
   template <typename H>
@@ -166,6 +202,15 @@ class Board {
 
   friend class MoveGenerator;
 
+  uint64_t ComputeOcc() const {
+    uint64_t o = 0;
+    for (int i = 0; i < 2; ++i) {
+      for (int j = 0; j < kNumPieces; ++j) {
+        o |= bitboards_[i][j];
+      }
+    }
+    return o;
+  }
 
   uint64_t bitboards_[2][kNumPieces] = {};
   // Squares where en-passant capture is possible for the current player.

@@ -3,9 +3,9 @@
 #include <cassert>
 #include <iostream>
 
+#include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
-#include "absl/strings/numbers.h"
 #include "chess/bitboard.h"
 #include "chess/magic.h"
 
@@ -95,7 +95,7 @@ class MoveGenerator {
             out->emplace_back(sq, to, p);
           }
         } else {
-          out->emplace_back(sq, to);
+          out->emplace_back(sq, to, Move::Type::kRegular);
         }
       }
     };
@@ -105,7 +105,8 @@ class MoveGenerator {
         if (IsPinned(sq, to)) {
           return;
         }
-        if (b_.en_passant_ & OneHot(to)) {
+        const bool is_en_passant_capture = b_.en_passant_ & OneHot(to);
+        if (is_en_passant_capture) {
           // This is the mask of the pawn we just captured.
           const uint64_t other_pawn = (turn_ == Color::kWhite)
                                           ? b_.en_passant_ >> 8
@@ -130,7 +131,7 @@ class MoveGenerator {
 #endif
             // Check if opponent rooks match this.
             const uint64_t opp_rooks =
-                b_.bitboards_[1 - ti_][3] | b_.bitboards_[1 - ti_][4];
+                b_.bitboards_[ti_ ^ 1][3] | b_.bitboards_[ti_ ^ 1][4];
             if (king_rook_moves & opp_rooks) {
               return;
             }
@@ -141,14 +142,16 @@ class MoveGenerator {
               (b_.en_passant_ & check_ok_) == 0) {
             return;
           }
-        }
-        const int to_rank = Square::Rank(to);
-        if (to_rank == 0 || to_rank == 7) {
-          for (Piece p : kPromoPieces) {
-            out->emplace_back(sq, to, p);
-          }
+          out->emplace_back(sq, to, Move::Type::kEnPassant);
         } else {
-          out->emplace_back(sq, to);
+          const int to_rank = Square::Rank(to);
+          if (to_rank == 0 || to_rank == 7) {
+            for (Piece p : kPromoPieces) {
+              out->emplace_back(sq, to, p);
+            }
+          } else {
+            out->emplace_back(sq, to, Move::Type::kRegular);
+          }
         }
       }
     };
@@ -177,7 +180,9 @@ class MoveGenerator {
       return;
     }
     for (int to : BitRange(m & ~(my_pieces_)&check_ok_)) {
-      out->emplace_back(sq, to);
+      const bool is_capture = opp_pieces_ & OneHot(to);
+      out->emplace_back(
+          sq, to, is_capture ? Move::Type::kRegular : Move::Type::kReversible);
     }
   }
 
@@ -185,7 +190,10 @@ class MoveGenerator {
     const uint64_t m = BishopMoveMask(sq, occ_);
     for (int to : BitRange(m & ~my_pieces_ & check_ok_)) {
       if (!IsPinned(sq, to)) {
-        out->emplace_back(sq, to);
+        const bool is_capture = opp_pieces_ & OneHot(to);
+        out->emplace_back(
+            sq, to,
+            is_capture ? Move::Type::kRegular : Move::Type::kReversible);
       }
     }
   }
@@ -194,7 +202,10 @@ class MoveGenerator {
     const uint64_t m = RookMoveMask(sq, occ_);
     for (int to : BitRange(m & ~my_pieces_ & check_ok_)) {
       if (!IsPinned(sq, to)) {
-        out->emplace_back(sq, to);
+        const bool is_capture = opp_pieces_ & OneHot(to);
+        out->emplace_back(
+            sq, to,
+            is_capture ? Move::Type::kRegular : Move::Type::kReversible);
       }
     }
   }
@@ -203,7 +214,9 @@ class MoveGenerator {
     // Unlike other pieces, king cannot be pinned :)
     const uint64_t m = KingMoveMask(sq);
     for (int to : BitRange(m & ~my_pieces_ & ~king_danger_)) {
-      out->emplace_back(sq, to);
+      const bool is_capture = opp_pieces_ & OneHot(to);
+      out->emplace_back(
+          sq, to, is_capture ? Move::Type::kRegular : Move::Type::kReversible);
     }
   }
 
@@ -253,11 +266,13 @@ class MoveGenerator {
       // "\n";
       if ((b_.castling_rights_ & OneHot(long_castle)) &&
           (castle_occ & long_mask) == 0) {
-        list.emplace_back(king_square, MakeSquare(king_rank, 2));
+        list.emplace_back(king_square, MakeSquare(king_rank, 2),
+                          Move::Type::kCastling);
       }
       if ((b_.castling_rights_ & OneHot(short_castle)) &&
           ((castle_occ & short_mask) == 0)) {
-        list.emplace_back(king_square, MakeSquare(king_rank, 6));
+        list.emplace_back(king_square, MakeSquare(king_rank, 6),
+                          Move::Type::kCastling);
       }
     }
 
@@ -265,11 +280,11 @@ class MoveGenerator {
   }
 
   uint64_t ComputeKingDanger() const {
-    const int other_ti = 1 - ti_;
+    const int other_ti = ti_ ^ 1;
     // To account for sliding pieces, remove our king from the occ mask.
     uint64_t occ = occ_ ^ OneHot(king_s_);
 
-    uint64_t danger = 0; 
+    uint64_t danger = 0;
     // Pawns
     for (int s : BitRange(b_.bitboards_[other_ti][0])) {
       // This is reverse, as we're imitating opponent's pawns.
@@ -305,7 +320,7 @@ class MoveGenerator {
   }
 
   bool ComputeCheck(uint64_t* capture_mask, uint64_t* push_mask) const {
-    const int other_ti = 1 - ti_;
+    const int other_ti = ti_ ^ 1;
 
     const int r = SquareRank(king_s_);
     const int f = SquareFile(king_s_);
@@ -352,7 +367,7 @@ class MoveGenerator {
   }
 
   uint64_t ComputePinnedPieces() const {
-    const int other_ti = 1 - ti_;
+    const int other_ti = ti_ ^ 1;
 
     uint64_t pinned = 0;
 
@@ -428,7 +443,7 @@ void InitializeMovegen() { InitializeMagic(); }
 std::string Move::ToString() const {
   char p_str[2] = {0, 0};
   if (promotion != Piece::kNone) {
-    p_str[0] = PieceChar(promotion);
+    p_str[0] = PieceChar(promotion, Color::kBlack);
   }
   return absl::StrCat(Square::ToString(from), Square::ToString(to), p_str);
 }
@@ -540,7 +555,7 @@ Board::Board(absl::string_view fen) {
     std::cerr << "Invalid full move clock \"" << parts[5] << "\"";
     abort();
   }
-  half_move_count_ += 2 * (fullmove_clock - 1) + 1;
+  half_move_count_ += 2 * (fullmove_clock - 1);
 }
 
 Board::Board(const BoardProto& p) {
@@ -554,6 +569,116 @@ Board::Board(const BoardProto& p) {
   castling_rights_ = p.castling_rights();
   half_move_count_ = p.half_move_count();
   repetition_count_ = p.repetition_count();
+}
+
+Board::Board(const Board& o, const Move& m) : Board(o) {
+  const uint64_t from_o = OneHot(m.from);
+  const uint64_t to_o = OneHot(m.to);
+  const int ti = half_move_count_ & 1;
+
+  const Move::Type type = o.GetMoveType(m);
+  en_passant_ = 0;
+  switch (type) {
+    case Move::Type::kReversible:
+      ++no_progress_count_;
+      for (int i = 0; i < kNumPieces; ++i) {
+        if (bitboards_[ti][i] & from_o) {
+          // Swap these two bits.
+          bitboards_[ti][i] ^= from_o | to_o;
+        }
+      }
+      // If this was a rook, castle rights are lost.
+      castling_rights_ &= ~from_o;
+      // Or if we took an opponent rook:
+      castling_rights_ &= ~to_o;
+      // Or if king was moved:
+      if (bitboards_[0][5] & to_o) {
+        castling_rights_ &= ~RankMask(0);
+      } else if (bitboards_[1][5] & to_o) {
+        castling_rights_ &= ~RankMask(7);
+      }
+      break;
+    case Move::Type::kRegular:
+      no_progress_count_ = 0;
+      // Before changing bitmaps, set en passant if needed:
+
+      // Check if this is a pawn move first.
+      if (bitboards_[ti][0] & from_o) {
+        if (m.to - m.from == 16) {
+          // White two-step pawn move.
+          en_passant_ = OneHot(m.to - 8);
+        }
+        if (m.from - m.to == 16) {
+          // Black two-step pawn move.
+          en_passant_ = OneHot(m.to + 8);
+        }
+      }
+      // Swap the pieces as above.
+      for (int i = 0; i < kNumPieces; ++i) {
+        if (bitboards_[ti][i] & from_o) {
+          bitboards_[ti][i] ^= from_o | to_o;
+        }
+      }
+      // Perform potential captures.
+      for (int i = 0; i < kNumPieces; ++i) {
+        bitboards_[ti ^ 1][i] &= ~to_o;
+      }
+      // If this was a rook, castle rights are lost.
+      castling_rights_ &= ~from_o;
+      // Or if we took an opponent rook:
+      castling_rights_ &= ~to_o;
+      // Or if king was moved:
+      if (bitboards_[0][5] & to_o) {
+        castling_rights_ &= ~RankMask(0);
+      } else if (bitboards_[1][5] & to_o) {
+        castling_rights_ &= ~RankMask(7);
+      }
+      break;
+    case Move::Type::kCastling:
+      ++no_progress_count_;
+      // This doesn't have to be super fast, castling is not frequent.
+      castling_rights_ &= ~RankMask(ti * 7);
+      if (m.to == Square::C1) {
+        bitboards_[0][5] = OneHot(Square::C1);
+        bitboards_[0][3] ^= OneHot(Square::A1) | OneHot(Square::D1);
+      } else if (m.to == Square::G1) {
+        bitboards_[0][5] = OneHot(Square::G1);
+        bitboards_[0][3] ^= OneHot(Square::H1) | OneHot(Square::F1);
+      } else if (m.to == Square::C8) {
+        bitboards_[1][5] = OneHot(Square::C8);
+        bitboards_[1][3] ^= OneHot(Square::A8) | OneHot(Square::D8);
+      } else if (m.to == Square::G8) {
+        bitboards_[1][5] = OneHot(Square::G8);
+        bitboards_[1][3] ^= OneHot(Square::H8) | OneHot(Square::F8);
+      } else {
+        std::cerr << "bad castle move: " << m.ToString() << "\n";
+        abort();
+      }
+      break;
+    case Move::Type::kPromotion:
+      // Pawn move, so this counter resets.
+      no_progress_count_ = 0;
+      // Remove pawn.
+      bitboards_[ti][0] &= ~from_o;
+      // Insert new piece:
+      bitboards_[ti][int(m.promotion)] |= to_o;
+      // Perform potential captures.
+      for (int i = 0; i < kNumPieces; ++i) {
+        bitboards_[ti ^ 1][i] &= ~to_o;
+      }
+      break;
+    case Move::Type::kEnPassant:
+      // This must be a pawn move.
+      bitboards_[ti][0] ^= from_o | to_o;
+      // We're capturing pawn on the same rank as 'from', same file as 'to'.
+      bitboards_[ti ^ 1][0] &=
+          ~OneHot(MakeSquare(SquareRank(m.from), SquareFile(m.to)));
+      break;
+    default:
+      std::cerr << "broken move type: " << int(type) << "\n";
+      abort();
+  }
+  ++half_move_count_;
 }
 
 PieceColor Board::square(int sq) const {
@@ -629,9 +754,49 @@ std::string Board::ToFEN() const {
   } else {
     fen.push_back('-');
   }
-  absl::StrAppend(&fen, " ", no_progress_count_, " ", half_move_count_);
+  absl::StrAppend(&fen, " ", no_progress_count_, " ",
+                  1 + (half_move_count_ / 2));
 
   return fen;
+}
+
+Move::Type Board::GetMoveType(const Move& m) const {
+  if (m.type != Move::Type::kUnknown) {
+    // Already pre-computed.
+    return m.type;
+  }
+  // Rest of the code only occurs when input move is not generated by
+  // valid_moves(). Thus the code below doesn't need to be fast: just make sure
+  // it's correct.
+  const uint64_t to_o = OneHot(m.to);
+  const uint64_t from_o = OneHot(m.from);
+  const uint64_t occ = ComputeOcc();
+
+  const uint64_t pawns = (bitboards_[0][0] | bitboards_[1][0]);
+  // Ok, let's see if this is an en-passant capture:
+  if (to_o == en_passant_) {
+    // Could be, but not necessarily. Check if the piece being moved was a pawn:
+    if (pawns & from_o) {
+      return Move::Type::kEnPassant;
+    }
+  }
+  if (m.promotion != Piece::kNone) {
+    return Move::Type::kPromotion;
+  }
+  // Could be castling:
+  const uint64_t kings = bitboards_[0][5] | bitboards_[1][5];
+  if (from_o & kings) {
+    // We're moving a king. It's a castling if there is exactly 2 difference in
+    // position.
+    if (abs(m.to - m.from) == 2) {
+      return Move::Type::kCastling;
+    }
+  }
+  // Is this a pawn move or a capture:
+  if ((pawns & from_o) || (to_o & occ)) {
+    return Move::Type::kRegular;
+  }
+  return Move::Type::kReversible;
 }
 
 }  // namespace chess

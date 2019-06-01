@@ -1,5 +1,4 @@
 build --copt=-march=native
-build --copt=-g
 build --action_env=TMP=/tmp/
 build --linkopt=-pthread
 build --linkopt=-rdynamic

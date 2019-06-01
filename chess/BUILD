@@ -72,6 +72,23 @@ cc_binary(
     ],
 )
 
+cc_binary(
+    name = "board_move_tester",
+    srcs = ["board_move_tester.cpp"],
+    deps = [
+        ":board",
+    ],
+)
+
+cc_binary(
+    name = "perft",
+    srcs = ["perft.cpp"],
+    deps = [
+        ":board",
+        "@com_google_absl//absl/time",
+    ],
+)
+
 
 # cc_test(
 #     name = "board_test",
