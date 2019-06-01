@@ -6,6 +6,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
 #include "chess/bitboard.h"
+#include "chess/hashing.h"
 #include "chess/magic.h"
 
 namespace chess {
@@ -15,11 +16,6 @@ namespace chess {
 // TODO: Profile and optimize this later.
 
 // For pinned pieces, we can only move them towards or away from the king.
-static inline bool SameDirection(int king, int from, int to) {
-  uint64_t pt = PushMask(king, to) | OneHot(to);
-  uint64_t pf = PushMask(king, from) | OneHot(from);
-  return (pt & pf) != 0;
-}
 
 template <typename MoveFunc>
 class MoveGenerator {
@@ -432,17 +428,9 @@ class MoveGenerator {
   uint64_t push_mask_ = kAllBits;
 };
 
-extern const Piece kPromoPieces[4] = {Piece::kQueen, Piece::kBishop,
-                                      Piece::kKnight, Piece::kRook};
-
-void InitializeMovegen() { InitializeMagic(); }
-
-std::string Move::ToString() const {
-  char p_str[2] = {0, 0};
-  if (promotion != Piece::kNone) {
-    p_str[0] = PieceChar(promotion, Color::kBlack);
-  }
-  return absl::StrCat(Square::ToString(from), Square::ToString(to), p_str);
+void Board::Init() {
+  InitMagic();
+  InitHashing();
 }
 
 MoveList Board::valid_moves() const {
@@ -453,7 +441,13 @@ MoveList Board::valid_moves() const {
 }
 
 template <typename MoveFunc>
-Board::State Board::LegalMoves(const MoveFunc& f) const {
+Board::State Board::LegalMoves(const MoveFunc& f,
+                               bool return_draw_moves) const {
+  if (!return_draw_moves) {
+    if (half_move_count_ >= 100) {
+      return State::kNoProgressDraw;
+    }
+  }
   MoveGenerator<MoveFunc> gen(*this, f);
   gen.GenerateMoves();
   const int num_moves = gen.NumMoves();
@@ -574,6 +568,7 @@ Board::Board(absl::string_view fen) {
     abort();
   }
   half_move_count_ += 2 * (fullmove_clock - 1);
+  board_hash_ = ComputeBoardHash();
 }
 
 Board::Board(const BoardProto& p) {
@@ -587,6 +582,7 @@ Board::Board(const BoardProto& p) {
   castling_rights_ = p.castling_rights();
   half_move_count_ = p.half_move_count();
   repetition_count_ = p.repetition_count();
+  board_hash_ = ComputeBoardHash();
 }
 
 Board::Board(const Board& o, const Move& m) : Board(o) {
@@ -595,7 +591,12 @@ Board::Board(const Board& o, const Move& m) : Board(o) {
   const int ti = half_move_count_ & 1;
 
   const Move::Type type = o.GetMoveType(m);
+  // Remove en passant and castling from hash. They are added back later after
+  // they've been (potentially) modified.
+  board_hash_ ^= en_passant_;
+  board_hash_ ^= castling_rights_;
   en_passant_ = 0;
+
   switch (type) {
     case Move::Type::kReversible:
       ++no_progress_count_;
@@ -603,6 +604,7 @@ Board::Board(const Board& o, const Move& m) : Board(o) {
         if (bitboards_[ti][i] & from_o) {
           // Swap these two bits.
           bitboards_[ti][i] ^= from_o | to_o;
+          board_hash_ ^= zobrist[ti][i][m.from] ^ zobrist[ti][i][m.to];
         }
       }
       // If this was a rook, castle rights are lost.
@@ -630,16 +632,21 @@ Board::Board(const Board& o, const Move& m) : Board(o) {
           // Black two-step pawn move.
           en_passant_ = OneHot(m.to + 8);
         }
+        board_hash_ ^= en_passant_;
       }
       // Swap the pieces as above.
       for (int i = 0; i < kNumPieces; ++i) {
         if (bitboards_[ti][i] & from_o) {
           bitboards_[ti][i] ^= from_o | to_o;
+          board_hash_ ^= zobrist[ti][i][m.from] ^ zobrist[ti][i][m.to];
         }
       }
       // Perform potential captures.
       for (int i = 0; i < kNumPieces; ++i) {
-        bitboards_[ti ^ 1][i] &= ~to_o;
+        if (bitboards_[ti ^ 1][i] & to_o) {
+          bitboards_[ti ^ 1][i] &= ~to_o;
+          board_hash_ ^= zobrist[ti ^ 1][i][m.to];
+        }
       }
       // If this was a rook, castle rights are lost.
       castling_rights_ &= ~from_o;
@@ -659,15 +666,23 @@ Board::Board(const Board& o, const Move& m) : Board(o) {
       if (m.to == Square::C1) {
         bitboards_[0][5] = OneHot(Square::C1);
         bitboards_[0][3] ^= OneHot(Square::A1) | OneHot(Square::D1);
+        board_hash_ ^= zobrist[0][5][Square::E1] ^ zobrist[0][5][Square::C1] ^
+                       zobrist[0][3][Square::A1] ^ zobrist[0][3][Square::D1];
       } else if (m.to == Square::G1) {
         bitboards_[0][5] = OneHot(Square::G1);
         bitboards_[0][3] ^= OneHot(Square::H1) | OneHot(Square::F1);
+        board_hash_ ^= zobrist[0][5][Square::E1] ^ zobrist[0][5][Square::G1] ^
+                       zobrist[0][3][Square::H1] ^ zobrist[0][3][Square::F1];
       } else if (m.to == Square::C8) {
         bitboards_[1][5] = OneHot(Square::C8);
         bitboards_[1][3] ^= OneHot(Square::A8) | OneHot(Square::D8);
+        board_hash_ ^= zobrist[1][5][Square::E8] ^ zobrist[1][5][Square::C8] ^
+                       zobrist[1][3][Square::A8] ^ zobrist[1][3][Square::D8];
       } else if (m.to == Square::G8) {
         bitboards_[1][5] = OneHot(Square::G8);
         bitboards_[1][3] ^= OneHot(Square::H8) | OneHot(Square::F8);
+        board_hash_ ^= zobrist[1][5][Square::E8] ^ zobrist[1][5][Square::G8] ^
+                       zobrist[1][3][Square::H8] ^ zobrist[1][3][Square::F8];
       } else {
         std::cerr << "bad castle move: " << m.ToString() << "\n";
         abort();
@@ -680,25 +695,38 @@ Board::Board(const Board& o, const Move& m) : Board(o) {
       bitboards_[ti][0] &= ~from_o;
       // Insert new piece:
       bitboards_[ti][int(m.promotion)] |= to_o;
+
+      board_hash_ ^= zobrist[ti][0][m.from];
+      board_hash_ ^= zobrist[ti][int(m.promotion)][m.to];
       // Perform potential captures.
       for (int i = 0; i < kNumPieces; ++i) {
-        bitboards_[ti ^ 1][i] &= ~to_o;
+        if (bitboards_[ti ^ 1][i] & to_o) {
+          bitboards_[ti ^ 1][i] &= ~to_o;
+          board_hash_ ^= zobrist[ti ^ 1][i][m.to];
+        }
       }
       // We might have captured a rook with castling rights.
       castling_rights_ &= ~to_o;
       break;
-    case Move::Type::kEnPassant:
+    case Move::Type::kEnPassant: {
       // This must be a pawn move.
       bitboards_[ti][0] ^= from_o | to_o;
       // We're capturing pawn on the same rank as 'from', same file as 'to'.
-      bitboards_[ti ^ 1][0] &=
-          ~OneHot(MakeSquare(SquareRank(m.from), SquareFile(m.to)));
+      const int captured_square =
+          MakeSquare(SquareRank(m.from), SquareFile(m.to));
+      bitboards_[ti ^ 1][0] &= ~OneHot(captured_square);
+      board_hash_ ^= zobrist[ti][0][m.from];
+      board_hash_ ^= zobrist[ti][0][m.to];
+      board_hash_ ^= zobrist[ti ^ 1][0][captured_square];
       break;
+    }
     default:
       std::cerr << "broken move type: " << int(type) << "\n";
       abort();
   }
+  board_hash_ ^= castling_rights_;
   ++half_move_count_;
+  assert(board_hash_ == ComputeBoardHash());
 }
 
 PieceColor Board::square(int sq) const {
@@ -818,6 +846,22 @@ Move::Type Board::GetMoveType(const Move& m) const {
     return Move::Type::kRegular;
   }
   return Move::Type::kReversible;
+}
+
+uint64_t Board::ComputeBoardHash() const {
+  uint64_t h = 0;
+  h ^= en_passant_;
+  h ^= castling_rights_;
+
+  // This is not the fastest, but this codepath is only used when constructing
+  // from proto or FEN.
+  for (int s = 0; s < 64; ++s) {
+    PieceColor pc = square(s);
+    if (pc.c != Color::kEmpty) {
+      h ^= ZobristHash(pc.c, pc.p, s);
+    }
+  }
+  return h;
 }
 
 }  // namespace chess

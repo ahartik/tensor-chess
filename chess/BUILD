@@ -31,12 +31,17 @@ cc_test(
 
 cc_library(
     name = "board",
-    hdrs = ["board.h", "board-inl.cpp"],
+    hdrs = [
+        "board.h",
+        "board-inl.cpp",
+    ],
     deps = [
         ":bitboard",
-        ":magic",
-        ":square",
         ":game_cc_proto",
+        ":magic",
+        ":hashing",
+        ":square",
+        ":types",
         "//util:int-set",
         "@com_google_absl//absl/strings",
     ],
@@ -58,6 +63,26 @@ cc_library(
     hdrs = ["square.h"],
     srcs = ["square.cpp"],
     deps = [ ],
+)
+
+cc_library(
+    name = "types",
+    srcs = ["types.cpp"],
+    hdrs = ["types.h"],
+    deps = [
+        ":game_cc_proto",
+        ":square",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_library(
+    name = "hashing",
+    srcs = ["hashing.cpp"],
+    hdrs = ["hashing.h"],
+    deps = [
+        ":types",
+    ],
 )
 
 cc_test(
@@ -95,9 +120,9 @@ cc_binary(
         ":board",
         "@com_google_absl//absl/time",
         "@com_google_absl//absl/base",
+        "@com_google_absl//absl/container:flat_hash_map",
     ],
 )
-
 
 # cc_test(
 #     name = "board_test",

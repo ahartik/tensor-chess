@@ -11,48 +11,13 @@
 
 namespace chess {
 
+namespace magic {
+
+Magic m;
+
 namespace {
 
 std::once_flag generated;
-
-uint64_t knight_masks[64];
-uint64_t king_masks[64];
-#ifdef NDEBUG
-// Faster and smaller, but takes longer to generate (about 1s).
-constexpr int kBishopLogSize = 10;
-constexpr int kRookLogSize = 12;
-#else
-constexpr int kBishopLogSize = 10;
-constexpr int kRookLogSize = 12;
-#endif
-
-uint64_t push_masks[64][64];
-uint64_t ray_masks[64][64];
-
-uint64_t king_pawn_danger[64];
-
-template <int LogSize>
-struct Magics {
-  static constexpr int kLogSize = LogSize;
-  static constexpr size_t kSize = 1ull << kLogSize;
-
-  size_t log_size() const { return kLogSize; }
-  size_t mask_size() const { return kSize; }
-
-  uint64_t GetMask(int sq, uint64_t occ) const {
-    occ &= rel_occ[sq];
-    uint64_t x = (occ * mul[sq]) >> (64 - log_size());
-    assert(x < mask_size());
-    return mask[sq][x];
-  }
-
-  uint64_t mul[64];
-  uint64_t rel_occ[64];
-  uint64_t mask[64][kSize];
-};
-
-Magics<kBishopLogSize> bishop_magics;
-Magics<kRookLogSize> rook_magics;
 
 constexpr uint64_t kUnsetSentinel = kAllBits;
 
@@ -102,6 +67,7 @@ uint64_t GeneratePieceMoves(const int dr[4], const int df[4], int square,
   return mask;
 }
 
+// TODO: Make this take SliderMagic pointer instead of all these ones.
 void GenerateMagic(const int dr[4], const int df[4], int square,
                    uint64_t* out_rel_occ, uint64_t* out_mul, uint64_t* output,
                    int output_logsize) {
@@ -228,12 +194,12 @@ uint64_t GenRayMask(int f, int t) {
   uint64_t mask = 0;
   if (dr == 0) {
     const int d = OnlySign(df);
-    for (int x = ff; (x >=0 && x < 8); x += d) {
+    for (int x = ff; (x >= 0 && x < 8); x += d) {
       mask |= OneHot(MakeSquare(fr, x));
     }
   } else if (df == 0) {
     const int d = OnlySign(dr);
-    for (int x = fr; (x >=0 && x < 8); x += d) {
+    for (int x = fr; (x >= 0 && x < 8); x += d) {
       mask |= OneHot(MakeSquare(x, ff));
     }
   } else if (abs(dr) == abs(df)) {
@@ -251,13 +217,12 @@ uint64_t GenRayMask(int f, int t) {
   return mask;
 }
 
-
 void InitializeMagicInternal() {
   // Push masks.
   for (int f = 0; f < 64; ++f) {
     for (int t = 0; t < 64; ++t) {
-      push_masks[f][t] = GenPushMask(f, t);
-      ray_masks[f][t] = GenRayMask(f, t);
+      m.push_masks[f][t] = GenPushMask(f, t);
+      m.ray_masks[f][t] = GenRayMask(f, t);
     }
   }
 
@@ -277,7 +242,7 @@ void InitializeMagicInternal() {
           }
         }
       }
-      knight_masks[p] = mask;
+      m.knight_masks[p] = mask;
     }
   }
   // King
@@ -297,7 +262,7 @@ void InitializeMagicInternal() {
           }
         }
       }
-      king_masks[p] = mask;
+      m.king_masks[p] = mask;
     }
   }
   // King pawn danger
@@ -319,20 +284,21 @@ void InitializeMagicInternal() {
           }
         }
       }
-      king_pawn_danger[p] = mask;
+      m.king_pawn_danger[p] = mask;
     }
   }
   // Starting king positions also have to worry about checks preventing checks.
-  king_pawn_danger[Square::E1] |= RankMask(1);
-  king_pawn_danger[Square::E8] |= RankMask(6);
+  m.king_pawn_danger[Square::E1] |= RankMask(1);
+  m.king_pawn_danger[Square::E8] |= RankMask(6);
   // Bishops.
   {
     std::cerr << "Generating bishops\n";
     const int dr[4] = {1, -1, 1, -1};
     const int df[4] = {1, 1, -1, -1};
     for (int s = 0; s < 64; ++s) {
-      GenerateMagic(dr, df, s, &bishop_magics.rel_occ[s], &bishop_magics.mul[s],
-                    bishop_magics.mask[s], bishop_magics.log_size());
+      GenerateMagic(dr, df, s, &m.bishop_magics.rel_occ[s],
+                    &m.bishop_magics.mul[s], m.bishop_magics.mask[s],
+                    m.bishop_magics.log_size());
     }
   }
   {
@@ -340,44 +306,19 @@ void InitializeMagicInternal() {
     const int dr[4] = {1, -1, 0, 0};
     const int df[4] = {0, 0, 1, -1};
     for (int s = 0; s < 64; ++s) {
-      GenerateMagic(dr, df, s, &rook_magics.rel_occ[s], &rook_magics.mul[s],
-                    rook_magics.mask[s], rook_magics.log_size());
+      GenerateMagic(dr, df, s, &m.rook_magics.rel_occ[s], &m.rook_magics.mul[s],
+                    m.rook_magics.mask[s], m.rook_magics.log_size());
     }
   }
-  std::cerr << "Magics ready: " << sizeof(bishop_magics) << ", "
-            << sizeof(rook_magics) << "\n";
+  std::cerr << "SliderMagic ready: " << sizeof(m.bishop_magics) << ", "
+            << sizeof(m.rook_magics) << "\n";
 }
 
 }  // namespace
+}  // namespace magic
 
-uint64_t KnightMoveMask(int square) {
-  return knight_masks[square];
+void InitMagic() {
+  std::call_once(magic::generated, &magic::InitializeMagicInternal);
 }
-
-uint64_t KingMoveMask(int square) {
-  return king_masks[square];
-}
-
-uint64_t BishopMoveMask(int square, uint64_t occ) {
-  return bishop_magics.GetMask(square, occ);
-}
-
-uint64_t RookMoveMask(int square, uint64_t occ) {
-  return rook_magics.GetMask(square, occ);
-}
-
-uint64_t PushMask(int from, int to) {
-  return push_masks[from][to];
-}
-
-uint64_t RayMask(int from, int to) {
-  return ray_masks[from][to];
-}
-
-uint64_t KingPawnDanger(int sq) {
-  return king_pawn_danger[sq];
-}
-
-void InitializeMagic() { std::call_once(generated, &InitializeMagicInternal); }
 
 }  // namespace chess

@@ -6,6 +6,7 @@
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "chess/board.h"
+#include "absl/container/flat_hash_map.h"
 
 namespace chess {
 
@@ -14,6 +15,8 @@ const int64_t known_results[] = {
     4865609, 119060324, 3195901860, 84998978956, 2439530234167,
 
 };
+
+absl::flat_hash_map<uint64_t, int64_t> hashtable[10];
 
 struct Action;
 struct GameNode {
@@ -34,6 +37,7 @@ int64_t Perft(const Board& parent, const Move& m, int d) {
   if (d <= 0) {
     return 1;
   }
+
   Board b(parent, m);
   int64_t nodes = 0;
 #ifdef OPTIMIZED
@@ -49,7 +53,29 @@ int64_t Perft(const Board& parent, const Move& m, int d) {
   }
 #endif
   return nodes;
+
 }
+
+int64_t hash_skips = 0;
+int64_t PerftHashed(const Board& parent, const Move& m, int d) {
+  if (d <= 0) {
+    return 1;
+  }
+
+  Board b(parent, m);
+  int64_t& nodes = hashtable[d][b.board_hash()];
+  if (nodes > 0) {
+    ++hash_skips;
+    return nodes;
+  }
+  if (d == 1) {
+    b.LegalMoves([&](const Move& m) { ++nodes; });
+  } else {
+    b.LegalMoves([&](const Move& m) { nodes += PerftHashed(b, m, d - 1); });
+  }
+  return nodes;
+}
+
 
 int64_t Perft(const Board& b, int d) {
   if (d <= 0) {
@@ -58,7 +84,7 @@ int64_t Perft(const Board& b, int d) {
   int64_t nodes = 0;
   const auto moves = b.valid_moves();
   for (const Move& m : moves) {
-    nodes += Perft(b, m, d - 1);
+    nodes += PerftHashed(b, m, d - 1);
   }
   return nodes;
 }
@@ -80,12 +106,13 @@ void Go(int d, Board b) {
   } else {
     std::cout << "Wrong result, expected " << known_results[d] << "\n";
   }
+  std::cout << "hash_skips: " << hash_skips << "\n";
 }
 
 }  // namespace chess
 
 int main(int argc, char** argv) {
-  chess::InitializeMovegen();
+  chess::Board::Init();
 
   if (argc <= 1) {
     std::cerr << "Usage: " << argv[0] << " depth\n";
