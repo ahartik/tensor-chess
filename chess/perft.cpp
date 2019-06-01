@@ -34,7 +34,11 @@ int64_t Perft(const Board& parent, const Move& m, int d) {
   Board b(parent, m);
   int64_t nodes = 0;
 #if 1
-  b.LegalMoves([&](const Move& m) { nodes += Perft(b, m, d - 1); });
+  if (d == 1) {
+    b.LegalMoves([&](const Move& m) { ++nodes; });
+  } else {
+    b.LegalMoves([&](const Move& m) { nodes += Perft(b, m, d - 1); });
+  }
 #else
   const auto moves = b.valid_moves();
   for (const Move& m : moves) {

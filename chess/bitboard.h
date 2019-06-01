@@ -122,5 +122,12 @@ inline uint64_t BitboardFromString(absl::string_view str) {
   return result;
 }
 
+inline constexpr uint64_t RankMask(int r) { return uint64_t{0xff} << (8 * r); }
+
+inline constexpr uint64_t FileMask(int r) {
+  constexpr uint64_t first_file = 0x0101010101010101;
+  static_assert(first_file & (0xffull << (64 - 8)));
+  return (first_file << r) | (first_file >> (64 - r));
+}
 }  // namespace chess
 #endif
