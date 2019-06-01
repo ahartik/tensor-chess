@@ -18,18 +18,6 @@ const int64_t known_results[] = {
 
 absl::flat_hash_map<uint64_t, int64_t> hashtable[10];
 
-struct Action;
-struct GameNode {
-  GameNode() {}
-  GameNode(const Board& p, const Move& m) : b(p, m) {}
-  Board b;
-  std::vector<Action> a;
-};
-struct Action {
-  Move m;
-  GameNode s;
-};
-
 // Undef this to get easier-to-read profile output.
 #define OPTIMIZED
 
@@ -57,6 +45,7 @@ int64_t Perft(const Board& parent, const Move& m, int d) {
 }
 
 int64_t hash_skips = 0;
+int64_t total_leaves = 0;
 int64_t PerftHashed(const Board& parent, const Move& m, int d) {
   if (d <= 0) {
     return 1;
@@ -69,7 +58,10 @@ int64_t PerftHashed(const Board& parent, const Move& m, int d) {
     return nodes;
   }
   if (d == 1) {
-    b.LegalMoves([&](const Move& m) { ++nodes; });
+    b.LegalMoves([&](const Move& m) {
+      ++nodes;
+      ++total_leaves;
+    });
   } else {
     b.LegalMoves([&](const Move& m) { nodes += PerftHashed(b, m, d - 1); });
   }
@@ -100,7 +92,8 @@ void Go(int d, Board b) {
   std::cout << p << "\n";
   std::cout << "Time: " << (end - start) << "\n";
   std::cout << "Leaves per second: "
-            << int64_t(p / absl::ToDoubleSeconds(end - start)) << "\n";
+            << int64_t(total_leaves / absl::ToDoubleSeconds(end - start))
+            << "\n";
   if (p == known_results[d]) {
     std::cout << "Correct result\n";
   } else {

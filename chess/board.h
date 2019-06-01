@@ -7,6 +7,7 @@
 
 #include "absl/strings/string_view.h"
 #include "chess/game.pb.h"
+#include "chess/hashing.h"
 #include "chess/square.h"
 #include "chess/types.h"
 #include "util/int-set.h"
@@ -67,15 +68,17 @@ class Board {
 
   // For F callable with signature void(const Move& m);
   template <typename MoveFunc>
-  State LegalMoves(const MoveFunc& f, bool return_draw_moves = true ) const;
+  State LegalMoves(const MoveFunc& f, bool return_draw_moves = true) const;
 
   // Hash value for the board, to be used for detecting repetitions.
-  uint64_t board_hash() const {
-    return board_hash_;
-  }
+  uint64_t board_hash() const { return board_hash_; }
   // Hash value of the state, includes history.
-  uint64_t state_hash() const {
-    return 0;
+  uint64_t history_hash() const {
+    uint64_t h = history_.hash();
+    // NO progress count may be different for the same history hash, since
+    // castling doesn't zero this counter.
+    h = HashCombine(h, MixHash(no_progress_count_));
+    return h;
   }
 
   bool operator==(const Board& b) const;
@@ -119,7 +122,7 @@ class Board {
   int32_t half_move_count_ = 0;
   uint64_t board_hash_ = 0;
 
-  // SmallIntSet history_;
+  SmallIntSetWithHash history_;
   // uint64_t history_hash_ = 0;
   //
   // TODO: Maybe change bitboards to the following:
@@ -133,7 +136,7 @@ class Board {
 
 template <typename H>
 H AbslHashValue(H h, const Board& b) {
-  return H::combine(std::move(h), b.state_hash(), b.board_hash());
+  return H::combine(std::move(h), b.history_hash(), b.board_hash());
 }
 
 void InitializeMovegen();

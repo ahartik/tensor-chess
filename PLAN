@@ -17,12 +17,15 @@ Ideas for smarter learning:
 * Learn from puzzles, like end game positions.
 * Build AI to decide what learning method to use.
 
+How to handle corner cases:
+* Don't care about 50 move rule except during mcts ? MCTS will thus learn to
+  avoid "drawy" positions and guess when it needs to do something.
+* Include bit if 
 
 Input layers:
 12 Bitboards
 1 en passant capture squares
 1 rooks with castling rights
-1 no progress count (for 50 move draw)
 1 repetition count (for threefold repetition)
 1 last moved from (bitboard, may be empty during training)
 1 last moved to (bitboard, may be empty during training)
@@ -43,4 +46,5 @@ Time usage learning:
 * To prevent local minima, randomly use 5-20% extra of remaining time on a
   move.
 *
+
 

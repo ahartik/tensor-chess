@@ -2,6 +2,7 @@
 #define _CHESS_HASHING_H_
 
 #include <cstdint>
+#include <cmath>
 
 #include "chess/types.h"
 
@@ -17,6 +18,11 @@ inline uint64_t MixHash(uint64_t key) {
   key *= 0x94d049bb133111eb;
   key ^= (key >> 31);
   return key;
+}
+
+inline uint64_t HashCombine(uint64_t a, uint64_t b) {
+  constexpr uint64_t kOnePerPi = ~0ull / M_PI;
+  return (MixHash(a) ^ (b >> 33) ^ (b << 15)) + kOnePerPi;
 }
 
 inline uint64_t ZobristHash(Color c, Piece p, int sq) {

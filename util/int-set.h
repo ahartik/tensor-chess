@@ -126,6 +126,7 @@ class SmallIntSet {
     return *this;
   }
 
+  // Second is "false" if no insertion happened.
   std::pair<SmallIntSet, bool> InsertWithStatus(uint64_t x) const {
     if (Contains(x)) {
       return {*this, false};
@@ -152,9 +153,7 @@ class SmallIntSet {
     return {std::move(o), true};
   }
 
-  SmallIntSet Insert(uint64_t x) const {
-    return InsertWithStatus(x).first;
-  }
+  SmallIntSet Insert(uint64_t x) const { return InsertWithStatus(x).first; }
 
   bool Contains(uint64_t x) const {
     for (int i = 0; i < inlined_size_; ++i) {
@@ -197,9 +196,12 @@ class SmallIntSetWithHash {
   SmallIntSetWithHash& operator=(const SmallIntSetWithHash&) = default;
   SmallIntSetWithHash& operator=(SmallIntSetWithHash&&) = default;
 
-  SmallIntSetWithHash Insert(uint64_t x) const {
+  SmallIntSetWithHash Insert(uint64_t x, bool* inserted = nullptr) const {
     auto n = s_.InsertWithStatus(x);
-    if (n.second) {
+    if (inserted != nullptr) {
+      *inserted = n.second;;
+    }
+    if (!n.second) {
       return SmallIntSetWithHash(std::move(n.first), h_);
     }
     // Mix bits around.
