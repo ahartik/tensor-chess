@@ -7,6 +7,7 @@
 
 #include "absl/strings/string_view.h"
 #include "chess/game.pb.h"
+#include "chess/square.h"
 #include "util/int-set.h"
 
 namespace chess {
@@ -240,39 +241,6 @@ H AbslHashValue(H h, const Board& b) {
 
 void InitializeMovegen();
 
-// Squares
-class Square {
- public:
-#define SQ(rank, rank_num)                         \
-  static constexpr int rank##1 = 0 * 8 + rank_num; \
-  static constexpr int rank##2 = 1 * 8 + rank_num; \
-  static constexpr int rank##3 = 2 * 8 + rank_num; \
-  static constexpr int rank##4 = 3 * 8 + rank_num; \
-  static constexpr int rank##5 = 4 * 8 + rank_num; \
-  static constexpr int rank##6 = 5 * 8 + rank_num; \
-  static constexpr int rank##7 = 6 * 8 + rank_num; \
-  static constexpr int rank##8 = 7 * 8 + rank_num
-
-  SQ(A, 0);
-  SQ(B, 1);
-  SQ(C, 2);
-  SQ(D, 3);
-  SQ(E, 4);
-  SQ(F, 5);
-  SQ(G, 6);
-  SQ(H, 7);
-#undef SQ
-  static int Rank(int sq) {
-    return sq / 8;
-  }
-  static int File(int sq) {
-    return sq % 8;
-  }
-
-  static std::string ToString(int sq);
-};
-static_assert(Square::A1 == 0);
-static_assert(Square::H8 == 63);
 
 }  // namespace chess
 

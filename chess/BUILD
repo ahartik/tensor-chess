@@ -35,6 +35,7 @@ cc_library(
     deps = [
         ":bitboard",
         ":magic",
+        ":square",
         ":game_cc_proto",
         "//util:int-set",
         "@com_google_absl//absl/strings",
@@ -47,8 +48,16 @@ cc_library(
     srcs = ["magic.cpp"],
     deps = [
         ":bitboard",
+        ":square",
         "@com_google_absl//absl/time",
     ],
+)
+
+cc_library(
+    name = "square",
+    hdrs = ["square.h"],
+    srcs = ["square.cpp"],
+    deps = [ ],
 )
 
 cc_test(

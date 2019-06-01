@@ -7,6 +7,7 @@
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "chess/bitboard.h"
+#include "chess/square.h"
 
 namespace chess {
 
@@ -321,6 +322,9 @@ void InitializeMagicInternal() {
       king_pawn_danger[p] = mask;
     }
   }
+  // Starting king positions also have to worry about checks preventing checks.
+  king_pawn_danger[Square::E1] |= RankMask(1);
+  king_pawn_danger[Square::E8] |= RankMask(6);
   // Bishops.
   {
     std::cerr << "Generating bishops\n";

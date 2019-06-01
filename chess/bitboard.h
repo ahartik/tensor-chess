@@ -77,13 +77,6 @@ inline int GetFirstBit(uint64_t x) {
 
 inline bool BitIsSet(uint64_t x, int p) { return (x >> p) & 1; }
 
-inline int MakeSquare(int rank, int file) { return rank * 8 + file; }
-inline int SquareRank(int pos) { return pos / 8; }
-inline int SquareFile(int pos) { return pos % 8; }
-inline bool SquareOnBoard(int rank, int file) {
-  return rank >= 0 && rank < 8 && file >= 0 && file < 8;
-}
-
 inline int PopCount(uint64_t x) { return __builtin_popcountll(x); }
 // Returns the index of bit with 'rank'. Requires PopCount(x) > rank.
 
@@ -98,9 +91,9 @@ int BitSelect(uint64_t x, int rank) {
 inline std::string BitboardToString(uint64_t b) {
   std::string s;
   s.reserve(64 + 10);
-  for (int r = 7; r >=0; --r) {
+  for (int r = 7; r >= 0; --r) {
     for (int f = 0; f < 8; ++f) {
-      if (BitIsSet(b, MakeSquare(r, f))) {
+      if (BitIsSet(b, r * 8 + f)) {
         s.push_back('1');
       } else {
         s.push_back('0');

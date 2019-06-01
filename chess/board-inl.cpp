@@ -52,78 +52,24 @@ class MoveGenerator {
 
   int NumMoves() const { return gen_count_; }
 
-  void PawnMoves(int sq) {
-    const int dr = turn_ == Color::kWhite ? 8 : -8;
-    const int rank = Square::Rank(sq);
-    const int file = Square::File(sq);
-    assert(rank != 0);
-    assert(rank != 7);
-    // This is cheating a little bit by always allowing en passants. We must do
-    // a second check for those.
-    const uint64_t capture_ok = check_ok_ | b_.en_passant_;
+  void PawnMoves(uint64_t pawns) {
+    for (int sq : BitRange(pawns)) {
+      const int dr = turn_ == Color::kWhite ? 8 : -8;
+      const int rank = Square::Rank(sq);
+      const int file = Square::File(sq);
+      assert(rank != 0);
+      assert(rank != 7);
+      // This is cheating a little bit by always allowing en passants. We must
+      // do a second check for those.
+      const uint64_t capture_ok = check_ok_ | b_.en_passant_;
 
-    const auto try_forward = [&](int to) {
-      if ((occ_ & OneHot(to)) == 0 && (OneHot(to) & check_ok_)) {
-        if (IsPinned(sq, to)) {
-          // It's possible for a pawn to be soft-pinned, but not hard-pinned:
-          // when we're going straight towards an opponent rook.
-          return;
-        }
-        const int to_rank = Square::Rank(to);
-        if (to_rank == 0 || to_rank == 7) {
-          for (Piece p : kPromoPieces) {
-            OutputMove(Move(sq, to, p));
-          }
-        } else {
-          OutputMove(Move(sq, to, Move::Type::kRegular));
-        }
-      }
-    };
-
-    const auto try_capture = [&](int to) {
-      if (((opp_pieces_ | b_.en_passant_) & OneHot(to) & capture_ok) != 0) {
-        if (IsPinned(sq, to)) {
-          return;
-        }
-        const bool is_en_passant_capture = b_.en_passant_ & OneHot(to);
-        if (ABSL_PREDICT_FALSE(is_en_passant_capture)) {
-          // This is the mask of the pawn we just captured.
-          const uint64_t other_pawn = (turn_ == Color::kWhite)
-                                          ? b_.en_passant_ >> 8
-                                          : b_.en_passant_ << 8;
-          // This is en passant capture. We need to check if this leaves us in
-          // check (which would be illegal).
-          if (SquareRank(king_s_) == SquareRank(sq)) {
-            // Captured piece and our king are on the same rank. Check if they
-            // have other pieces in-between than 'sq' and the pawn previously
-            // next to us.
-            const uint64_t removed_sqs = OneHot(sq) | other_pawn;
-            const uint64_t king_rook_moves =
-                RookMoveMask(king_s_, (occ_ ^ removed_sqs)) &
-                RankMask(SquareRank(king_s_));
-#if 0
-            std::cout << "Other pawn:\n"
-                      << BitboardToString(other_pawn) << "\n";
-            std::cout << "Removed sqs:\n"
-                      << BitboardToString(removed_sqs) << "\n";
-            std::cout << "King rook moves:\n"
-                      << BitboardToString(king_rook_moves) << "\n";
-#endif
-            // Check if opponent rooks match this.
-            const uint64_t opp_rooks =
-                b_.bitboards_[ti_ ^ 1][3] | b_.bitboards_[ti_ ^ 1][4];
-            if (king_rook_moves & opp_rooks) {
-              return;
-            }
-          }
-          // Also, we must double-check that this capture is legal in case
-          // we're in check.
-          if ((other_pawn & check_ok_) == 0 &&
-              (b_.en_passant_ & check_ok_) == 0) {
+      const auto try_forward = [&](int to) {
+        if ((occ_ & OneHot(to)) == 0 && (OneHot(to) & check_ok_)) {
+          if (IsPinned(sq, to)) {
+            // It's possible for a pawn to be soft-pinned, but not hard-pinned:
+            // when we're going straight towards an opponent rook.
             return;
           }
-          OutputMove(Move(sq, to, Move::Type::kEnPassant));
-        } else {
           const int to_rank = Square::Rank(to);
           if (to_rank == 0 || to_rank == 7) {
             for (Piece p : kPromoPieces) {
@@ -133,100 +79,146 @@ class MoveGenerator {
             OutputMove(Move(sq, to, Move::Type::kRegular));
           }
         }
+      };
+
+      const auto try_capture = [&](int to) {
+        if (((opp_pieces_ | b_.en_passant_) & OneHot(to) & capture_ok) != 0) {
+          if (IsPinned(sq, to)) {
+            return;
+          }
+          const bool is_en_passant_capture = b_.en_passant_ & OneHot(to);
+          if (ABSL_PREDICT_FALSE(is_en_passant_capture)) {
+            // This is the mask of the pawn we just captured.
+            const uint64_t other_pawn = (turn_ == Color::kWhite)
+                                            ? b_.en_passant_ >> 8
+                                            : b_.en_passant_ << 8;
+            // This is en passant capture. We need to check if this leaves us in
+            // check (which would be illegal).
+            if (SquareRank(king_s_) == SquareRank(sq)) {
+              // Captured piece and our king are on the same rank. Check if they
+              // have other pieces in-between than 'sq' and the pawn previously
+              // next to us.
+              const uint64_t removed_sqs = OneHot(sq) | other_pawn;
+              const uint64_t king_rook_moves =
+                  RookMoveMask(king_s_, (occ_ ^ removed_sqs)) &
+                  RankMask(SquareRank(king_s_));
+#if 0
+            std::cout << "Other pawn:\n"
+                      << BitboardToString(other_pawn) << "\n";
+            std::cout << "Removed sqs:\n"
+                      << BitboardToString(removed_sqs) << "\n";
+            std::cout << "King rook moves:\n"
+                      << BitboardToString(king_rook_moves) << "\n";
+#endif
+              // Check if opponent rooks match this.
+              const uint64_t opp_rooks =
+                  b_.bitboards_[ti_ ^ 1][3] | b_.bitboards_[ti_ ^ 1][4];
+              if (king_rook_moves & opp_rooks) {
+                return;
+              }
+            }
+            // Also, we must double-check that this capture is legal in case
+            // we're in check.
+            if ((other_pawn & check_ok_) == 0 &&
+                (b_.en_passant_ & check_ok_) == 0) {
+              return;
+            }
+            OutputMove(Move(sq, to, Move::Type::kEnPassant));
+          } else {
+            const int to_rank = Square::Rank(to);
+            if (to_rank == 0 || to_rank == 7) {
+              for (Piece p : kPromoPieces) {
+                OutputMove(Move(sq, to, p));
+              }
+            } else {
+              OutputMove(Move(sq, to, Move::Type::kRegular));
+            }
+          }
+        }
+      };
+      // Single forward move:
+      try_forward(sq + dr);
+      if (((rank == 1 && turn_ == Color::kWhite) ||
+           (rank == 6 && turn_ == Color::kBlack)) &&
+          (OneHot(sq + dr) & occ_) == 0) {
+        try_forward(sq + 2 * dr);
       }
-    };
-    // Single forward move:
-    try_forward(sq + dr);
-    if (((rank == 1 && turn_ == Color::kWhite) ||
-         (rank == 6 && turn_ == Color::kBlack)) &&
-        (OneHot(sq + dr) & occ_) == 0) {
-      try_forward(sq + 2 * dr);
-    }
 
-    // Capture left.
-    if (file != 0) {
-      try_capture(sq + dr - 1);
-    }
-    // Capture right.
-    if (file != 7) {
-      try_capture(sq + dr + 1);
+      // Capture left.
+      if (file != 0) {
+        try_capture(sq + dr - 1);
+      }
+      // Capture right.
+      if (file != 7) {
+        try_capture(sq + dr + 1);
+      }
     }
   }
 
-  void KnightMoves(int sq) {
-    const uint64_t m = KnightMoveMask(sq);
-    if (soft_pinned_ & OneHot(sq)) {
-      // Pinned knights can't move.
-      return;
-    }
-    for (int to : BitRange(m & ~(my_pieces_)&check_ok_)) {
-      const bool is_capture = opp_pieces_ & OneHot(to);
-      OutputMove(Move(
-          sq, to, is_capture ? Move::Type::kRegular : Move::Type::kReversible));
-    }
-  }
-
-  void BishopMoves(int sq) {
-    const uint64_t m = BishopMoveMask(sq, occ_);
-    for (int to : BitRange(m & ~my_pieces_ & check_ok_)) {
-      if (!IsPinned(sq, to)) {
+  void KnightMoves(uint64_t knights) {
+    // Pinned knights can't move.
+    for (int from : BitRange(knights & ~soft_pinned_)) {
+      const uint64_t m = KnightMoveMask(from);
+      for (int to : BitRange(m & ~(my_pieces_)&check_ok_)) {
         const bool is_capture = opp_pieces_ & OneHot(to);
         OutputMove(
-            Move(sq, to,
+            Move(from, to,
                  is_capture ? Move::Type::kRegular : Move::Type::kReversible));
       }
     }
   }
 
-  void RookMoves(int sq) {
-    const uint64_t m = RookMoveMask(sq, occ_);
-    for (int to : BitRange(m & ~my_pieces_ & check_ok_)) {
-      if (!IsPinned(sq, to)) {
-        const bool is_capture = opp_pieces_ & OneHot(to);
-        OutputMove(
-            Move(sq, to,
-                 is_capture ? Move::Type::kRegular : Move::Type::kReversible));
+  template<typename MaskFunc>
+  void GenerateSlider(uint64_t from_mask, const MaskFunc& mask_func) {
+    // Only non-pinned.
+    for (int from : BitRange(from_mask & ~soft_pinned_)) {
+      const uint64_t m = mask_func(from, occ_);
+      for (int to : BitRange(m & ~my_pieces_ & check_ok_)) {
+          const bool is_capture = opp_pieces_ & OneHot(to);
+          OutputMove(
+              Move(from, to,
+                   is_capture ? Move::Type::kRegular : Move::Type::kReversible));
+      }
+    }
+    // Only pinned.
+    for (int from : BitRange(from_mask & soft_pinned_)) {
+      const uint64_t m = mask_func(from, occ_);
+      for (int to : BitRange(m & ~my_pieces_ & check_ok_)) {
+        if (SameDirection(king_s_, from, to)) {
+          const bool is_capture = opp_pieces_ & OneHot(to);
+          OutputMove(
+              Move(from, to,
+                   is_capture ? Move::Type::kRegular : Move::Type::kReversible));
+        }
       }
     }
   }
 
-  void KingMoves(int sq) {
+  void BishopMoves(uint64_t bishops) {
+    GenerateSlider(bishops, &BishopMoveMask);
+  }
+
+  void RookMoves(uint64_t rooks) {
+    GenerateSlider(rooks, &RookMoveMask);
+  }
+
+  void KingMoves(uint64_t kings) {
+    const int from = GetFirstBit(kings);
     // Unlike other pieces, king cannot be pinned :)
-    const uint64_t m = KingMoveMask(sq);
+    const uint64_t m = KingMoveMask(from);
     for (int to : BitRange(m & ~my_pieces_ & ~king_danger_)) {
       const bool is_capture = opp_pieces_ & OneHot(to);
       OutputMove(Move(
-          sq, to, is_capture ? Move::Type::kRegular : Move::Type::kReversible));
-    }
-  }
-
-  void GenPieceMoves(Piece p, int sq) {
-    switch (p) {
-      case Piece::kPawn:
-        return PawnMoves(sq);
-      case Piece::kKnight:
-        return KnightMoves(sq);
-      case Piece::kBishop:
-        return BishopMoves(sq);
-      case Piece::kRook:
-        return RookMoves(sq);
-      case Piece::kQueen:
-        RookMoves(sq);
-        BishopMoves(sq);
-        return;
-      case Piece::kKing:
-        return KingMoves(sq);
-      case Piece::kNone:
-        return;
+          from, to, is_capture ? Move::Type::kRegular : Move::Type::kReversible));
     }
   }
 
   void GenerateMoves() {
-    for (int p = 0; p < kNumPieces; ++p) {
-      for (int sq : BitRange(b_.bitboards_[ti_][p])) {
-        GenPieceMoves(Piece(p), sq);
-      }
-    }
+    PawnMoves(b_.bitboards_[ti_][0]);
+    KnightMoves(b_.bitboards_[ti_][1]);
+    BishopMoves(b_.bitboards_[ti_][2] | b_.bitboards_[ti_][4]);
+    RookMoves(b_.bitboards_[ti_][3] | b_.bitboards_[ti_][4]);
+    KingMoves(b_.bitboards_[ti_][5]);
     // Castling.
     if (!in_check_) {
       const int king_rank = ti_ * 7;
@@ -290,9 +282,7 @@ class MoveGenerator {
       danger |= RookMoveMask(s, occ);
     }
     // King:
-    for (int s : BitRange(b_.bitboards_[other_ti][5])) {
-      danger |= KingMoveMask(s);
-    }
+    danger |= KingMoveMask(GetFirstBit(b_.bitboards_[other_ti][5]));
     return danger;
   }
 
@@ -413,15 +403,6 @@ class MoveGenerator {
 extern const Piece kPromoPieces[4] = {Piece::kQueen, Piece::kBishop,
                                       Piece::kKnight, Piece::kRook};
 
-// static
-std::string Square::ToString(int sq) {
-  char buf[3] = {
-      char('a' + (sq % 8)),
-      char('1' + (sq / 8)),
-      0,
-  };
-  return buf;
-}
 
 void InitializeMovegen() { InitializeMagic(); }
 
