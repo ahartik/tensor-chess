@@ -27,13 +27,16 @@ struct Action {
   GameNode s;
 };
 
+// Undef this to get easier-to-read profile output.
+#define OPTIMIZED
+
 int64_t Perft(const Board& parent, const Move& m, int d) {
   if (d <= 0) {
     return 1;
   }
   Board b(parent, m);
   int64_t nodes = 0;
-#if 1
+#ifdef OPTIMIZED
   if (d == 1) {
     b.LegalMoves([&](const Move& m) { ++nodes; });
   } else {
@@ -53,7 +56,10 @@ int64_t Perft(const Board& b, int d) {
     return 1;
   }
   int64_t nodes = 0;
-  b.LegalMoves([&](const Move& m) { nodes += Perft(b, m, d - 1); });
+  const auto moves = b.valid_moves();
+  for (const Move& m : moves) {
+    nodes += Perft(b, m, d - 1);
+  }
   return nodes;
 }
 

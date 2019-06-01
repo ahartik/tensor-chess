@@ -33,6 +33,7 @@ void Go(absl::string_view fname) {
                     expected_moves.begin())) {
       std::cout << b.ToPrintString() << "\n";
       std::cout << b.ToFEN() << "\n";
+      std::cout << "ti should be " << int(b.turn()) << "\n";
       std::cout << "Missing moves:\n";
       std::set<Move> actual_moves(gen_moves.begin(), gen_moves.end());
       std::set<Move> expected_set(expected_moves.begin(), expected_moves.end());

@@ -26,6 +26,7 @@ class MoveGenerator {
  public:
   explicit MoveGenerator(const Board& b, const MoveFunc& move_func)
       : b_(b), move_func_(move_func), turn_(b.turn()), ti_(int(turn_)) {
+    assert(turn_ == b_.turn());
     occ_ = b.ComputeOcc();
     for (int p = 0; p < kNumPieces; ++p) {
       my_pieces_ |= b.bitboards_[ti_][p];
@@ -58,25 +59,33 @@ class MoveGenerator {
   void EnumSimplePawnMoves(uint64_t pawns, const F& move_func) {
     // Regular forward moves:
     const int dr = turn_ == Color::kWhite ? 8 : -8;
-    for (int sq : BitRange(pawns)) {
+    const uint64_t impossible_push_squares = occ_ | ~check_ok_;
+    const uint64_t blocked = turn_ == Color::kWhite
+                                 ? (impossible_push_squares >> 8)
+                                 : (impossible_push_squares << 8);
+    // non-pinned pawns;
+    for (int sq : BitRange(pawns & ~blocked & ~soft_pinned_)) {
       int to = sq + dr;
-      if ((occ_ & OneHot(to)) == 0 && (OneHot(to) & check_ok_)) {
-        if (IsPinned(sq, to)) {
-          // It's possible for a pawn to be soft-pinned, but not hard-pinned:
-          // when we're going straight towards an opponent rook.
-          continue;
-        }
+      move_func(sq, to);
+    }
+    // It's possible for a pawn to be soft-pinned, but not hard-pinned:
+    // when we're going straight towards an opponent rook.
+    for (int sq : BitRange(pawns & ~blocked & soft_pinned_)) {
+      int to = sq + dr;
+      if (SameDirection(king_s_, sq, to)) {
         move_func(sq, to);
       }
     }
 
+    const uint64_t double_blocked = turn_ == Color::kWhite
+                                        ? ((occ_ >> 8) | (occ_ >> 16))
+                                        : ((occ_ << 8) | (occ_ << 16));
     // Double moves
     const uint64_t double_mask = RankMask(turn_ == Color::kWhite ? 1 : 6);
-    for (int sq : BitRange(pawns & double_mask)) {
+    for (int sq : BitRange(pawns & double_mask & ~double_blocked)) {
       int to = sq + dr * 2;
-      // Both squares must be empty.
-      if ((occ_ & (OneHot(to) | OneHot(sq + dr))) == 0 &&
-          (OneHot(to) & check_ok_)) {
+      // Still check compare against check_ok_:
+      if (OneHot(to) & check_ok_) {
         if (IsPinned(sq, to)) {
           // It's possible for a pawn to be soft-pinned, but not hard-pinned:
           // when we're going straight towards an opponent rook.
@@ -105,6 +114,8 @@ class MoveGenerator {
                                                  : (pieces_to_capture << 7);
     for (int from : BitRange(pawns & right_mask & possible_right_captures)) {
       int dr = turn_ == Color::kWhite ? 9 : -7;
+      // Only case where capture is not pinned is when we're capturing the
+      // pinning bishop/queen.
       if (!IsPinned(from, from + dr)) {
         move_func(from, from + dr);
       }
@@ -157,14 +168,6 @@ class MoveGenerator {
           const uint64_t king_rook_moves =
               RookMoveMask(king_s_, (occ_ ^ removed_sqs)) &
               RankMask(SquareRank(king_s_));
-#if 0
-        std::cout << "Other pawn:\n"
-                  << BitboardToString(other_pawn) << "\n";
-        std::cout << "Removed sqs:\n"
-                  << BitboardToString(removed_sqs) << "\n";
-        std::cout << "King rook moves:\n"
-                  << BitboardToString(king_rook_moves) << "\n";
-#endif
           // Check if opponent rooks match this.
           const uint64_t opp_rooks =
               b_.bitboards_[ti_ ^ 1][3] | b_.bitboards_[ti_ ^ 1][4];
@@ -229,6 +232,7 @@ class MoveGenerator {
   void RookMoves(uint64_t rooks) { GenerateSlider(rooks, &RookMoveMask); }
 
   void KingMoves(uint64_t kings) {
+    assert(PopCount(kings) == 1);
     const int from = GetFirstBit(kings);
     // Unlike other pieces, king cannot be pinned :)
     const uint64_t m = KingMoveMask(from);
@@ -402,8 +406,8 @@ class MoveGenerator {
 
   const Board& b_;
   const MoveFunc& move_func_;
-
   const Color turn_;
+
   const int ti_;
   // Square occupation.
   uint64_t occ_ = 0;
@@ -444,31 +448,25 @@ std::string Move::ToString() const {
 MoveList Board::valid_moves() const {
   MoveList list;
   list.reserve(128);
-  struct Adder {
-    Adder(MoveList* l) : l_(l) {}
-    void operator()(Move m) const { l_->push_back(m); }
-    MoveList* l_;
-  };
-
-  Adder adder(&list);
-  MoveGenerator<Adder> gen(*this, adder);
-  gen.GenerateMoves();
+  LegalMoves([&](const Move& m) { list.push_back(m); });
   return list;
 }
 
 template <typename MoveFunc>
 Board::State Board::LegalMoves(const MoveFunc& f) const {
-  if (half_move_count_ >= 100) {
-    return State::kNoProgressDraw;
-  }
   MoveGenerator<MoveFunc> gen(*this, f);
   gen.GenerateMoves();
-  if (gen.NumMoves() == 0) {
-    if (gen.IsInCheck()) {
+  const int num_moves = gen.NumMoves();
+  const bool in_check = gen.IsInCheck();
+  if (num_moves == 0) {
+    if (in_check) {
       return State::kCheckmate;
     } else {
       return State::kStalemate;
     }
+  }
+  if (half_move_count_ >= 100) {
+    return State::kNoProgressDraw;
   }
   return State::kNotOver;
 }
