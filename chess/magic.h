@@ -21,6 +21,9 @@ uint64_t RayMask(int from, int to);
 uint64_t RankMask(int r);
 uint64_t FileMask(int r);
 
+// Returns a mask of pawn positions that could prevent a move of a king at 'sq'.
+uint64_t KingPawnDanger(int sq);
+
 // TODO: Consider if we should have only "occ" instead of both "my" and "opp"
 // here. Maybe the removal of self-captures belongs higher up?
 

@@ -223,6 +223,14 @@ class Board {
 
   // SmallIntSet history_;
   // uint64_t history_hash_ = 0;
+  //
+  // TODO: Maybe change bitboards to the following:
+  // * side
+  // * pawns
+  // * knights
+  // * bishop
+  // * rooks
+  // * kings
 };
 
 template <typename H>

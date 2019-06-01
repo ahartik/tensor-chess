@@ -85,6 +85,7 @@ cc_binary(
     deps = [
         ":board",
         "@com_google_absl//absl/time",
+        "@com_google_absl//absl/base",
     ],
 )
 

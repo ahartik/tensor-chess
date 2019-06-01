@@ -1,6 +1,7 @@
 #include <cassert>
 #include <iostream>
 
+#include "absl/base/optimization.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
@@ -25,22 +26,24 @@ class MoveGenerator {
  public:
   explicit MoveGenerator(const Board& b, const MoveFunc& move_func)
       : b_(b), move_func_(move_func), turn_(b.turn()), ti_(int(turn_)) {
-    for (int i = 0; i < 2; ++i) {
-      for (int p = 0; p < kNumPieces; ++p) {
-        if (i == ti_) {
-          my_pieces_ |= b.bitboards_[i][p];
-        } else {
-          opp_pieces_ |= b.bitboards_[i][p];
-        }
-        occ_ |= b.bitboards_[i][p];
-      }
+    occ_ = b.ComputeOcc();
+    for (int p = 0; p < kNumPieces; ++p) {
+      my_pieces_ |= b.bitboards_[ti_][p];
     }
+    opp_pieces_ = occ_ ^ my_pieces_;
     king_s_ = GetFirstBit(b_.bitboards_[ti_][5]);
 
     king_danger_ = ComputeKingDanger();
-
-    in_check_ = ComputeCheck(&check_ok_, &push_mask_);
-    check_ok_ |= push_mask_;
+    if (ABSL_PREDICT_FALSE(king_danger_ & b_.bitboards_[ti_][5])) {
+      in_check_ = true;
+      bool in_check = ComputeCheck(&check_ok_, &push_mask_);
+      assert(in_check);
+      check_ok_ |= push_mask_;
+    } else {
+      in_check_ = false;
+      push_mask_ = kAllBits;
+      check_ok_ = kAllBits;
+    }
 
     soft_pinned_ = ComputePinnedPieces();
   }
@@ -83,7 +86,7 @@ class MoveGenerator {
           return;
         }
         const bool is_en_passant_capture = b_.en_passant_ & OneHot(to);
-        if (is_en_passant_capture) {
+        if (ABSL_PREDICT_FALSE(is_en_passant_capture)) {
           // This is the mask of the pawn we just captured.
           const uint64_t other_pawn = (turn_ == Color::kWhite)
                                           ? b_.en_passant_ >> 8
@@ -259,8 +262,9 @@ class MoveGenerator {
 
     uint64_t danger = 0;
     // Pawns
-    for (int s : BitRange(b_.bitboards_[other_ti][0])) {
-      // This is reverse, as we're imitating opponent's pawns.
+    for (int s :
+         BitRange(KingPawnDanger(king_s_) & b_.bitboards_[other_ti][0])) {
+      // This is reverse, since we're imitating opponent's pawns.
       int dr = turn_ == Color::kWhite ? -1 : 1;
       const int r = SquareRank(s);
       const int f = SquareFile(s);
