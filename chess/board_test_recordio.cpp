@@ -13,24 +13,29 @@ namespace chess {
 void Go(absl::string_view fname) {
   util::RecordReader reader(fname);
   std::string buf;
+  MoveTestCase test_case;
+  std::vector<Move> expected_moves;
   while (reader.Read(buf)) {
-    MoveTestCase test_case;
+    expected_moves.clear();
     if (!test_case.ParseFromString(buf)) {
       std::cerr << "Invalid record\n";
       abort();
     }
     Board b(test_case.board());
-    std::set<Move> expected_moves;
     for (const auto& m : test_case.valid_moves()) {
-      expected_moves.insert(Move::FromProto(m));
+      expected_moves.push_back(Move::FromProto(m));
     }
-    const auto actual_moves_v = b.valid_moves();
-    const std::set<Move> actual_moves(actual_moves_v.begin(),
-                                      actual_moves_v.end());
-    if (actual_moves != expected_moves) {
+    std::sort(expected_moves.begin(), expected_moves.end());
+    auto gen_moves = b.valid_moves();
+    std::sort(gen_moves.begin(), gen_moves.end());
+    if (expected_moves.size() != gen_moves.size() ||
+        !std::equal(gen_moves.begin(), gen_moves.end(),
+                    expected_moves.begin())) {
       std::cout << b.ToPrintString() << "\n";
       std::cout << b.ToFEN() << "\n";
       std::cout << "Missing moves:\n";
+      std::set<Move> actual_moves(gen_moves.begin(), gen_moves.end());
+      std::set<Move> expected_set(expected_moves.begin(), expected_moves.end());
       // First log missing moves.
       for (const auto& m : expected_moves) {
         if (actual_moves.count(m) == 0) {
@@ -39,7 +44,7 @@ void Go(absl::string_view fname) {
       }
       std::cout << "\nIllegal moves:\n";
       for (const auto& m : actual_moves) {
-        if (expected_moves.count(m) == 0) {
+        if (expected_set.count(m) == 0) {
           std::cout << m.ToString() << ", ";
         }
       }

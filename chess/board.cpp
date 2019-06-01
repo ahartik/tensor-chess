@@ -4,6 +4,8 @@
 #include <iostream>
 
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_split.h"
+#include "absl/strings/numbers.h"
 #include "chess/bitboard.h"
 #include "chess/magic.h"
 
@@ -267,8 +269,7 @@ class MoveGenerator {
     // To account for sliding pieces, remove our king from the occ mask.
     uint64_t occ = occ_ ^ OneHot(king_s_);
 
-    uint64_t danger = 0;
-
+    uint64_t danger = 0; 
     // Pawns
     for (int s : BitRange(b_.bitboards_[other_ti][0])) {
       // This is reverse, as we're imitating opponent's pawns.
@@ -437,11 +438,109 @@ MoveList Board::valid_moves() const {
   return gen.GenerateMoves();
 }
 
-Board::Board() {}
+Board::Board()
+    : Board("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1") {}
 
 Board::Board(absl::string_view fen) {
-  std::cerr << "TODO: implement fen constructor\n";
-  abort();
+  int r = 7;
+  int f = 0;
+  std::vector<absl::string_view> parts = absl::StrSplit(fen, ' ');
+  if (parts.size() != 6) {
+    std::cerr << "Invalid fen: \"" << fen << "\"\n";
+    abort();
+  }
+  for (char c : parts[0]) {
+    if (c == ' ') {
+      break;
+    } else if (c == '/') {
+      assert(f == 8);
+      f = 0;
+      r -= 1;
+    } else if (std::isdigit(c)) {
+      f += c - '0';
+    } else {
+      const Color col = std::isupper(c) ? Color::kWhite : Color::kBlack;
+      Piece p;
+      switch (std::tolower(c)) {
+        case 'p':
+          p = Piece::kPawn;
+          break;
+        case 'n':
+          p = Piece::kKnight;
+          break;
+        case 'b':
+          p = Piece::kBishop;
+          break;
+        case 'r':
+          p = Piece::kRook;
+          break;
+        case 'q':
+          p = Piece::kQueen;
+          break;
+        case 'k':
+          p = Piece::kKing;
+          break;
+        default:
+          std::cerr << "Invalid piece '" << c << "'\n";
+          abort();
+      }
+      bitboards_[int(col)][int(p)] |= OneHot(MakeSquare(r, f));
+      ++f;
+    }
+  }
+  char turn_char = parts[1][0];
+  if (turn_char == 'w') {
+    half_move_count_ = 0;
+  } else {
+    half_move_count_ = 1;
+  }
+
+  castling_rights_ = 0;
+  for (char c : parts[2]) {
+    switch (c) {
+      case 'K':
+        castling_rights_ |= OneHot(Square::H1);
+        break;
+      case 'Q':
+        castling_rights_ |= OneHot(Square::A1);
+        break;
+      case 'k':
+        castling_rights_ |= OneHot(Square::H8);
+        break;
+      case 'q':
+        castling_rights_ |= OneHot(Square::A8);
+        break;
+      case '-':
+        break;
+      default:
+        std::cerr << "Invalid castling_right '" << c << "'\n";
+        abort();
+    }
+  }
+  if (parts[3] != "-") {
+    for (int s = 0; s < 64; ++s) {
+      if (Square::ToString(s) == parts[3]) {
+        en_passant_ = OneHot(s);
+      }
+    }
+    if (en_passant_ == 0) {
+      std::cerr << "Invalid en passant square \"" << parts[3] << "\"";
+      abort();
+    }
+  }
+
+  int halfmove_clock = 0;
+  if (!absl::SimpleAtoi(parts[4], &halfmove_clock)) {
+    std::cerr << "Invalid half move clock \"" << parts[4] << "\"";
+    abort();
+  }
+  no_progress_count_ = halfmove_clock;
+  int fullmove_clock = 0;
+  if (!absl::SimpleAtoi(parts[5], &fullmove_clock)) {
+    std::cerr << "Invalid full move clock \"" << parts[5] << "\"";
+    abort();
+  }
+  half_move_count_ += 2 * (fullmove_clock - 1) + 1;
 }
 
 Board::Board(const BoardProto& p) {
@@ -509,17 +608,17 @@ std::string Board::ToFEN() const {
   fen.push_back(' ');
   fen.push_back(turn() == Color::kWhite ? 'w' : 'b');
   fen.push_back(' ');
-  if (castling_rights_ & Square::H1) {
+  if (castling_rights_ & OneHot(Square::H1)) {
     fen.push_back('K');
   }
-  if (castling_rights_ & Square::A1) {
+  if (castling_rights_ & OneHot(Square::A1)) {
     fen.push_back('Q');
   }
-  if (castling_rights_ & Square::H8) {
+  if (castling_rights_ & OneHot(Square::H8)) {
     fen.push_back('k');
   }
-  if (castling_rights_ & Square::A8) {
-    fen.push_back('k');
+  if (castling_rights_ & OneHot(Square::A8)) {
+    fen.push_back('q');
   }
   if (castling_rights_ == 0) {
     fen.push_back('-');

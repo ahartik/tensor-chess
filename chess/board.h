@@ -127,6 +127,9 @@ class Board {
   // crashes on failure
   explicit Board(absl::string_view fen);
 
+  // Construct a board from given existing board + a move.
+  Board(const Board& o, const Move& m);
+
   // TODO: Add constructor for puzzle cases.
   // static Board MakeTestCase();
 
@@ -167,7 +170,7 @@ class Board {
   uint64_t bitboards_[2][kNumPieces] = {};
   // Squares where en-passant capture is possible for the current player.
   uint64_t en_passant_ = 0;
-  uint64_t castling_rights_;
+  uint64_t castling_rights_ = 0;
   int16_t repetition_count_ = 0;
   int16_t no_progress_count_ = 0;
   int32_t half_move_count_ = 0;
