@@ -176,8 +176,8 @@ class Board {
   };
 
   // For F callable with signature void(const Move& m);
-  template <typename F>
-  State EnumerateMoves(F f);
+  template <typename MoveFunc>
+  State LegalMoves(const MoveFunc& f) const;
 
   // Hash value for the board, to be used for detecting repetitions.
   uint64_t board_hash() const;
@@ -200,6 +200,7 @@ class Board {
   template <typename H>
   friend H AbslHashValue(H h, const Board& b);
 
+  template <typename MoveFunc>
   friend class MoveGenerator;
 
   uint64_t ComputeOcc() const {
@@ -266,5 +267,7 @@ static_assert(Square::A1 == 0);
 static_assert(Square::H8 == 63);
 
 }  // namespace chess
+
+#include "board-inl.cpp"
 
 #endif

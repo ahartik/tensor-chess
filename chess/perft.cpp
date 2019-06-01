@@ -32,11 +32,8 @@ int64_t Perft(const Board& parent, const Move& m, int d) {
     return 1;
   }
   Board b(parent, m);
-  const auto moves = b.valid_moves();
   int64_t nodes = 0;
-  for (const Move& m : moves) {
-    nodes += Perft(b, m, d - 1);
-  }
+  b.LegalMoves([&](const Move& m) { nodes += Perft(b, m, d - 1); });
   return nodes;
 }
 
@@ -62,6 +59,8 @@ void Go(int d) {
   absl::Time end = absl::Now();
   std::cout << p << "\n";
   std::cout << "Time: " << (end - start) << "\n";
+  std::cout << "Leaves per second: "
+            << int64_t(p / absl::ToDoubleSeconds(end - start)) << "\n";
   if (p == known_results[d]) {
     std::cout << "Correct result\n";
   } else {

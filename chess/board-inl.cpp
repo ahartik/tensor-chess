@@ -1,5 +1,3 @@
-#include "chess/board.h"
-
 #include <cassert>
 #include <iostream>
 
@@ -11,47 +9,22 @@
 
 namespace chess {
 
-namespace {
-
 // https://peterellisjones.com/posts/generating-legal-chess-moves-efficiently/
-
-struct MoveInput {
-  Color turn = Color::kEmpty;
-  // Position of the piece we're generating moves for.
-  int square = 0;
-  // Position of my king.
-  uint64_t king_s = 0;
-  // Square occupation.
-  uint64_t occ = 0;
-  // Masks of my and opponent pieces.
-  uint64_t my_pieces = 0;
-  uint64_t opp_pieces = 0;
-  // Which opponent pawns are in en passant.
-  uint64_t en_passant = 0;
-  // Mask of positions we can't move our king to. Only used for king moves.
-  uint64_t king_danger = 0;
-
-  // If we're in single check, these are
-  // TODO: Document these, from
-  // https://peterellisjones.com/posts/generating-legal-chess-moves-efficiently/
-  uint64_t check_ok = kAllBits;
-};
 
 // TODO: Profile and optimize this later.
 
 // For pinned pieces, we can only move them towards or away from the king.
-bool SameDirection(int king, int from, int to) {
+static inline bool SameDirection(int king, int from, int to) {
   uint64_t pt = PushMask(king, to) | OneHot(to);
   uint64_t pf = PushMask(king, from) | OneHot(from);
   return (pt & pf) != 0;
 }
 
-}  // namespace
-
+template <typename MoveFunc>
 class MoveGenerator {
  public:
-  explicit MoveGenerator(const Board& b)
-      : b_(b), turn_(b.turn()), ti_(int(turn_)) {
+  explicit MoveGenerator(const Board& b, const MoveFunc& move_func)
+      : b_(b), move_func_(move_func), turn_(b.turn()), ti_(int(turn_)) {
     for (int i = 0; i < 2; ++i) {
       for (int p = 0; p < kNumPieces; ++p) {
         if (i == ti_) {
@@ -72,7 +45,11 @@ class MoveGenerator {
     soft_pinned_ = ComputePinnedPieces();
   }
 
-  void PawnMoves(int sq, MoveList* out) const {
+  bool IsInCheck() const { return in_check_; }
+
+  int NumMoves() const { return gen_count_; }
+
+  void PawnMoves(int sq) {
     const int dr = turn_ == Color::kWhite ? 8 : -8;
     const int rank = Square::Rank(sq);
     const int file = Square::File(sq);
@@ -92,10 +69,10 @@ class MoveGenerator {
         const int to_rank = Square::Rank(to);
         if (to_rank == 0 || to_rank == 7) {
           for (Piece p : kPromoPieces) {
-            out->emplace_back(sq, to, p);
+            OutputMove(Move(sq, to, p));
           }
         } else {
-          out->emplace_back(sq, to, Move::Type::kRegular);
+          OutputMove(Move(sq, to, Move::Type::kRegular));
         }
       }
     };
@@ -142,15 +119,15 @@ class MoveGenerator {
               (b_.en_passant_ & check_ok_) == 0) {
             return;
           }
-          out->emplace_back(sq, to, Move::Type::kEnPassant);
+          OutputMove(Move(sq, to, Move::Type::kEnPassant));
         } else {
           const int to_rank = Square::Rank(to);
           if (to_rank == 0 || to_rank == 7) {
             for (Piece p : kPromoPieces) {
-              out->emplace_back(sq, to, p);
+              OutputMove(Move(sq, to, p));
             }
           } else {
-            out->emplace_back(sq, to, Move::Type::kRegular);
+            OutputMove(Move(sq, to, Move::Type::kRegular));
           }
         }
       }
@@ -173,7 +150,7 @@ class MoveGenerator {
     }
   }
 
-  void KnightMoves(int sq, MoveList* out) const {
+  void KnightMoves(int sq) {
     const uint64_t m = KnightMoveMask(sq);
     if (soft_pinned_ & OneHot(sq)) {
       // Pinned knights can't move.
@@ -181,72 +158,70 @@ class MoveGenerator {
     }
     for (int to : BitRange(m & ~(my_pieces_)&check_ok_)) {
       const bool is_capture = opp_pieces_ & OneHot(to);
-      out->emplace_back(
-          sq, to, is_capture ? Move::Type::kRegular : Move::Type::kReversible);
+      OutputMove(Move(
+          sq, to, is_capture ? Move::Type::kRegular : Move::Type::kReversible));
     }
   }
 
-  void BishopMoves(int sq, MoveList* out) const {
+  void BishopMoves(int sq) {
     const uint64_t m = BishopMoveMask(sq, occ_);
     for (int to : BitRange(m & ~my_pieces_ & check_ok_)) {
       if (!IsPinned(sq, to)) {
         const bool is_capture = opp_pieces_ & OneHot(to);
-        out->emplace_back(
-            sq, to,
-            is_capture ? Move::Type::kRegular : Move::Type::kReversible);
+        OutputMove(
+            Move(sq, to,
+                 is_capture ? Move::Type::kRegular : Move::Type::kReversible));
       }
     }
   }
 
-  void RookMoves(int sq, MoveList* out) const {
+  void RookMoves(int sq) {
     const uint64_t m = RookMoveMask(sq, occ_);
     for (int to : BitRange(m & ~my_pieces_ & check_ok_)) {
       if (!IsPinned(sq, to)) {
         const bool is_capture = opp_pieces_ & OneHot(to);
-        out->emplace_back(
-            sq, to,
-            is_capture ? Move::Type::kRegular : Move::Type::kReversible);
+        OutputMove(
+            Move(sq, to,
+                 is_capture ? Move::Type::kRegular : Move::Type::kReversible));
       }
     }
   }
 
-  void KingMoves(int sq, MoveList* out) const {
+  void KingMoves(int sq) {
     // Unlike other pieces, king cannot be pinned :)
     const uint64_t m = KingMoveMask(sq);
     for (int to : BitRange(m & ~my_pieces_ & ~king_danger_)) {
       const bool is_capture = opp_pieces_ & OneHot(to);
-      out->emplace_back(
-          sq, to, is_capture ? Move::Type::kRegular : Move::Type::kReversible);
+      OutputMove(Move(
+          sq, to, is_capture ? Move::Type::kRegular : Move::Type::kReversible));
     }
   }
 
-  void GenPieceMoves(Piece p, int sq, MoveList* out) const {
+  void GenPieceMoves(Piece p, int sq) {
     switch (p) {
       case Piece::kPawn:
-        return PawnMoves(sq, out);
+        return PawnMoves(sq);
       case Piece::kKnight:
-        return KnightMoves(sq, out);
+        return KnightMoves(sq);
       case Piece::kBishop:
-        return BishopMoves(sq, out);
+        return BishopMoves(sq);
       case Piece::kRook:
-        return RookMoves(sq, out);
+        return RookMoves(sq);
       case Piece::kQueen:
-        RookMoves(sq, out);
-        BishopMoves(sq, out);
+        RookMoves(sq);
+        BishopMoves(sq);
         return;
       case Piece::kKing:
-        return KingMoves(sq, out);
+        return KingMoves(sq);
       case Piece::kNone:
         return;
     }
   }
 
-  MoveList GenerateMoves() const {
-    MoveList list;
-    list.reserve(128);
+  void GenerateMoves() {
     for (int p = 0; p < kNumPieces; ++p) {
       for (int sq : BitRange(b_.bitboards_[ti_][p])) {
-        GenPieceMoves(Piece(p), sq, &list);
+        GenPieceMoves(Piece(p), sq);
       }
     }
     // Castling.
@@ -266,17 +241,15 @@ class MoveGenerator {
       // "\n";
       if ((b_.castling_rights_ & OneHot(long_castle)) &&
           (castle_occ & long_mask) == 0) {
-        list.emplace_back(king_square, MakeSquare(king_rank, 2),
-                          Move::Type::kCastling);
+        OutputMove(
+            Move(king_square, MakeSquare(king_rank, 2), Move::Type::kCastling));
       }
       if ((b_.castling_rights_ & OneHot(short_castle)) &&
           ((castle_occ & short_mask) == 0)) {
-        list.emplace_back(king_square, MakeSquare(king_rank, 6),
-                          Move::Type::kCastling);
+        OutputMove(
+            Move(king_square, MakeSquare(king_rank, 6), Move::Type::kCastling));
       }
     }
-
-    return list;
   }
 
   uint64_t ComputeKingDanger() const {
@@ -400,7 +373,13 @@ class MoveGenerator {
     return !SameDirection(king_s_, from, to);
   }
 
+  void OutputMove(const Move& m) {
+    ++gen_count_;
+    move_func_(m);
+  }
+
   const Board& b_;
+  const MoveFunc& move_func_;
 
   const Color turn_;
   const int ti_;
@@ -417,6 +396,8 @@ class MoveGenerator {
   uint64_t soft_pinned_ = 0;
 
   bool in_check_ = false;
+
+  int gen_count_ = 0;
 
   // If we're in single check, these are
   // TODO: Document these, from
@@ -449,8 +430,35 @@ std::string Move::ToString() const {
 }
 
 MoveList Board::valid_moves() const {
-  MoveGenerator gen(*this);
-  return gen.GenerateMoves();
+  MoveList list;
+  list.reserve(128);
+  struct Adder {
+    Adder(MoveList* l) : l_(l) {}
+    void operator()(Move m) const { l_->push_back(m); }
+    MoveList* l_;
+  };
+
+  Adder adder(&list);
+  MoveGenerator<Adder> gen(*this, adder);
+  gen.GenerateMoves();
+  return list;
+}
+
+template <typename MoveFunc>
+Board::State Board::LegalMoves(const MoveFunc& f) const {
+  if (half_move_count_ >= 100) {
+    return State::kNoProgressDraw;
+  }
+  MoveGenerator<MoveFunc> gen(*this, f);
+  gen.GenerateMoves();
+  if (gen.NumMoves() == 0) {
+    if (gen.IsInCheck()) {
+      return State::kCheckmate;
+    } else {
+      return State::kStalemate;
+    }
+  }
+  return State::kNotOver;
 }
 
 Board::Board()

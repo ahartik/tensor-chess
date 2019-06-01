@@ -31,8 +31,7 @@ cc_test(
 
 cc_library(
     name = "board",
-    hdrs = ["board.h"],
-    srcs = ["board.cpp"],
+    hdrs = ["board.h", "board-inl.cpp"],
     deps = [
         ":bitboard",
         ":magic",
