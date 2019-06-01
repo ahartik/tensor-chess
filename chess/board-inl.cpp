@@ -684,6 +684,8 @@ Board::Board(const Board& o, const Move& m) : Board(o) {
       for (int i = 0; i < kNumPieces; ++i) {
         bitboards_[ti ^ 1][i] &= ~to_o;
       }
+      // We might have captured a rook with castling rights.
+      castling_rights_ &= ~to_o;
       break;
     case Move::Type::kEnPassant:
       // This must be a pawn move.

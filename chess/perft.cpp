@@ -63,13 +63,13 @@ int64_t Perft(const Board& b, int d) {
   return nodes;
 }
 
-void Go(int d) {
+void Go(int d, Board b) {
   if (d >= (sizeof(known_results) / sizeof(known_results[0]))) {
     std::cerr << "d too large: " << d << "\n";
     abort();
   }
   absl::Time start = absl::Now();
-  int64_t p = Perft(Board(), d);
+  int64_t p = Perft(b, d);
   absl::Time end = absl::Now();
   std::cout << p << "\n";
   std::cout << "Time: " << (end - start) << "\n";
@@ -91,6 +91,11 @@ int main(int argc, char** argv) {
     std::cerr << "Usage: " << argv[0] << " depth\n";
     return 1;
   }
-  chess::Go(atoi(argv[1]));
+  chess::Board b;
+  if (argc > 2) {
+    b = chess::Board(argv[2]);
+  }
+
+  chess::Go(atoi(argv[1]), b);
   return 0;
 }
