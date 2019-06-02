@@ -72,14 +72,6 @@ class Board {
 
   // Hash value for the board, to be used for detecting repetitions.
   uint64_t board_hash() const { return board_hash_; }
-  // Hash value of the state, includes history.
-  uint64_t history_hash() const {
-    uint64_t h = history_.hash();
-    // NO progress count may be different for the same history hash, since
-    // castling doesn't zero this counter.
-    h = HashCombine(h, MixHash(no_progress_count_));
-    return h;
-  }
 
   uint64_t bitboard(Color c, Piece p) const {
     return bitboards_[int(c)][int(p)];
@@ -125,26 +117,23 @@ class Board {
   // Squares where en-passant capture is possible for the current player.
   uint64_t en_passant_ = 0;
   uint64_t castling_rights_ = 0;
-  int16_t repetition_count_ = 0;
   int16_t no_progress_count_ = 0;
   int32_t half_move_count_ = 0;
   uint64_t board_hash_ = 0;
 
-  SmallIntSetWithHash history_;
-  // uint64_t history_hash_ = 0;
-  //
   // TODO: Maybe change bitboards to the following:
   // * side
   // * pawns
   // * knights
-  // * bishop
-  // * rooks
+  // * bishop (including queens)
+  // * rooks (including queens)
   // * kings
 };
+static_assert(sizeof(Board) ==  16 * 8);
 
 template <typename H>
 H AbslHashValue(H h, const Board& b) {
-  return H::combine(std::move(h), b.history_hash(), b.board_hash());
+  return H::combine(std::move(h), b.board_hash());
 }
 
 void InitializeMovegen();

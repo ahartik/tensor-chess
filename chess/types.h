@@ -17,6 +17,8 @@ enum class Color : uint8_t {
   kEmpty = 2,
 };
 
+inline Color OtherColor(Color c);
+
 enum class Piece : uint8_t {
   kPawn = 0,
   kKnight = 1,
@@ -27,6 +29,8 @@ enum class Piece : uint8_t {
   kNone = 6,
 };
 constexpr int kNumPieces = 6;
+
+std::ostream& operator<<(std::ostream& out, Piece p);
 
 extern const Piece kPromoPieces[4];
 
@@ -115,6 +119,23 @@ H AbslHashValue(H h, const Move& m) {
 }
 
 using MoveList = std::vector<Move>;
+
+// Implementations of inline methods.
+
+Color OtherColor(Color c) {
+  switch (c) {
+    case Color::kWhite:
+      return Color::kBlack;
+    case Color::kBlack:
+      return Color::kWhite;
+    case Color::kEmpty:
+      std::cerr << "OtherColor(kEmpty) called\n";
+      abort();
+  }
+  std::cerr << "Invalid color " << int(c) << "\n";
+  abort();
+  return Color::kWhite;
+}
 
 }  // namespace chess
 

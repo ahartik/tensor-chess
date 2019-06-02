@@ -183,7 +183,7 @@ class SmallIntSet {
   }
 
  private:
-  std::array<uint64_t, linked_set::kNodeSize - 1> inlined_;
+  std::array<uint64_t, linked_set::kNodeSize - 1> inlined_ = {};
   int inlined_size_ = 0;
   linked_set::Node* rest_ = nullptr;
 };

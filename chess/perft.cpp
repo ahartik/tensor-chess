@@ -2,11 +2,11 @@
 #include <iostream>
 #include <string>
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "chess/board.h"
-#include "absl/container/flat_hash_map.h"
 
 namespace chess {
 
@@ -17,9 +17,10 @@ const int64_t known_results[] = {
 };
 
 absl::flat_hash_map<uint64_t, int64_t> hashtable[10];
+int64_t total_leaves = 0;
 
 // Undef this to get easier-to-read profile output.
-// #define OPTIMIZED
+#define OPTIMIZED
 // #define HASHED
 
 int64_t Perft(const Board& parent, const Move& m, int d) {
@@ -31,7 +32,10 @@ int64_t Perft(const Board& parent, const Move& m, int d) {
   int64_t nodes = 0;
 #ifdef OPTIMIZED
   if (d == 1) {
-    b.LegalMoves([&](const Move& m) { ++nodes; });
+    b.LegalMoves([&](const Move& m) {
+      ++nodes;
+      ++total_leaves;
+    });
   } else {
     b.LegalMoves([&](const Move& m) { nodes += Perft(b, m, d - 1); });
   }
@@ -42,11 +46,9 @@ int64_t Perft(const Board& parent, const Move& m, int d) {
   }
 #endif
   return nodes;
-
 }
 
 int64_t hash_skips = 0;
-int64_t total_leaves = 0;
 int64_t PerftHashed(const Board& parent, const Move& m, int d) {
   if (d <= 0) {
     return 1;
@@ -68,7 +70,6 @@ int64_t PerftHashed(const Board& parent, const Move& m, int d) {
   }
   return nodes;
 }
-
 
 int64_t Perft(const Board& b, int d) {
   if (d <= 0) {

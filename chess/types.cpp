@@ -15,4 +15,8 @@ std::string Move::ToString() const {
   return absl::StrCat(Square::ToString(from), Square::ToString(to), p_str);
 }
 
+std::ostream& operator<<(std::ostream& out, Piece p) {
+  return out << PieceChar(p);
+}
+
 }  // namespace chess

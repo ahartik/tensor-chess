@@ -34,7 +34,10 @@ class MoveGenerator {
     if (ABSL_PREDICT_FALSE(king_danger_ & b_.bitboards_[ti_][5])) {
       in_check_ = true;
       bool in_check = ComputeCheck(&check_ok_, &push_mask_);
-      assert(in_check);
+      if (ABSL_PREDICT_FALSE(!in_check)) {
+        std::cerr << "ComputeCheck disagrees with king_danger\n";
+        abort();
+      }
       check_ok_ |= push_mask_;
     } else {
       in_check_ = false;
@@ -581,12 +584,10 @@ Board::Board(const BoardProto& p) {
   en_passant_ = p.en_passant();
   castling_rights_ = p.castling_rights();
   half_move_count_ = p.half_move_count();
-  repetition_count_ = p.repetition_count();
   board_hash_ = ComputeBoardHash();
 }
 
 Board::Board(const Board& o, const Move& m) : Board(o) {
-  history_ = SmallIntSetWithHash();
   const uint64_t from_o = OneHot(m.from);
   const uint64_t to_o = OneHot(m.to);
   const int ti = half_move_count_ & 1;
@@ -597,7 +598,6 @@ Board::Board(const Board& o, const Move& m) : Board(o) {
   board_hash_ ^= en_passant_;
   board_hash_ ^= castling_rights_;
   en_passant_ = 0;
-  repetition_count_ = 0;
 
   switch (type) {
     case Move::Type::kReversible: {
@@ -728,16 +728,6 @@ Board::Board(const Board& o, const Move& m) : Board(o) {
       abort();
   }
   board_hash_ ^= castling_rights_;
-  if (no_progress_count_ != 0) {
-    bool inserted = false;
-    while (!inserted) {
-      uint64_t history_hash = board_hash_ ^ MixHash(repetition_count_);
-      history_ = o.history_.Insert(history_hash, &inserted);
-      if (!inserted) {
-        ++repetition_count_;
-      }
-    }
-  }
 
   ++half_move_count_;
   assert(board_hash_ == ComputeBoardHash());

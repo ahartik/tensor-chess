@@ -109,7 +109,7 @@ bool DirectoryExists(const std::string& dir) {
 
 std::string GetCheckpointDir(int gen) {
   // TODO: Create flags out of these.
-  const std::string prefix = "/mnt/tensor-data/c4cc";
+  const std::string prefix = "/mnt/tensor-data/chess-models";
   if (gen < 0) {
     return prefix + "/current";
   }
@@ -120,7 +120,7 @@ std::string GetCheckpointDir(int gen) {
 
 std::string GetDefaultGraphDef() {
   // TODO: Create flags out of these.
-  const std::string prefix = "/mnt/tensor-data/c4cc";
+  const std::string prefix = "/mnt/tensor-data/chess-models";
   return prefix + "/graph.pb";
 }
 

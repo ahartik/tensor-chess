@@ -160,7 +160,24 @@ cc_library (
     copts = tf_copts(),
     deps = [
         ":board",
+        ":model",
         ":tensors",
+        "@com_google_absl//absl/synchronization",
+        "@org_tensorflow//tensorflow/core:lib",
+        "@org_tensorflow//tensorflow/core:tensorflow",
+        "@org_tensorflow//tensorflow/core:framework",
+    ],
+)
+
+cc_library(
+    name = "shuffling_trainer",
+    hdrs = ["shuffling_trainer.h"],
+    srcs = ["shuffling_trainer.cpp"],
+    copts = tf_copts(),
+    deps = [
+        ":board",
+        ":tensors",
+        ":model",
         "@com_google_absl//absl/synchronization",
         "@org_tensorflow//tensorflow/core:lib",
         "@org_tensorflow//tensorflow/core:tensorflow",
