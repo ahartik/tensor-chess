@@ -1,5 +1,7 @@
 # load('@com_google_protobuf//:protobuf.bzl', 'proto_library')
 # load('@com_google_protobuf//:protobuf.bzl', 'cc_proto_library')
+load("@org_tensorflow//tensorflow:tensorflow.bzl", "tf_cc_binary")
+load("@org_tensorflow//tensorflow:tensorflow.bzl", "tf_copts")
 
 proto_library(
     name = "game_proto",
@@ -121,6 +123,60 @@ cc_binary(
         "@com_google_absl//absl/time",
         "@com_google_absl//absl/base",
         "@com_google_absl//absl/container:flat_hash_map",
+    ],
+)
+
+cc_library (
+    name = "model",
+    hdrs = ["model.h"],
+    srcs = ["model.cpp"],
+    copts = tf_copts(),
+    deps = [
+        "@com_google_absl//absl/synchronization",
+        "@org_tensorflow//tensorflow/core:lib",
+        "@org_tensorflow//tensorflow/core:tensorflow",
+        "@org_tensorflow//tensorflow/core:framework",
+    ],
+)
+
+cc_library (
+    name =  "tensors",
+    hdrs = ["tensors.h"],
+    srcs = ["tensors.cpp"],
+    copts = tf_copts(),
+    deps = [
+        ":board",
+        "@com_google_absl//absl/synchronization",
+        "@org_tensorflow//tensorflow/core:lib",
+        "@org_tensorflow//tensorflow/core:tensorflow",
+        "@org_tensorflow//tensorflow/core:framework",
+    ],
+)
+
+cc_library (
+    name =  "prediction_queue",
+    hdrs = ["prediction_queue.h"],
+    srcs = ["prediction_queue.cpp"],
+    copts = tf_copts(),
+    deps = [
+        ":board",
+        ":tensors",
+        "@com_google_absl//absl/synchronization",
+        "@org_tensorflow//tensorflow/core:lib",
+        "@org_tensorflow//tensorflow/core:tensorflow",
+        "@org_tensorflow//tensorflow/core:framework",
+    ],
+)
+
+tf_cc_binary(
+    name =  "tensor_test",
+    srcs = ["tensor_test.cpp"],
+    deps = [
+        ":board",
+        ":tensors",
+        ":model",
+        "@org_tensorflow//tensorflow/core:lib",
+        "@org_tensorflow//tensorflow/core:tensorflow",
     ],
 )
 

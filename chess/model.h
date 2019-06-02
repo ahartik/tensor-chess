@@ -1,10 +1,10 @@
-#ifndef _C4CC_MODEL_H_
-#define _C4CC_MODEL_H_
+#ifndef _CHESS_MODEL_H_
+#define _CHESS_MODEL_H_
 
 #include <atomic>
+#include <string>
 
 #include "absl/synchronization/mutex.h"
-#include "c4cc/board.h"
 #include "tensorflow/core/framework/tensor.h"
 #include "tensorflow/core/lib/io/path.h"
 #include "tensorflow/core/platform/env.h"
@@ -13,9 +13,8 @@
 #include "tensorflow/core/platform/types.h"
 #include "tensorflow/core/public/session.h"
 
-namespace c4cc {
+namespace chess {
 
-// This class is thread-safe.
 class Model {
  public:
   explicit Model(const std::string& graph_def_filename);
@@ -53,23 +52,12 @@ class Model {
   std::atomic<int64_t> num_preds_{0};
 };
 
-tensorflow::Tensor MakeBoardTensor(int batch_size);
-
-// Writes 'b' to tensor batch at index i. 'tensor' should have been created
-// using MakeBoardTensor().
-void BoardToTensor(const Board& b, tensorflow::Tensor* tensor, int i);
-
-void ReadPredictions(const Model::Prediction& tensor_pred, Prediction* out_arr);
-void ReadPredictions(const Model::Prediction& tensor_pred, Prediction* out_arr,
-                     int offset, int n);
-
 std::string GetDefaultGraphDef();
 std::string GetDefaultCheckpoint(int gen = -1);
 int GetNumGens();
 
 std::unique_ptr<Model> CreateDefaultModel(bool allow_init, int gen = -1,
                                           const std::string& dir = "");
-
-}  // namespace c4cc
+}  // namespace chess
 
 #endif

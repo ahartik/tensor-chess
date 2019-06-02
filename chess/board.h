@@ -81,6 +81,14 @@ class Board {
     return h;
   }
 
+  uint64_t bitboard(Color c, Piece p) const {
+    return bitboards_[int(c)][int(p)];
+  }
+
+  uint64_t en_passant() const { return en_passant_; }
+
+  uint64_t castling_rights() const { return castling_rights_; }
+
   bool operator==(const Board& b) const;
 
   std::string ToPrintString() const;

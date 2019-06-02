@@ -1,8 +1,0 @@
-build --copt=-march=native
-build --copt=-g
-build --action_env=TMP=/tmp/
-build --linkopt=-pthread
-build --linkopt=-rdynamic
-# build --linkopt=-lprofiler
-build --cxxopt=-std=c++14
-build -c opt

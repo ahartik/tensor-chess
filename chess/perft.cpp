@@ -19,7 +19,8 @@ const int64_t known_results[] = {
 absl::flat_hash_map<uint64_t, int64_t> hashtable[10];
 
 // Undef this to get easier-to-read profile output.
-#define OPTIMIZED
+// #define OPTIMIZED
+// #define HASHED
 
 int64_t Perft(const Board& parent, const Move& m, int d) {
   if (d <= 0) {
@@ -76,7 +77,11 @@ int64_t Perft(const Board& b, int d) {
   int64_t nodes = 0;
   const auto moves = b.valid_moves();
   for (const Move& m : moves) {
+#ifdef HASHED
     nodes += PerftHashed(b, m, d - 1);
+#else
+    nodes += Perft(b, m, d - 1);
+#endif
   }
   return nodes;
 }
