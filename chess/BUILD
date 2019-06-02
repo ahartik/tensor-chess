@@ -197,6 +197,19 @@ tf_cc_binary(
     ],
 )
 
+tf_cc_binary(
+    name =  "human_imitation",
+    srcs = ["human_imitation.cpp"],
+    deps = [
+        ":board",
+        ":tensors",
+        ":shuffling_trainer",
+        ":model",
+        "@org_tensorflow//tensorflow/core:lib",
+        "@org_tensorflow//tensorflow/core:tensorflow",
+    ],
+)
+
 # cc_test(
 #     name = "board_test",
 #     srcs = ["board_test.cpp"],

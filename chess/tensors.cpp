@@ -63,6 +63,8 @@ const LayerFunc layers[] = {
 };
 constexpr int kNumLayers = sizeof(layers) / sizeof(layers[0]);
 
+static_assert(kNumLayers == 14, "Update build_graph.py if this number changes");
+
 }  // namespace
 
 int EncodeMove(Color turn, Move m) {
