@@ -207,6 +207,7 @@ tf_cc_binary(
         ":model",
         "@org_tensorflow//tensorflow/core:lib",
         "@org_tensorflow//tensorflow/core:tensorflow",
+        "//util:recordio",
     ],
 )
 

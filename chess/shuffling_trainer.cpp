@@ -6,16 +6,19 @@
 namespace chess {
 
 namespace {
-constexpr bool kKeepPool = true;
+constexpr bool kKeepPool = false;
 }
 
 ShufflingTrainer::ShufflingTrainer(Model* model, int batch_size,
                                    int shuffle_size)
     : model_(model),
       batch_size_(batch_size),
-      shuffle_size_(shuffle_size),
-      worker_([this] { WorkerThread(); }) {
+      shuffle_size_(shuffle_size) {
   CHECK_GE(shuffle_size, batch_size);
+  workers_.emplace_back([this] { WorkerThread(); });
+  workers_.emplace_back([this] { WorkerThread(); });
+  workers_.emplace_back([this] { WorkerThread(); });
+  workers_.emplace_back([this] { WorkerThread(); });
 }
 
 ShufflingTrainer::~ShufflingTrainer() {
@@ -23,7 +26,9 @@ ShufflingTrainer::~ShufflingTrainer() {
     absl::MutexLock lock(&mu_);
     stopped_ = true;
   }
-  worker_.join();
+  for (auto& t : workers_) {
+    t.join();
+  }
 }
 
 void ShufflingTrainer::Train(std::unique_ptr<TrainingSample> sample) {
@@ -61,46 +66,47 @@ void ShufflingTrainer::WorkerThread() {
   tensorflow::Tensor value_tensor(tensorflow::DT_FLOAT,
                                   tensorflow::TensorShape({batch_size_}));
 
-  absl::MutexLock lock(&mu_);
   while (true) {
-    const auto stopped_or_have_work = [this] {
-      return stopped_ || data_.size() >= shuffle_size_;
-    };
-    mu_.Await(absl::Condition(&stopped_or_have_work));
-    // TODO: This can be optimized to not hold the lock when building tensors.
-    if (stopped_) {
-      return;
+    std::vector<std::unique_ptr<TrainingSample>> batch_samples(batch_size_);
+    {
+      absl::MutexLock lock(&mu_);
+      const auto stopped_or_have_work = [this] {
+        return stopped_ || data_.size() >= shuffle_size_;
+      };
+      mu_.Await(absl::Condition(&stopped_or_have_work));
+      // TODO: This can be optimized to not hold the lock when building tensors.
+      if (stopped_) {
+        return;
+      }
+      for (int i = 0; i < batch_size_; ++i) {
+        std::uniform_int_distribution<int> dist(0, data_.size() - 1);
+        const int x = dist(rng_);
+        batch_samples[i] = std::move(data_[x]);
+        std::swap(data_[x], data_.back());
+        data_.pop_back();
+      }
     }
+
     for (int i = 0; i < batch_size_; ++i) {
-      std::uniform_int_distribution<int> dist(0, data_.size() - 1);
-      const int x = dist(rng_);
       auto board_matrix = board_tensor.SubSlice(i);
-      BoardToTensor(data_[x]->board, &board_matrix);
+      BoardToTensor(batch_samples[i]->board, &board_matrix);
 
       auto move_vec = move_tensor.SubSlice(i);
       for (int i = 0; i < kMoveVectorSize; ++i) {
         move_vec.vec<float>()(i) = 0.0;
       }
-      const Color turn = data_[x]->board.turn();
-      for (const auto& move : data_[x]->moves) {
+      const Color turn = batch_samples[i]->board.turn();
+      for (const auto& move : batch_samples[i]->moves) {
         move_vec.vec<float>()(EncodeMove(turn, move.first)) = move.second;
       }
 
-      value_tensor.flat<float>()(i) = data_[x]->value;
-
-      if (!kKeepPool) {
-        std::swap(data_[x], data_.back());
-        data_.pop_back();
-      }
+      value_tensor.flat<float>()(i) = batch_samples[i]->value;
     }
-    mu_.Unlock();
 
     model_->RunTrainStep(board_tensor, move_tensor, value_tensor);
     num_trained_.fetch_add(batch_size_, std::memory_order_relaxed);
 
-    absl::SleepFor(absl::Milliseconds(50));
-
-    mu_.Lock();
+    // absl::SleepFor(absl::Milliseconds(50));
   }
 }
 

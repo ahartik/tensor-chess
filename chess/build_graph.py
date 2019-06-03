@@ -13,7 +13,7 @@ layer = tf.reshape(board, shape=[-1, NUM_LAYERS, 8, 8], name='matrix')
 
 # Add one layer of just values 1.0. Idea is that this helps convolutions know
 # when they're at the edges of the boards when using SAME padding, as SAME
-# padding zero-pads outside values.
+# padding zero-pads outside values. This theory hasn't been fully validated.
 paddings = tf.constant([[0,0], [0,1], [0,0], [0,0]])
 layer = tf.pad(layer, paddings, constant_values=1.0)
 
@@ -53,12 +53,12 @@ def add_conv2d(y, res=True, bn=True, filters=64, kernel=(3,3)):
 # layer = add_conv2d(layer, res=False)
 layer = add_conv2d(layer, res=False)
 
-num_blocks = 10
+num_blocks = 14
 
 for i in range(0, num_blocks):
     layer = add_conv2d(layer, res=True)
 
-# Have one dense layer at this point 
+# Value head.
 print("Conv layer shape: {}".format(layer.shape));
 value_layer = add_conv2d(layer, res=False, filters=1, kernel=(1,1))
 value_layer = tf.keras.layers.Flatten()(value_layer)
@@ -74,7 +74,6 @@ output_value = tf.reshape(output_value, shape=[-1], name='output_value')
 
 # Add one more layer for move prediction.
 layer = add_conv2d(layer, res=True)
-
 
 # Convert to 73 x 8 x 8 tensor that gets mapped as move prediction output.
 layer = tf.layers.conv2d(
@@ -117,6 +116,6 @@ print('Run this operation to save a checkpoint        : ', saver_def.save_tensor
 print('Run this operation to restore a checkpoint     : ', saver_def.restore_op_name)
 
 # Write the graph out to a file.
-with open('/mnt/tensor-data/chess-models/graph.pb', 'wb') as f:
+with open('/mnt/tensor-data/chess-models/default/graph.pb', 'wb') as f:
   f.write(tf.get_default_graph().as_graph_def().SerializeToString())
 

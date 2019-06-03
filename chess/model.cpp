@@ -18,7 +18,7 @@ Model::Model(const std::string& graph_def_filename) {
   TF_CHECK_OK(tensorflow::ReadBinaryProto(tensorflow::Env::Default(),
                                           graph_def_filename, &graph_def));
   tensorflow::SessionOptions opts;
-  opts.config.mutable_gpu_options()->set_per_process_gpu_memory_fraction(0.2);
+  opts.config.mutable_gpu_options()->set_per_process_gpu_memory_fraction(0.4);
   session_.reset(tensorflow::NewSession(opts));
   TF_CHECK_OK(session_->Create(graph_def));
 
@@ -109,7 +109,7 @@ bool DirectoryExists(const std::string& dir) {
 
 std::string GetCheckpointDir(int gen) {
   // TODO: Create flags out of these.
-  const std::string prefix = "/mnt/tensor-data/chess-models";
+  const std::string prefix = "/mnt/tensor-data/chess-models/default";
   if (gen < 0) {
     return prefix + "/current";
   }
@@ -120,7 +120,7 @@ std::string GetCheckpointDir(int gen) {
 
 std::string GetDefaultGraphDef() {
   // TODO: Create flags out of these.
-  const std::string prefix = "/mnt/tensor-data/chess-models";
+  const std::string prefix = "/mnt/tensor-data/chess-models/default";
   return prefix + "/graph.pb";
 }
 
@@ -134,7 +134,7 @@ std::unique_ptr<Model> CreateDefaultModel(bool allow_init, int gen,
     CHECK_LT(gen, 0) << "Initialization only allowed for the current gen";
   }
   const std::string prefix =
-      "/mnt/tensor-data/chess-models" + (dir.empty() ? "" : "/" + dir);
+      "/mnt/tensor-data/chess-models/default" + (dir.empty() ? "" : "/" + dir);
   const std::string checkpoint_dir = GetCheckpointDir(gen);
   const std::string checkpoint_prefix = GetDefaultCheckpoint(gen);
   bool restore = DirectoryExists(checkpoint_dir);

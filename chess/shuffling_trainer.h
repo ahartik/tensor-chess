@@ -54,7 +54,7 @@ class ShufflingTrainer {
   int64_t since_full_flush_ GUARDED_BY(mu_) = 0;
   std::deque<std::unique_ptr<TrainingSample>> data_ GUARDED_BY(mu_);
 
-  std::thread worker_;
+  std::vector<std::thread> workers_;
 };
 
 }  // namespace chess
