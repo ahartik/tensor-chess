@@ -272,8 +272,7 @@ class MoveGenerator {
       const uint64_t castle_occ =
           occ_ | (king_danger_ & ~(OneHot(Square::B1) | OneHot(Square::B8)));
       // std::cout << "castle occ:\n" << BitboardToString(input.king_danger)
-      // <<
-      // "\n";
+      // << "\n";
       if ((b_.castling_rights() & OneHot(long_castle)) &&
           (castle_occ & long_mask) == 0) {
         OutputMove(
@@ -296,6 +295,20 @@ class MoveGenerator {
     // Pawns
     // TODO: It's probably possible to replace this loop with a few shifts and
     // some masks.
+
+#if 1
+    {
+      const uint64_t opp_pawns = b_.bitboard(opp_, Piece::kPawn);
+      const uint64_t left_mask = ~FileMask(0);
+      const uint64_t right_mask = ~FileMask(7);
+      // Left and right captures:
+      danger |= turn_ == Color::kWhite ? ((opp_pawns & left_mask) >> 9)
+                                       : ((opp_pawns & left_mask) << 7);
+      danger |= turn_ == Color::kWhite ? ((opp_pawns & right_mask) >> 7)
+                                       : ((opp_pawns & right_mask) << 9);
+    }
+
+#else
     for (int s :
          BitRange(KingPawnDanger(king_s_) & b_.bitboard(opp_, Piece::kPawn))) {
       // This is reverse, since we're imitating opponent's pawns.
@@ -309,6 +322,7 @@ class MoveGenerator {
         danger |= OneHot(MakeSquare(r + dr, f + 1));
       }
     }
+    #endif
     // Knights.
     for (int s : BitRange(b_.bitboard(opp_, Piece::kKnight))) {
       danger |= KnightMoveMask(s);
