@@ -123,18 +123,8 @@ using MoveList = std::vector<Move>;
 // Implementations of inline methods.
 
 Color OtherColor(Color c) {
-  switch (c) {
-    case Color::kWhite:
-      return Color::kBlack;
-    case Color::kBlack:
-      return Color::kWhite;
-    case Color::kEmpty:
-      std::cerr << "OtherColor(kEmpty) called\n";
-      abort();
-  }
-  std::cerr << "Invalid color " << int(c) << "\n";
-  abort();
-  return Color::kWhite;
+  assert(c < Color::kEmpty);
+  return Color(int(c) ^ 1);
 }
 
 }  // namespace chess

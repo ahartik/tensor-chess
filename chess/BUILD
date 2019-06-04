@@ -35,8 +35,11 @@ cc_library(
     name = "board",
     hdrs = [
         "board.h",
-        "board-inl.cpp",
+        "movegen.h",
     ],
+    srcs = [
+        "board.cpp",
+        ],
     deps = [
         ":bitboard",
         ":game_cc_proto",
@@ -84,6 +87,26 @@ cc_library(
     hdrs = ["hashing.h"],
     deps = [
         ":types",
+    ],
+)
+
+cc_library(
+    name = "player",
+    hdrs = ["player.h"],
+    deps = [
+        ":board",
+        ":types",
+    ],
+)
+
+cc_library(
+    name = "game_state",
+    hdrs = ["game_state.h"],
+    srcs = ["game_state.cpp"],
+    deps = [
+        ":board",
+        ":types",
+        "@com_google_absl//absl/container:node_hash_map",
     ],
 )
 

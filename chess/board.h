@@ -38,37 +38,9 @@ class Board {
   // Construct a board from given existing board + a move.
   Board(const Board& o, const Move& m);
 
-  // TODO: Add constructor for puzzle cases.
-  // static Board MakeTestCase();
-
-  bool is_over() const;
-  // If the game is over, this returns the winner of the game, or Color::kEmpty
-  // in case of a draw.
-  Color winner() const;
-
   Color turn() const {
     return (half_move_count_ % 2) == 0 ? Color::kWhite : Color::kBlack;
   }
-
-  MoveList valid_moves() const;
-
-  // For the most efficient interface, implement function like:
-  enum class State {
-    kNotOver = 0,
-    // Check and the current player has no legal moves.
-    kCheckmate,
-    // Not a check, but current player has no moves.
-    kStalemate,
-    // Threefold repetition (possibly returning earlier). Moves were still
-    // returned.
-    kRepetitionDraw,
-    // 50-move rule or so. Moves were still returned.
-    kNoProgressDraw,
-  };
-
-  // For F callable with signature void(const Move& m);
-  template <typename MoveFunc>
-  State LegalMoves(const MoveFunc& f, bool return_draw_moves = true) const;
 
   // Hash value for the board, to be used for detecting repetitions.
   uint64_t board_hash() const { return board_hash_; }
@@ -81,7 +53,7 @@ class Board {
 
   uint64_t castling_rights() const { return castling_rights_; }
 
-  bool operator==(const Board& b) const;
+  bool operator==(const Board& o) const;
 
   std::string ToPrintString() const;
   std::string ToFEN() const;
@@ -91,17 +63,8 @@ class Board {
 
   Move::Type GetMoveType(const Move& m) const;
 
-  // Initialize movegen and hashing.
-  static void Init();
-
- private:
-  template <typename H>
-  friend H AbslHashValue(H h, const Board& b);
-
-  template <typename MoveFunc>
-  friend class MoveGenerator;
-
-  uint64_t ComputeBoardHash() const;
+  // Convenience function for getting valid moves,
+  MoveList valid_moves() const;
 
   uint64_t ComputeOcc() const {
     uint64_t o = 0;
@@ -112,6 +75,18 @@ class Board {
     }
     return o;
   }
+
+  // Initialize movegen and hashing.
+  static void Init();
+
+  // "half-move clock", for purposes of 50-move rule. Draw occurs at 100.
+  int no_progress_count() const { return no_progress_count_; }
+
+ private:
+  template <typename H>
+  friend H AbslHashValue(H h, const Board& b);
+
+  uint64_t ComputeBoardHash() const;
 
   uint64_t bitboards_[2][kNumPieces] = {};
   // Squares where en-passant capture is possible for the current player.
@@ -129,17 +104,13 @@ class Board {
   // * rooks (including queens)
   // * kings
 };
-static_assert(sizeof(Board) ==  16 * 8);
+static_assert(sizeof(Board) == 16 * 8);
 
 template <typename H>
 H AbslHashValue(H h, const Board& b) {
   return H::combine(std::move(h), b.board_hash());
 }
 
-void InitializeMovegen();
-
 }  // namespace chess
-
-#include "board-inl.cpp"
 
 #endif

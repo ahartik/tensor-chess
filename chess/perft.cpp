@@ -7,6 +7,7 @@
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "chess/board.h"
+#include "chess/movegen.h"
 
 namespace chess {
 
@@ -32,12 +33,13 @@ int64_t Perft(const Board& parent, const Move& m, int d) {
   int64_t nodes = 0;
 #ifdef OPTIMIZED
   if (d == 1) {
-    b.LegalMoves([&](const Move& m) {
+    IterateLegalMoves(b, [&](const Move& m) {
       ++nodes;
       ++total_leaves;
     });
   } else {
-    b.LegalMoves([&](const Move& m) { nodes += Perft(b, m, d - 1); });
+    IterateLegalMoves(b,
+                      [&](const Move& m) { nodes += Perft(b, m, d - 1); });
   }
 #else
   const auto moves = b.valid_moves();
@@ -61,12 +63,13 @@ int64_t PerftHashed(const Board& parent, const Move& m, int d) {
     return nodes;
   }
   if (d == 1) {
-    b.LegalMoves([&](const Move& m) {
+    IterateLegalMoves(b, [&](const Move& m) {
       ++nodes;
       ++total_leaves;
     });
   } else {
-    b.LegalMoves([&](const Move& m) { nodes += PerftHashed(b, m, d - 1); });
+    IterateLegalMoves(
+        b, [&](const Move& m) { nodes += PerftHashed(b, m, d - 1); });
   }
   return nodes;
 }
