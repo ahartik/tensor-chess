@@ -2,8 +2,8 @@
 #define _CHESS_BOARD_H_
 
 #include <cstdint>
-#include <string>
 #include <ostream>
+#include <string>
 #include <vector>
 
 #include "absl/strings/string_view.h"
@@ -112,9 +112,7 @@ H AbslHashValue(H h, const Board& b) {
   return H::combine(std::move(h), b.board_hash());
 }
 
-std::ostream& operator<<(std::ostream& o, const Board& b) {
-  return o << b.ToFEN();
-}
+std::ostream& operator<<(std::ostream& o, const Board& b);
 
 }  // namespace chess
 

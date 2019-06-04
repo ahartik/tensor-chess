@@ -451,4 +451,8 @@ MoveList Board::valid_moves() const {
   return list;
 }
 
+std::ostream& operator<<(std::ostream& o, const Board& b) {
+  return o << b.ToFEN();
+}
+
 }  // namespace chess

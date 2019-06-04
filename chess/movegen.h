@@ -74,20 +74,25 @@ class MoveGenerator {
       }
     }
 
-    const uint64_t double_blocked = turn_ == Color::kWhite
-                                        ? ((occ_ >> 8) | (occ_ >> 16))
-                                        : ((occ_ << 8) | (occ_ << 16));
-    // Double moves
+    // Middle square must be empty, and the target square must also be OK  for
+    // check.
+    const uint64_t double_blocked =
+        turn_ == Color::kWhite
+            ? ((occ_ >> 8) | (impossible_push_squares >> 16))
+            : ((occ_ << 8) | (impossible_push_squares << 16));
+    // Double pushes
     const uint64_t double_mask = RankMask(turn_ == Color::kWhite ? 1 : 6);
-    for (int sq : BitRange(pawns & double_mask & ~double_blocked)) {
+    // Unpinned first.
+    for (int sq :
+         BitRange(pawns & double_mask & ~double_blocked & ~soft_pinned_)) {
+      move_func(sq, sq + dr * 2);
+    }
+    // Pinned double-push (pretty unlikely).
+    const uint64_t pinned_doubles =
+        pawns & double_mask & ~double_blocked & soft_pinned_;
+    for (int sq : BitRange(pinned_doubles)) {
       int to = sq + dr * 2;
-      // Still check compare against check_ok_:
-      if (OneHot(to) & check_ok_) {
-        if (IsPinned(sq, to)) {
-          // It's possible for a pawn to be soft-pinned, but not hard-pinned:
-          // when we're going straight towards an opponent rook.
-          continue;
-        }
+      if (SameDirection(king_s_, sq, to)) {
         move_func(sq, to);
       }
     }
@@ -147,7 +152,11 @@ class MoveGenerator {
       if (to_file != 7) {
         captures |= OneHot(MakeSquare(to_rank + dr, to_file + 1));
       }
-      for (int from : BitRange(captures & pawns)) {
+      const uint64_t possible_capturing_pawns = captures & pawns;
+      // if (ABSL_PREDICT_TRUE(possible_capturing_pawns == 0)) {
+      //   return;
+      // }
+      for (int from : BitRange(possible_capturing_pawns)) {
         if (IsPinned(from, to)) {
           continue;
         }
@@ -280,10 +289,13 @@ class MoveGenerator {
 
   uint64_t ComputeKingDanger() const {
     // To account for sliding pieces, remove our king from the occ mask.
+    // Otherwise the king could "hide behind itself".
     uint64_t occ = occ_ ^ OneHot(king_s_);
 
     uint64_t danger = 0;
     // Pawns
+    // TODO: It's probably possible to replace this loop with a few shifts and
+    // some masks.
     for (int s :
          BitRange(KingPawnDanger(king_s_) & b_.bitboard(opp_, Piece::kPawn))) {
       // This is reverse, since we're imitating opponent's pawns.

@@ -91,7 +91,7 @@ int64_t Perft(const Board& b, int d) {
 }
 
 void Go(int d, Board b) {
-  if (d >= (sizeof(known_results) / sizeof(known_results[0]))) {
+  if (d >= int(sizeof(known_results) / sizeof(known_results[0]))) {
     std::cerr << "d too large: " << d << "\n";
     abort();
   }

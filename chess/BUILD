@@ -138,7 +138,7 @@ cc_binary(
     ],
 )
 
-cc_binary(
+tf_cc_binary(
     name = "perft",
     srcs = ["perft.cpp"],
     deps = [

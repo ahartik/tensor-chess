@@ -113,7 +113,7 @@ struct Move {
 };
 static_assert(sizeof(Move) == 4);
 
-std::ostream& operator<<(std::ostream& out, Move m) {
+inline std::ostream& operator<<(std::ostream& out, Move m) {
   return out << m.ToString();
 }
 
