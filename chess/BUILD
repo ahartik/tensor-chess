@@ -176,6 +176,22 @@ cc_library (
     ],
 )
 
+cc_library(
+    name =  "shuffling_trainer",
+    hdrs = ["shuffling_trainer.h"],
+    srcs = ["shuffling_trainer.cpp"],
+    copts = tf_copts(),
+    deps = [
+        ":board",
+        ":tensors",
+        ":model",
+        "@com_google_absl//absl/synchronization",
+        "@org_tensorflow//tensorflow/core:lib",
+        "@org_tensorflow//tensorflow/core:tensorflow",
+        "@org_tensorflow//tensorflow/core:framework",
+    ],
+)
+
 cc_library (
     name =  "prediction_queue",
     hdrs = ["prediction_queue.h"],
@@ -193,18 +209,19 @@ cc_library (
 )
 
 cc_library(
-    name = "shuffling_trainer",
-    hdrs = ["shuffling_trainer.h"],
-    srcs = ["shuffling_trainer.cpp"],
+    name =  "mcts",
+    hdrs = ["mcts.h"],
+    srcs = ["mcts.cpp"],
     copts = tf_copts(),
     deps = [
         ":board",
-        ":tensors",
-        ":model",
-        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/container:node_hash_map",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/types:optional",
+        # This is only for logging, this library itself should not use
+        # tensorflow for computation.
         "@org_tensorflow//tensorflow/core:lib",
         "@org_tensorflow//tensorflow/core:tensorflow",
-        "@org_tensorflow//tensorflow/core:framework",
     ],
 )
 

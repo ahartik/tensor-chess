@@ -115,12 +115,16 @@ void PredictionQueue::GetPredictions(PredictionRequest* requests, int n) {
     // Batch ready, dispense results:
     for (int i = 0; i < batch_n; ++i) {
       auto board_policy = last_batch->move_p.SubSlice(offset + i);
-      requests[i].output_prior.clear();
-      requests[i].output_prior.reserve(requests[i].moves.size());
+      requests[i].output_policy.clear();
+      requests[i].output_policy.reserve(requests[i].moves->size());
       double total = 0.0;
-      for (const Move& m : requests[i].moves) {
-        requests[i].output_prior.push_back(
-            MovePriorFromTensor(board_policy, m));
+      for (const Move& m : *requests[i].moves) {
+        double v = MovePriorFromTensor(board_policy, m);
+        requests[i].output_policy.push_back(v);
+        total += v;
+      }
+      for (double& v : requests[i].output_policy) {
+        v /= total;
       }
     }
 

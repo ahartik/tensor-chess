@@ -16,26 +16,22 @@
 
 namespace chess {
 
-struct PredictionRequest {
-  // Input to the request:
-
-  const Board* board;
-  MoveList moves;
-
-  // Output of the request:
-
-  // Same size as 'moves', with output_prior[i] being the policy network output
-  // for move moves[i].
-  std::vector<double> output_prior;
-  double output_value = 0.0;
-};
 
 class PredictionQueue {
  public:
+  struct Request {
+    // Input to the request:
+    const Board* board;
+
+    // Output of the request:
+
+    PredictionResult result;
+  };
   explicit PredictionQueue(Model* model);
   ~PredictionQueue();
 
-  void GetPredictions(PredictionRequest* requests, int n);
+  // Blocks.
+  void GetPredictions(Request* requests, int n);
 
   int64_t num_predictions() const {
     return pred_count_.load(std::memory_order_relaxed);

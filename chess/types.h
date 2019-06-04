@@ -113,12 +113,22 @@ struct Move {
 };
 static_assert(sizeof(Move) == 4);
 
+std::ostream& operator<<(std::ostream& out, Move m) {
+  return out << m.ToString();
+}
+
 template <typename H>
 H AbslHashValue(H h, const Move& m) {
   return H::combine(std::move(h), m.from, m.to, m.promotion);
 }
 
 using MoveList = std::vector<Move>;
+
+// Output of either a neural network prediction, or MCTS evaluation.
+struct PredictionResult {
+  std::vector<std::pair<Move, double>> policy;
+  double value = 0.0;
+};
 
 // Implementations of inline methods.
 

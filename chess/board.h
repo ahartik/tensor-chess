@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <string>
+#include <ostream>
 #include <vector>
 
 #include "absl/strings/string_view.h"
@@ -109,6 +110,10 @@ static_assert(sizeof(Board) == 16 * 8);
 template <typename H>
 H AbslHashValue(H h, const Board& b) {
   return H::combine(std::move(h), b.board_hash());
+}
+
+std::ostream& operator<<(std::ostream& o, const Board& b) {
+  return o << b.ToFEN();
 }
 
 }  // namespace chess
