@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <deque>
 #include <memory>
+#include <random>
 #include <thread>
 #include <vector>
 
@@ -13,6 +14,7 @@
 #include "chess/model.h"
 #include "chess/tensors.h"
 #include "tensorflow/core/framework/tensor.h"
+#include "chess/player.h"
 
 namespace chess {
 
@@ -22,16 +24,19 @@ class PredictionQueue {
   struct Request {
     // Input to the request:
     const Board* board;
+    const MoveList* moves;
 
     // Output of the request:
-
-    PredictionResult result;
+    std::vector<double> policy;
+    double value = 0;
   };
   explicit PredictionQueue(Model* model);
   ~PredictionQueue();
 
   // Blocks.
   void GetPredictions(Request* requests, int n);
+
+  // TODO: Consider adding an asynchronous interface too.
 
   int64_t num_predictions() const {
     return pred_count_.load(std::memory_order_relaxed);
@@ -47,8 +52,9 @@ class PredictionQueue {
   }
 
  private:
+  static constexpr const int max_batch_size_ = 256;
   struct WorkBatch {
-    WorkBatch(int n) : board_tensor(MakeBoardTensor(n)) {}
+    explicit WorkBatch(int n) : board_tensor(MakeBoardTensor(n)) {}
     tensorflow::Tensor board_tensor;
     tensorflow::Tensor move_p;
     tensorflow::Tensor value;
@@ -61,7 +67,6 @@ class PredictionQueue {
 
   std::shared_ptr<WorkBatch> CreateBatch() EXCLUSIVE_LOCKS_REQUIRED(mu_);
 
-  const int max_batch_size_ = 256;
   Model* const model_;
 
   std::atomic<int64_t> pred_count_{0};
@@ -76,6 +81,23 @@ class PredictionQueue {
 
   std::vector<std::thread> workers_;
   // TODO: Possible to put prediction cache here.
+};
+
+// Simple player which picks moves (randomly) based on policy network.
+//
+// This class is thread-compatible.
+class PolicyNetworkPlayer : public Player {
+ public:
+  PolicyNetworkPlayer(PredictionQueue* queue);
+
+  void Reset() override;
+  void Advance(const Move& m) override;
+  Move GetMove() override;
+
+ private:
+  std::mt19937_64 mt_;
+  PredictionQueue* queue_;
+  Board b_;
 };
 
 }  // namespace chess

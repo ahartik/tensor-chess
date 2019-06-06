@@ -11,6 +11,7 @@
 #include "chess/hashing.h"
 #include "chess/square.h"
 #include "chess/types.h"
+#include "chess/types.h"
 #include "util/int-set.h"
 
 namespace chess {
@@ -113,6 +114,7 @@ H AbslHashValue(H h, const Board& b) {
 }
 
 std::ostream& operator<<(std::ostream& o, const Board& b);
+
 
 }  // namespace chess
 

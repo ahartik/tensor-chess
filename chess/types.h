@@ -19,6 +19,8 @@ enum class Color : uint8_t {
 
 inline Color OtherColor(Color c);
 
+std::ostream& operator<<(std::ostream& out, Color c);
+
 enum class Piece : uint8_t {
   kPawn = 0,
   kKnight = 1,

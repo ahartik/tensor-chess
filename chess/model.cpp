@@ -34,10 +34,9 @@ void Model::Restore(const std::string& checkpoint_prefix) {
 
 Model::Prediction Model::Predict(const tensorflow::Tensor& batch) {
   // absl::ReaderMutexLock lock(&mu_);
-
-  CHECK_EQ(batch.dims(), 2);
+  CHECK_EQ(batch.dims(), 3);
+  CHECK_EQ(batch.dim_size(2), 64);
   const int num_boards = batch.dim_size(0);
-  CHECK_EQ(batch.dim_size(1), 84);
   std::vector<tensorflow::Tensor> out_tensors;
   TF_CHECK_OK(session_->Run(
       {

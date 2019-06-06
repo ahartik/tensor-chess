@@ -137,7 +137,6 @@ Board::Board(const BoardProto& p) {
   board_hash_ = ComputeBoardHash();
 }
 
-// This constructor is our only "MakeMove()" function.
 Board::Board(const Board& o, const Move& m) : Board(o) {
   const uint64_t from_o = OneHot(m.from);
   const uint64_t to_o = OneHot(m.to);
@@ -308,8 +307,11 @@ std::string Board::ToPrintString() const {
       str.push_back(PieceColorChar(square(r, f)));
       str.push_back(' ');
     }
+    str.push_back(' ');
+    str.push_back('1' + r);
     str.push_back('\n');
   }
+  str += "  a b c d e f g h\n";
   return str;
 }
 

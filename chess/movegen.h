@@ -293,10 +293,6 @@ class MoveGenerator {
 
     uint64_t danger = 0;
     // Pawns
-    // TODO: It's probably possible to replace this loop with a few shifts and
-    // some masks.
-
-#if 1
     {
       const uint64_t opp_pawns = b_.bitboard(opp_, Piece::kPawn);
       const uint64_t left_mask = ~FileMask(0);
@@ -308,21 +304,6 @@ class MoveGenerator {
                                        : ((opp_pawns & right_mask) << 9);
     }
 
-#else
-    for (int s :
-         BitRange(KingPawnDanger(king_s_) & b_.bitboard(opp_, Piece::kPawn))) {
-      // This is reverse, since we're imitating opponent's pawns.
-      int dr = turn_ == Color::kWhite ? -1 : 1;
-      const int r = SquareRank(s);
-      const int f = SquareFile(s);
-      if (SquareOnBoard(r + dr, f - 1)) {
-        danger |= OneHot(MakeSquare(r + dr, f - 1));
-      }
-      if (SquareOnBoard(r + dr, f + 1)) {
-        danger |= OneHot(MakeSquare(r + dr, f + 1));
-      }
-    }
-    #endif
     // Knights.
     for (int s : BitRange(b_.bitboard(opp_, Piece::kKnight))) {
       danger |= KnightMoveMask(s);

@@ -81,7 +81,7 @@ std::shared_ptr<PredictionQueue::WorkBatch> PredictionQueue::CreateBatch() {
   return r;
 }
 
-void PredictionQueue::GetPredictions(PredictionRequest* requests, int n) {
+void PredictionQueue::GetPredictions(Request* requests, int n) {
   while (n > 0) {
     std::shared_ptr<WorkBatch> last_batch;
     int batch_n = -1;
@@ -115,17 +115,24 @@ void PredictionQueue::GetPredictions(PredictionRequest* requests, int n) {
     // Batch ready, dispense results:
     for (int i = 0; i < batch_n; ++i) {
       auto board_policy = last_batch->move_p.SubSlice(offset + i);
-      requests[i].output_policy.clear();
-      requests[i].output_policy.reserve(requests[i].moves->size());
+      requests[i].policy.clear();
+      requests[i].policy.reserve(requests[i].moves->size());
       double total = 0.0;
       for (const Move& m : *requests[i].moves) {
-        double v = MovePriorFromTensor(board_policy, m);
-        requests[i].output_policy.push_back(v);
+        const double v =
+            MovePriorFromTensor(board_policy, requests[i].board->turn(), m);
+        requests[i].policy.push_back(v);
         total += v;
       }
-      for (double& v : requests[i].output_policy) {
+      if (total < 0.2) {
+        // Remove this when starting from scratch.
+        std::cerr << "Network not good, 4/5 moves are not legal\n";
+        std::cerr << requests[i].board->ToPrintString();
+      }
+      for (double& v : requests[i].policy) {
         v /= total;
       }
+      requests[i].value = last_batch->value.flat<float>()(i);
     }
 
     // Now we can try making a new request.
@@ -143,6 +150,32 @@ void PredictionQueue::GetPredictions(PredictionRequest* requests, int n) {
       }
     }
   }
+}
+
+PolicyNetworkPlayer::PolicyNetworkPlayer(PredictionQueue* queue)
+    : queue_(queue) {}
+
+void PolicyNetworkPlayer::Reset() { b_ = Board(); }
+
+void PolicyNetworkPlayer::Advance(const Move& m) { b_ = Board(b_, m); }
+
+Move PolicyNetworkPlayer::GetMove() {
+  const auto valid_moves = b_.valid_moves();
+  PredictionQueue::Request req;
+  req.board = &b_;
+  req.moves = &valid_moves;
+  queue_->GetPredictions(&req, 1);
+
+  std::uniform_real_distribution<double> rand(0.0, 1.0);
+  double r = rand(mt_);
+  for (int i = 0; i < valid_moves.size(); ++i) {
+    r -= req.policy[i];
+    if (r < 0) {
+      return valid_moves[i];
+    }
+  }
+  std::cerr << "This shouldn't happen\n";
+  return valid_moves[0];
 }
 
 }  // namespace chess

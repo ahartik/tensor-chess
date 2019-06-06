@@ -18,10 +18,10 @@ namespace magic {
 
 #ifdef NDEBUG
 // Faster and smaller, but takes longer to generate (about 1s).
-constexpr int kBishopLogSize = 10;
+constexpr int kBishopLogSize = 9;
 constexpr int kRookLogSize = 12;
 #else
-constexpr int kBishopLogSize = 10;
+constexpr int kBishopLogSize = 9;
 constexpr int kRookLogSize = 12;
 #endif
 

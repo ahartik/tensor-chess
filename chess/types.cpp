@@ -5,6 +5,18 @@
 
 namespace chess {
 
+std::ostream& operator<<(std::ostream& out, Color c) {
+  switch (c) {
+    case Color::kWhite:
+      return out << "white";
+    case Color::kBlack:
+      return out << "black";
+    case Color::kEmpty:
+      return out << "-";
+  }
+  return out;
+}
+
 extern const Piece kPromoPieces[4] = {Piece::kQueen, Piece::kBishop,
                                       Piece::kKnight, Piece::kRook};
 std::string Move::ToString() const {

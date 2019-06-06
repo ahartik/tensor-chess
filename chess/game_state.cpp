@@ -6,9 +6,9 @@
 
 namespace chess {
 
-Game::Game() { ++visit_count_[board_]; }
+Game::Game() { ++visit_count_[board_.board_hash()]; }
 
-void Game::MakeMove(const Move& m) {
+void Game::Advance(const Move& m) {
   if (is_over_) {
     std::cerr << "Game already over: '" << board_.ToFEN()
               << "' winner: " << int(winner_) << "\n";
@@ -16,7 +16,7 @@ void Game::MakeMove(const Move& m) {
   }
   assert(!is_over_);
   board_ = Board(board_, m);
-  int& rep = visit_count_[board_];
+  int& rep = visit_count_[board_.board_hash()];
   ++rep;
   if (rep >= 3) {
     is_over_ = true;

@@ -106,7 +106,7 @@ cc_library(
     deps = [
         ":board",
         ":types",
-        "@com_google_absl//absl/container:node_hash_map",
+        "@com_google_absl//absl/container:flat_hash_map",
     ],
 )
 
@@ -250,6 +250,27 @@ tf_cc_binary(
         "//util:recordio",
     ],
 )
+
+tf_cc_binary(
+    name = "play",
+    srcs = ["play.cpp"],
+    deps = [
+        ":board",
+        ":player",
+        ":types",
+        ":mcts",
+        ":model",
+        ":prediction_queue",
+        ":game_state",
+        "@com_google_absl//absl/time",
+        "@com_google_absl//absl/base",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@org_tensorflow//tensorflow/core:lib",
+        "@org_tensorflow//tensorflow/core:tensorflow",
+        "@org_tensorflow//tensorflow/core:framework",
+    ],
+)
+
 
 # cc_test(
 #     name = "board_test",
