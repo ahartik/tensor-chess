@@ -1,0 +1,9 @@
+try-import %workspace%/tensorflow/.bazelrc
+
+build --action_env=TMP=/tmp/
+build --linkopt=-pthread
+build --linkopt=-rdynamic
+# build --linkopt=-lprofiler
+build --cxxopt=-std=c++14
+build -c opt
+build --copt=-march=native

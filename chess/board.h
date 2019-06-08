@@ -52,6 +52,7 @@ class Board {
   }
 
   uint64_t en_passant() const { return en_passant_; }
+  int ply() const { return half_move_count_; }
 
   uint64_t castling_rights() const { return castling_rights_; }
 

@@ -4,7 +4,8 @@
 
 namespace chess {
 
-PredictionQueue::PredictionQueue(Model* model) : model_(model) {
+PredictionQueue::PredictionQueue(Model* model, int max_batch_size)
+    : model_(model), max_batch_size_(max_batch_size) {
   const int kNumWorkers = 3;
   for (int i = 0; i < kNumWorkers; ++i) {
     workers_.emplace_back([this, i] { WorkerThread(i); });
@@ -115,13 +116,13 @@ void PredictionQueue::GetPredictions(Request* requests, int n) {
     // Batch ready, dispense results:
     for (int i = 0; i < batch_n; ++i) {
       auto board_policy = last_batch->move_p.SubSlice(offset + i);
-      requests[i].policy.clear();
-      requests[i].policy.reserve(requests[i].moves->size());
+      requests[i].result.policy.clear();
+      requests[i].result.policy.reserve(requests[i].moves->size());
       double total = 0.0;
       for (const Move& m : *requests[i].moves) {
         const double v =
             MovePriorFromTensor(board_policy, requests[i].board->turn(), m);
-        requests[i].policy.push_back(v);
+        requests[i].result.policy.emplace_back(m, v);
         total += v;
       }
       if (total < 0.2) {
@@ -129,10 +130,10 @@ void PredictionQueue::GetPredictions(Request* requests, int n) {
         std::cerr << "Network not good, 4/5 moves are not legal\n";
         std::cerr << requests[i].board->ToPrintString();
       }
-      for (double& v : requests[i].policy) {
-        v /= total;
+      for (auto& move_p : requests[i].result.policy) {
+        move_p.second /= total;
       }
-      requests[i].value = last_batch->value.flat<float>()(i);
+      requests[i].result.value = last_batch->value.flat<float>()(i);
     }
 
     // Now we can try making a new request.
@@ -168,10 +169,10 @@ Move PolicyNetworkPlayer::GetMove() {
 
   std::uniform_real_distribution<double> rand(0.0, 1.0);
   double r = rand(mt_);
-  for (int i = 0; i < valid_moves.size(); ++i) {
-    r -= req.policy[i];
+  for (const auto& move : req.result.policy) {
+    r -= move.second;
     if (r < 0) {
-      return valid_moves[i];
+      return move.first;
     }
   }
   std::cerr << "This shouldn't happen\n";

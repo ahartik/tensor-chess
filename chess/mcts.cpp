@@ -51,7 +51,9 @@ struct State {
     if (winner == Color::kEmpty) {
       return 0.0;
     } else {
-      return winner == board.turn() ? 1.0 : -1.0;
+      CHECK_NE(winner, board.turn());
+      // Terminal nodes are never wins for the player to move.
+      return -1;
     }
   }
 
@@ -148,7 +150,6 @@ std::unique_ptr<MCTS::PredictionRequest> MCTS::StartIteration() {
     Action* best_action = PickAction(rand_, *cur);
     picked_path.emplace_back(cur.get(), best_action);
     if (best_action->state == nullptr) {
-      // We might have visited this node from another search branch:
       Board board(cur->board, best_action->move);
 
       std::vector<Move> moves;
@@ -160,7 +161,7 @@ std::unique_ptr<MCTS::PredictionRequest> MCTS::StartIteration() {
         case MovegenResult::kCheckmate:
           // player to move lost.
           is_terminal = true;
-          winner = board.turn();
+          winner = OtherColor(board.turn());
           break;
         case MovegenResult::kStalemate:
           is_terminal = true;
@@ -193,7 +194,7 @@ std::unique_ptr<MCTS::PredictionRequest> MCTS::StartIteration() {
       CHECK(!picked_path.empty());
       for (auto e : picked_path) {
         // Terminal nodes have turn of the loser.
-        const double mul = e.s->board.turn() == cur->board.turn() ? -1.0 : 1.0;
+        const double mul = e.s->board.turn() == cur->board.turn() ? 1.0 : -1.0;
         e.a->AddResult(mul * cur->terminal_value());
       }
       return nullptr;
@@ -278,6 +279,7 @@ Prediction MCTS::GetPrior() const {
 #endif
 
 void MCTS::MakeMove(Move m) {
+  visited_.insert(current_.board_hash());
   bool found = false;
   for (auto& action : root_->actions) {
     if (action.move == m) {
@@ -303,6 +305,7 @@ void MCTS::MakeMove(Move m) {
 
 void MCTS::SetBoard(const Board& b) {
   current_ = b;
+  visited_.clear();
   const auto it = visited_states_.find(b);
   if (it == visited_states_.end()) {
     // Start with even split over all legal moves.

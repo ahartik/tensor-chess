@@ -26,11 +26,9 @@ class PredictionQueue {
     const Board* board;
     const MoveList* moves;
 
-    // Output of the request:
-    std::vector<double> policy;
-    double value = 0;
+    PredictionResult result;
   };
-  explicit PredictionQueue(Model* model);
+  explicit PredictionQueue(Model* model, int max_batch_size = 64);
   ~PredictionQueue();
 
   // Blocks.
@@ -52,7 +50,6 @@ class PredictionQueue {
   }
 
  private:
-  static constexpr const int max_batch_size_ = 256;
   struct WorkBatch {
     explicit WorkBatch(int n) : board_tensor(MakeBoardTensor(n)) {}
     tensorflow::Tensor board_tensor;
@@ -68,6 +65,7 @@ class PredictionQueue {
   std::shared_ptr<WorkBatch> CreateBatch() EXCLUSIVE_LOCKS_REQUIRED(mu_);
 
   Model* const model_;
+  const int max_batch_size_;
 
   std::atomic<int64_t> pred_count_{0};
   std::atomic<int64_t> batch_count_{0};

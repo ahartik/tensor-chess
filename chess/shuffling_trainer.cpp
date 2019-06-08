@@ -16,9 +16,6 @@ ShufflingTrainer::ShufflingTrainer(Model* model, int batch_size,
       shuffle_size_(shuffle_size) {
   CHECK_GE(shuffle_size, batch_size);
   workers_.emplace_back([this] { WorkerThread(); });
-  workers_.emplace_back([this] { WorkerThread(); });
-  workers_.emplace_back([this] { WorkerThread(); });
-  workers_.emplace_back([this] { WorkerThread(); });
 }
 
 ShufflingTrainer::~ShufflingTrainer() {

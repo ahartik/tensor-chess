@@ -22,7 +22,7 @@ int64_t total_leaves = 0;
 
 // Undef this to get easier-to-read profile output.
 #define OPTIMIZED
-// #define HASHED
+#define HASHED
 
 int64_t Perft(const Board& parent, const Move& m, int d) {
   if (d <= 0) {

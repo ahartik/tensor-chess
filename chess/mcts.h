@@ -5,6 +5,7 @@
 #include <memory>
 #include <random>
 
+#include "absl/container/flat_hash_set.h"
 #include "absl/container/inlined_vector.h"
 #include "absl/container/node_hash_map.h"
 #include "absl/types/optional.h"
@@ -28,7 +29,7 @@ class MCTS {
   explicit MCTS(const Board& start = {});
   ~MCTS();
 
-  // Resets position to 'b'.
+  // Resets position to 'b' with empty history.
   void SetBoard(const Board& b);
 
   const Board& current_board() const;
@@ -70,7 +71,7 @@ class MCTS {
   void FinishIteration(std::unique_ptr<PredictionRequest> req,
                        const PredictionResult& p);
 
-  // Number of times an iteration has been completed.
+  // Number of times an iteration has been completed from the current node.
   int num_iterations() const;
 
   // This is the prediction for the current board.
@@ -86,6 +87,8 @@ class MCTS {
   Board current_;
   std::shared_ptr<mcts::State> root_;
 
+  // TODO: Actually implement repetition draws.
+  absl::flat_hash_set<uint64_t> visited_;
   // TODO: Optimize this memory-wise.
   // TODO: Probably no need for shared_ptr here.
   absl::node_hash_map<Board, std::shared_ptr<mcts::State>> visited_states_;

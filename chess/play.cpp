@@ -1,11 +1,12 @@
 #include <iostream>
 #include <memory>
-#include <thread>
 #include <random>
+#include <thread>
 #include <vector>
 
 #include "chess/board.h"
 #include "chess/game_state.h"
+#include "chess/mcts_player.h"
 #include "chess/model.h"
 #include "chess/player.h"
 #include "chess/prediction_queue.h"
@@ -38,13 +39,14 @@ class RandomPlayer : public Player {
 
 void PlayGames() {
   Board::Init();
-  auto model = CreateDefaultModel(/*allow_init=*/true);
-  PredictionQueue pred_queue(model.get());
+  auto model = CreateDefaultModel(/*allow_init=*/false);
+  PredictionQueue pred_queue(model.get(), 8);
   std::vector<std::thread> threads;
 
   RandomPlayer random_player;
   CliHumanPlayer human_player;
   PolicyNetworkPlayer policy_player(&pred_queue);
+  MCTSPlayer mcts_player(&pred_queue, 1000);
 
   Player* const players[] = {
       &random_player,
@@ -54,16 +56,12 @@ void PlayGames() {
   };
 
   while (true) {
-    for (int i = 0; i < 2; ++i) {
-      players[i]->Reset();
-    }
-    Game g;
+    // Game g({&random_player, &policy_player});
+    Game g({&policy_player, &mcts_player});
     while (!g.is_over()) {
-      Move m = players[int(g.board().turn())]->GetMove();
-      for (int i = 0; i < 2; ++i) {
-        players[i]->Advance(m);
-      }
-      g.Advance(m);
+      g.Work();
+
+      std::cout << g.board().ToPrintString() << "\n";
     }
     std::cout << g.board().ToPrintString() << "\n";
     switch (g.winner()) {

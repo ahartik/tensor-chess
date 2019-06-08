@@ -330,7 +330,7 @@ bool Board::operator==(const Board& o) const {
     return false;
   }
   // Different turn.
-  if (half_move_count_ % 2 != o.half_move_count_) {
+  if (half_move_count_ % 2 != o.half_move_count_ % 2) {
     return false;
   }
 

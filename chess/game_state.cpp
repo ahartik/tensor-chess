@@ -6,7 +6,12 @@
 
 namespace chess {
 
-Game::Game() { ++visit_count_[board_.board_hash()]; }
+Game::Game(const std::vector<Player*>& players) : players_(players) {
+  ++visit_count_[board_.board_hash()];
+  for (Player* p : players_) {
+    p->Reset();
+  }
+}
 
 void Game::Advance(const Move& m) {
   if (is_over_) {
@@ -40,6 +45,24 @@ void Game::Advance(const Move& m) {
     is_over_ = true;
     winner_ = Color::kEmpty;
   }
+  if (!is_over_) {
+    for (Player* p : players_) {
+      p->Advance(m);
+    }
+  }
+}
+
+void Game::Work() {
+  Move m;
+  if (players_.size() == 1) {
+    m = players_[0]->GetMove();
+  } else if (players_.size() == 2) {
+    const int ti = board_.turn() == Color::kWhite ? 0 : 1;
+    m = players_[ti]->GetMove();
+  } else {
+    abort();
+  }
+  Advance(m);
 }
 
 }  // namespace chess

@@ -225,6 +225,22 @@ cc_library(
     ],
 )
 
+cc_library(
+    name =  "mcts_player",
+    hdrs = ["mcts_player.h"],
+    srcs = ["mcts_player.cpp"],
+    copts = tf_copts(),
+    deps = [
+        ":board",
+        ":mcts",
+        ":types",
+        ":player",
+        ":prediction_queue",
+        "@org_tensorflow//tensorflow/core:lib",
+        "@org_tensorflow//tensorflow/core:tensorflow",
+    ],
+)
+
 tf_cc_binary(
     name =  "tensor_test",
     srcs = ["tensor_test.cpp"],
@@ -259,6 +275,7 @@ tf_cc_binary(
         ":player",
         ":types",
         ":mcts",
+        ":mcts_player",
         ":model",
         ":prediction_queue",
         ":game_state",

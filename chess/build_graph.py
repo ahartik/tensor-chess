@@ -23,7 +23,7 @@ print("Shape after pad: {}".format(layer.shape))
 channel_setup = 'channels_first'
 fused_bn = True
 
-def add_conv2d(y, res=True, bn=True, filters=64, kernel=(3,3)):
+def add_conv2d(y, res=True, bn=True, filters=256, kernel=(3,3)):
     if not res:
         y = tf.layers.conv2d(y, filters, kernel,
                 data_format = channel_setup, padding='same')
@@ -53,7 +53,7 @@ def add_conv2d(y, res=True, bn=True, filters=64, kernel=(3,3)):
 # layer = add_conv2d(layer, res=False)
 layer = add_conv2d(layer, res=False)
 
-num_blocks = 14
+num_blocks = 20
 
 for i in range(0, num_blocks):
     layer = add_conv2d(layer, res=True)
