@@ -160,6 +160,7 @@ cc_library (
         "@org_tensorflow//tensorflow/core:lib",
         "@org_tensorflow//tensorflow/core:tensorflow",
         "@org_tensorflow//tensorflow/core:framework",
+        "@com_google_absl//absl/strings:str_format",
     ],
 )
 

@@ -28,6 +28,10 @@ ShufflingTrainer::~ShufflingTrainer() {
 
 void ShufflingTrainer::Train(std::unique_ptr<TrainingSample> sample) {
   absl::MutexLock lock(&mu_);
+
+  auto has_space = [this]() -> bool { return data_.size() < max_size_; };
+  mu_.Await(absl::Condition(&has_space));
+
 #if 0
   if (b.ply() < 10) {
     // Discard half of early states to increase variance.
@@ -44,10 +48,6 @@ void ShufflingTrainer::Train(std::unique_ptr<TrainingSample> sample) {
   if (since_full_flush_ > 10 * shuffle_size_) {
     Flush();
     since_full_flush_ = 0;
-  }
-  while (data_.size() > max_size_) {
-    // std::cerr << "Dropping from training queue\n";
-    data_.pop_front();
   }
 }
 
@@ -99,11 +99,9 @@ void ShufflingTrainer::WorkerThread() {
       }
 
       const int value_ind =
-          batch_samples[i]->winner == sample->board.turn()
+          sample->winner == sample->board.turn()
               ? 0
-              : batch_samples[i]->winner == OtherColor(sample->board.turn())
-                    ? 1
-                    : 2;
+              : sample->winner == OtherColor(sample->board.turn()) ? 1 : 2;
       value_tensor.matrix<float>()(i, 0) = 0;
       value_tensor.matrix<float>()(i, 1) = 0;
       value_tensor.matrix<float>()(i, 2) = 0;

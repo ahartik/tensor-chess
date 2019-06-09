@@ -67,9 +67,7 @@ Move MCTSPlayer::GetMove() {
     b.pred = pred;
   }
 
-  // Apply dirichlet noise here:
-
-  // LOG(INFO) << "v=" << pred.value;
+  LOG(INFO) << "v=" << pred.value;
   // After certain ply, do
 #if 1
   if (mcts_->current_board().ply() > 12 && (rand_() % 20 != 0)) {

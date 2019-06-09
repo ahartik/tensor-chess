@@ -1,5 +1,8 @@
+#include <time.h>
+
 #include <iostream>
 #include <memory>
+#include <random>
 #include <thread>
 #include <vector>
 
@@ -15,9 +18,10 @@
 
 namespace chess {
 
-void TrainGame(ShufflingTrainer* trainer, const GameRecord& record) {
+int TrainGame(ShufflingTrainer* trainer, const GameRecord& record) {
   Board board;
 
+  int count_moves = 0;
   for (const MoveProto& move_proto : record.moves()) {
     const Move m = Move::FromProto(move_proto);
     auto sample = std::make_unique<TrainingSample>();
@@ -37,21 +41,31 @@ void TrainGame(ShufflingTrainer* trainer, const GameRecord& record) {
     trainer->Train(std::move(sample));
 
     board = Board(board, m);
+    ++count_moves;
   }
+  return count_moves;
 }
-
-void TrainerThread(ShufflingTrainer* trainer,
+void TrainerThread(int tid, ShufflingTrainer* trainer,
                    const std::vector<std::string>& files) {
+  std::mt19937_64 mt(time(0) ^ tid);
   while (true) {
-    const int file_ind = rand() % files.size();
+    const int file_ind = mt() % files.size();
     const std::string fname = files[file_ind];
+    std::cout << "===============\n";
+    std::cout << "Opening " << fname << "\n";
+    std::cout << "===============\n";
     GameRecord record;
     util::RecordReader reader(fname);
     std::string buf;
+    int count = 0;
+    int moves = 0;
     while (reader.Read(buf)) {
       CHECK(record.ParseFromString(buf));
-      TrainGame(trainer, record);
+      moves += TrainGame(trainer, record);
+      ++count;
     }
+    std::cout << fname << " had " << count << " games with " << moves
+              << " moves\n";
   }
 }
 
@@ -61,9 +75,10 @@ void TrainFiles(const std::vector<std::string>& files) {
   ShufflingTrainer trainer(model.get());
   std::vector<std::thread> threads;
 
-  const int kNumThreads = 2;
+  const int kNumThreads = 4;
   for (int i = 0; i < kNumThreads; ++i) {
-    threads.emplace_back([&] { TrainerThread(&trainer, files); });
+    threads.emplace_back(
+        [i, &trainer, &files] { TrainerThread(i, &trainer, files); });
   }
 
   while (true) {

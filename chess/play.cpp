@@ -48,13 +48,16 @@ void PlayGames() {
   RandomPlayer random_player;
   CliHumanPlayer human_player;
   PolicyNetworkPlayer policy_player(&pred_queue);
+  PolicyNetworkPlayer human_policy(&human_queue);
   MCTSPlayer mcts_player(&pred_queue, 1000);
   MCTSPlayer human_mcts_player(&human_queue, 1000);
 
   while (true) {
     // Game g({&random_player, &policy_player});
-    // Game g({&policy_player, &mcts_player});
-    Game g({&human_mcts_player, &mcts_player});
+    Game g({&human_policy, &mcts_player});
+    // Game g({&policy_player, &human_policy});
+    // Game g({&human_mcts_player, &mcts_player});
+    // Game g({&human_mcts_player});
     while (!g.is_over()) {
       g.Work();
 

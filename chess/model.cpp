@@ -10,6 +10,7 @@
 #include "tensorflow/core/platform/logging.h"
 #include "tensorflow/core/platform/types.h"
 #include "tensorflow/core/public/session.h"
+#include "absl/strings/str_format.h"
 
 namespace chess {
 
@@ -63,7 +64,9 @@ void Model::RunTrainStep(const tensorflow::Tensor& board_batch,
   const int batch_size = board_batch.dim_size(0);
   CHECK_GE(batch_size, 0);
   CHECK_EQ(move_batch.dim_size(0), batch_size);
+  CHECK_EQ(value_batch.dims(), 2);
   CHECK_EQ(value_batch.dim_size(0), batch_size);
+  CHECK_EQ(value_batch.dim_size(1), 3);
 
   std::vector<tensorflow::Tensor> out_tensors;
   TF_CHECK_OK(session_->Run(
@@ -73,31 +76,37 @@ void Model::RunTrainStep(const tensorflow::Tensor& board_batch,
           {"target_value", value_batch},
           {"is_training", true_},
       },
-      {"total_loss", "value_loss", "output_value"}, {"train"}, &out_tensors));
-  CHECK_EQ(out_tensors.size(), 3);
+      {"total_loss", "value_loss", "output_value", "policy_loss", "l2_loss"},
+      {"train"}, &out_tensors));
+  CHECK_EQ(out_tensors.size(), 5);
   const auto& total_loss = out_tensors[0];
   const auto& value_loss = out_tensors[1];
   const auto& value = out_tensors[2];
+  const auto& policy_loss = out_tensors[3];
+  const auto& l2_loss = out_tensors[4];
   CHECK_EQ(total_loss.dims(), 1);
   CHECK_EQ(total_loss.dim_size(0), batch_size);
   CHECK_EQ(value_loss.dim_size(0), batch_size);
+  CHECK_EQ(l2_loss.dims(), 0);
   double loss_sum = 0;
   double value_loss_sum = 0;
+  double policy_loss_sum = 0;
   double avg_value[3] = {};
   double avg_target_value[3] = {};
   for (int i = 0; i < batch_size; ++i) {
     loss_sum += total_loss.flat<float>()(i);
     value_loss_sum += value_loss.flat<float>()(i);
+    policy_loss_sum += policy_loss.flat<float>()(i);
     for (int j = 0; j < 3; ++j) {
       avg_value[j] += value.matrix<float>()(i, j) / batch_size;
       avg_target_value[j] += value_batch.matrix<float>()(i, j) / batch_size;
     }
   }
-  LOG(INFO) << "Training avg loss: " << (loss_sum / batch_size) << " value "
-            << (value_loss_sum / batch_size);
-  LOG(INFO) << "avg value [ "  //
-            << avg_value[0] << ", " << avg_value[1] << ", " << avg_value[2]
-            << " ]";
+  LOG(INFO) << absl::StrFormat(
+      "Train policy_loss=%1.4f value_loss=%1.4f l2_loss=%1.4f total_loss=%1.4f",
+      policy_loss_sum / batch_size, value_loss_sum / batch_size,
+      double(l2_loss.scalar<float>()()), loss_sum / batch_size);
+
   LOG(INFO) << "avg target_value [ "  //
             << avg_target_value[0] << ", " << avg_target_value[1] << ", "
             << avg_target_value[2] << " ]";

@@ -1,5 +1,7 @@
 import tensorflow as tf
 
+keras = tf.keras
+
 NUM_LAYERS = 14
 MOVE_VEC_SIZE = 73 * 64
 
@@ -25,33 +27,44 @@ channel_setup = 'channels_first'
 fused_bn = True
 num_filters = 128
 
+all_layers = []
+l2_reg = keras.regularizers.l2(0.001)
+
+def apply_layer(layer, y):
+    all_layers.append(layer)
+    return layer(y)
+
+
 def add_conv2d(y, res=True, bn=True, filters=128, kernel=(3,3)):
     if not res:
-        y = tf.layers.conv2d(y, filters, kernel,
-                data_format = channel_setup, padding='same')
+        layer = tf.keras.layers.Conv2D(filters, kernel, padding='same',
+                data_format = channel_setup, kernel_regularizer=l2_reg)
+        y = apply_layer(layer, y)
         if bn:
             y = tf.layers.batch_normalization(
                 y, axis=1, training=is_training, fused=fused_bn)
         y = tf.nn.leaky_relu(y, alpha=0.01)
     else:
-        init = tf.variance_scaling_initializer(scale=0.1)
         shortcut = y
-        y = tf.layers.conv2d(y, filters, kernel, data_format = channel_setup,
-                use_bias=False, padding='same', kernel_initializer=init)
+        layer = tf.keras.layers.Conv2D(filters, kernel, padding='same',
+                data_format = channel_setup, kernel_regularizer=l2_reg)
+        y = apply_layer(layer, y)
         if bn:
             y = tf.layers.batch_normalization(
                 y, axis=1, training=is_training, fused=fused_bn)
-        # Make this relu leaky for some reason
         y = tf.nn.leaky_relu(y, alpha=0.01)
-        y = tf.layers.conv2d(y, filters, kernel, data_format = channel_setup,
-                use_bias=False, padding='same', kernel_initializer=init)
+
+        # Another conv2d
+        layer = tf.keras.layers.Conv2D(filters, kernel, padding='same',
+                data_format = channel_setup, kernel_regularizer=l2_reg)
+        y = apply_layer(layer, y)
         if bn:
             y = tf.layers.batch_normalization(
                 y, axis=1, training=is_training, fused=fused_bn)
         y = tf.add(y, shortcut)
         # This one is not leaky, so that
         # f(f(x)) = f(x)
-        y = tf.nn.relu(y)
+        y = tf.nn.leaky_relu(y, alpha=0.01)
     return y
 
 # layer = add_conv2d(layer, res=False)
@@ -68,28 +81,31 @@ print("Conv layer shape: {}".format(layer.shape));
 value_layer = add_conv2d(layer, res=False, filters=1, kernel=(1,1))
 value_layer = tf.keras.layers.Flatten()(value_layer)
 print("After flatten: {}".format(value_layer.shape));
-value_layer = tf.keras.layers.Dense(256, activation='relu')(value_layer)
-value_layer = tf.keras.layers.Dense(256, activation='relu')(value_layer)
+value_layer = apply_layer(tf.keras.layers.Dense(256, activation='relu'), value_layer)
 print("After dense: {}".format(value_layer.shape));
 value_layer = tf.keras.layers.Dense(3, activation='linear')(value_layer)
 print("After head: {}".format(value_layer.shape));
 
 output_value = tf.nn.softmax(value_layer, name='output_value')
 
+if False:
+    layer = tf.reshape(layer, [-1, num_filters, 64])
+    
+    top_slice = tf.slice(layer, [0, 0, 0], [-1, 64, -1])
+    bottom_slice = tf.slice(layer, [0, 64, 0], [-1, num_filters - 64, -1])
+    # Transpose top slice: 
+    #  Before: batch, channel, rank, file
+    #  After: batch, rank, file, channel
+    print("top_slice: {}".format(top_slice.shape));
+    top_slice = tf.transpose(top_slice, perm=[0, 2, 1])
+    # Combine these together
+    layer = tf.concat([top_slice, bottom_slice], 1)
+    
+    print("after concat: {}".format(layer.shape));
+
+# Apply one more layer to the policy head
+layer = add_conv2d(layer, res=False)
 layer = tf.reshape(layer, [-1, num_filters, 64])
-
-top_slice = tf.slice(layer, [0, 0, 0], [-1, 64, -1])
-bottom_slice = tf.slice(layer, [0, 64, 0], [-1, num_filters - 64, -1])
-
-# Transpose top slice: 
-#  Before: batch, channel, rank, file
-#  After: batch, rank, file, channel
-print("top_slice: {}".format(top_slice.shape));
-top_slice = tf.transpose(top_slice, perm=[0, 2, 1])
-# Combine these together
-layer = tf.concat([top_slice, bottom_slice], 1)
-
-print("after concat: {}".format(layer.shape));
 # Convert to 73 x 64 tensor that gets mapped as move prediction output.
 # Basically each input filter is telling if this square is good to move to.
 layer = tf.layers.conv1d(layer, 73, 1, padding='valid', data_format='channels_first')
@@ -106,7 +122,12 @@ policy_loss = tf.nn.softmax_cross_entropy_with_logits_v2(
 value_loss = tf.nn.softmax_cross_entropy_with_logits_v2(
         labels=target_value, logits=value_layer, name='value_loss')
 
-total_loss = tf.add(1 * policy_loss, 1 * value_loss, name='total_loss')
+l2_losses = [loss for layer in all_layers for loss in layer.losses]
+l2_loss = tf.math.add_n(l2_losses, name='l2_loss')
+print("l2_losses: {}".format(l2_losses))
+print("l2_loss.shape: {}".format(l2_loss.shape))
+
+total_loss = tf.add(1 * policy_loss, 1 * value_loss + 0.1 * l2_loss, name='total_loss')
 
 global train_op
 # This weird 'with' thing is required for batch norm to work.
