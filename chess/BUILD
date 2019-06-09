@@ -49,6 +49,7 @@ cc_library(
         ":types",
         "//util:int-set",
         "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/numeric:int128",
     ],
 )
 
@@ -208,6 +209,18 @@ cc_library (
     ],
 )
 
+cc_library (
+    name =  "prediction_cache",
+    hdrs = ["prediction_cache.h"],
+   # srcs = [],
+    deps = [
+        ":board",
+        ":types",
+        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/container:flat_hash_map",
+    ],
+)
+
 cc_library(
     name =  "mcts",
     hdrs = ["mcts.h"],
@@ -216,6 +229,8 @@ cc_library(
     deps = [
         ":board",
         "@com_google_absl//absl/container:node_hash_map",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/container:inlined_vector",
         "@com_google_absl//absl/types:optional",
         # This is only for logging, this library itself should not use
@@ -282,6 +297,49 @@ tf_cc_binary(
         "@com_google_absl//absl/time",
         "@com_google_absl//absl/base",
         "@com_google_absl//absl/container:flat_hash_map",
+        "@org_tensorflow//tensorflow/core:lib",
+        "@org_tensorflow//tensorflow/core:tensorflow",
+        "@org_tensorflow//tensorflow/core:framework",
+    ],
+)
+
+tf_cc_binary(
+    name =  "evaluate",
+    srcs = ["evaluate.cpp"],
+    deps = [
+        ":board",
+        ":player",
+        ":types",
+        ":mcts",
+        ":mcts_player",
+        ":model",
+        ":prediction_queue",
+        ":game_state",
+        "@com_google_absl//absl/time",
+        "@com_google_absl//absl/base",
+        "@org_tensorflow//tensorflow/core:lib",
+        "@org_tensorflow//tensorflow/core:tensorflow",
+        "@org_tensorflow//tensorflow/core:framework",
+    ],
+)
+
+tf_cc_binary(
+    name = "self_play_trainer",
+    srcs = ["self_play_trainer.cpp"],
+    deps = [
+        ":board",
+        ":player",
+        ":types",
+        ":mcts",
+        ":mcts_player",
+        ":shuffling_trainer",
+        ":model",
+        ":prediction_queue",
+        ":prediction_cache",
+        ":game_state",
+        "//util:init",
+        "@com_google_absl//absl/time",
+        "@com_google_absl//absl/base",
         "@org_tensorflow//tensorflow/core:lib",
         "@org_tensorflow//tensorflow/core:tensorflow",
         "@org_tensorflow//tensorflow/core:framework",

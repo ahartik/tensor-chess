@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "absl/numeric/int128.h"
 #include "chess/game.pb.h"
 #include "chess/hashing.h"
 #include "chess/square.h"
@@ -116,6 +117,8 @@ H AbslHashValue(H h, const Board& b) {
 
 std::ostream& operator<<(std::ostream& o, const Board& b);
 
+using BoardFP = absl::uint128;
+BoardFP BoardFingerprint(const Board& b);
 
 }  // namespace chess
 

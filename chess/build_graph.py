@@ -6,7 +6,8 @@ MOVE_VEC_SIZE = 73 * 64
 # Batch of input and target output (1x1 matrices)
 board = tf.placeholder(tf.float32, shape=[None, NUM_LAYERS, 64], name='board')
 target_move = tf.placeholder(tf.float32, shape=[None, MOVE_VEC_SIZE], name='target_move')
-target_value = tf.placeholder(tf.float32, shape=[None], name='target_value')
+# [p_win, p_loss, p_draw]
+target_value = tf.placeholder(tf.float32, shape=[None, 3], name='target_value')
 is_training = tf.placeholder(dtype=bool, shape=(), name="is_training")
 
 layer = tf.reshape(board, shape=[-1, NUM_LAYERS, 8, 8], name='matrix')
@@ -22,8 +23,9 @@ print("Shape after pad: {}".format(layer.shape))
 
 channel_setup = 'channels_first'
 fused_bn = True
+num_filters = 128
 
-def add_conv2d(y, res=True, bn=True, filters=256, kernel=(3,3)):
+def add_conv2d(y, res=True, bn=True, filters=128, kernel=(3,3)):
     if not res:
         y = tf.layers.conv2d(y, filters, kernel,
                 data_format = channel_setup, padding='same')
@@ -39,6 +41,7 @@ def add_conv2d(y, res=True, bn=True, filters=256, kernel=(3,3)):
         if bn:
             y = tf.layers.batch_normalization(
                 y, axis=1, training=is_training, fused=fused_bn)
+        # Make this relu leaky for some reason
         y = tf.nn.leaky_relu(y, alpha=0.01)
         y = tf.layers.conv2d(y, filters, kernel, data_format = channel_setup,
                 use_bias=False, padding='same', kernel_initializer=init)
@@ -46,14 +49,16 @@ def add_conv2d(y, res=True, bn=True, filters=256, kernel=(3,3)):
             y = tf.layers.batch_normalization(
                 y, axis=1, training=is_training, fused=fused_bn)
         y = tf.add(y, shortcut)
-        y = tf.nn.leaky_relu(y, alpha=0.01)
+        # This one is not leaky, so that
+        # f(f(x)) = f(x)
+        y = tf.nn.relu(y)
     return y
 
 # layer = add_conv2d(layer, res=False)
 # layer = add_conv2d(layer, res=False)
 layer = add_conv2d(layer, res=False)
 
-num_blocks = 20
+num_blocks = 15
 
 for i in range(0, num_blocks):
     layer = add_conv2d(layer, res=True)
@@ -63,24 +68,31 @@ print("Conv layer shape: {}".format(layer.shape));
 value_layer = add_conv2d(layer, res=False, filters=1, kernel=(1,1))
 value_layer = tf.keras.layers.Flatten()(value_layer)
 print("After flatten: {}".format(value_layer.shape));
-value_layer = tf.keras.layers.Dense(128, activation='relu')(value_layer)
+value_layer = tf.keras.layers.Dense(256, activation='relu')(value_layer)
+value_layer = tf.keras.layers.Dense(256, activation='relu')(value_layer)
 print("After dense: {}".format(value_layer.shape));
-value_layer = tf.keras.layers.Dense(128, activation='relu')(value_layer)
-print("After dense: {}".format(value_layer.shape));
-output_value = tf.keras.layers.Dense(1, activation='tanh')(value_layer)
-print("After head: {}".format(output_value.shape));
+value_layer = tf.keras.layers.Dense(3, activation='linear')(value_layer)
+print("After head: {}".format(value_layer.shape));
 
-output_value = tf.reshape(output_value, shape=[-1], name='output_value')
+output_value = tf.nn.softmax(value_layer, name='output_value')
 
-# Add one more layer for move prediction.
-layer = add_conv2d(layer, res=True)
+layer = tf.reshape(layer, [-1, num_filters, 64])
 
-# Convert to 73 x 8 x 8 tensor that gets mapped as move prediction output.
-layer = tf.layers.conv2d(
-    layer,
-    73, (1, 1),
-    data_format="channels_first",
-    use_bias=True)
+top_slice = tf.slice(layer, [0, 0, 0], [-1, 64, -1])
+bottom_slice = tf.slice(layer, [0, 64, 0], [-1, num_filters - 64, -1])
+
+# Transpose top slice: 
+#  Before: batch, channel, rank, file
+#  After: batch, rank, file, channel
+print("top_slice: {}".format(top_slice.shape));
+top_slice = tf.transpose(top_slice, perm=[0, 2, 1])
+# Combine these together
+layer = tf.concat([top_slice, bottom_slice], 1)
+
+print("after concat: {}".format(layer.shape));
+# Convert to 73 x 64 tensor that gets mapped as move prediction output.
+# Basically each input filter is telling if this square is good to move to.
+layer = tf.layers.conv1d(layer, 73, 1, padding='valid', data_format='channels_first')
 print("Before policy head: {}".format(layer.shape));
 
 logits = tf.reshape(tensor=layer, shape=[-1, MOVE_VEC_SIZE], name = 'logits')
@@ -91,10 +103,10 @@ output_move = tf.nn.softmax(logits, name='output_move')
 policy_loss = tf.nn.softmax_cross_entropy_with_logits_v2(
         labels=target_move, logits=logits, name='policy_loss')
 
-value_loss = tf.squared_difference(target_value, output_value,
-        name='value_loss')
+value_loss = tf.nn.softmax_cross_entropy_with_logits_v2(
+        labels=target_value, logits=value_layer, name='value_loss')
 
-total_loss = tf.add(policy_loss, value_loss, name='total_loss')
+total_loss = tf.add(1 * policy_loss, 1 * value_loss, name='total_loss')
 
 global train_op
 # This weird 'with' thing is required for batch norm to work.

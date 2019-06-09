@@ -4,6 +4,12 @@
 
 namespace chess {
 
+namespace {
+
+constexpr int kMaxPendingBatches = 2;
+
+}  // namespace
+
 PredictionQueue::PredictionQueue(Model* model, int max_batch_size)
     : model_(model), max_batch_size_(max_batch_size) {
   const int kNumWorkers = 3;
@@ -48,7 +54,7 @@ void PredictionQueue::WorkerThread(int worker_id) {
     batches_.pop_front();
 
     CHECK_GT(current_batch->size, 0);
-    // LOG(INFO) << "Worker got " << current_batch->size() << " items";
+    // LOG(INFO) << "Worker got " << current_batch->size << " items";
 
     // As there is only one worker thread, we can safely unlock while
     // processing 'current_batch'. During this time, other threads may add
@@ -82,7 +88,22 @@ std::shared_ptr<PredictionQueue::WorkBatch> PredictionQueue::CreateBatch() {
   return r;
 }
 
-void PredictionQueue::GetPredictions(Request* requests, int n) {
+void PredictionQueue::GetPredictions(Request* requests_in, int n) {
+  std::vector<Request*> not_cached;
+  not_cached.reserve(n);
+
+  for (int i = 0; i < n; ++i) {
+    auto& r = requests_in[i];
+    auto cached = cache_.Lookup(*r.board);
+    if (cached != nullptr) {
+      r.result = *cached;
+    } else {
+      not_cached.push_back(&r);
+    }
+  }
+  n = not_cached.size();
+  Request** requests = not_cached.data();
+
   while (n > 0) {
     std::shared_ptr<WorkBatch> last_batch;
     int batch_n = -1;
@@ -90,6 +111,10 @@ void PredictionQueue::GetPredictions(Request* requests, int n) {
     {
       absl::MutexLock lock(&mu_);
       if (batches_.empty() || batches_.back()->size == max_batch_size_) {
+        auto can_make_batch = [this]() -> bool {
+          return batches_.size() < kMaxPendingBatches;
+        };
+        mu_.Await(absl::Condition(&can_make_batch));
         // Need a new batch (possibly by taking from freelist_).
         batches_.push_back(CreateBatch());
       }
@@ -104,7 +129,7 @@ void PredictionQueue::GetPredictions(Request* requests, int n) {
       // Write input in the tensor already.
       for (int i = 0; i < batch_n; ++i) {
         auto slice = last_batch->board_tensor.SubSlice(offset + i);
-        BoardToTensor(*requests[i].board, &slice);
+        BoardToTensor(*requests[i]->board, &slice);
       }
       // Wait for this batch to be ready.
       mu_.Await(absl::Condition(&last_batch->ready));
@@ -115,25 +140,29 @@ void PredictionQueue::GetPredictions(Request* requests, int n) {
 
     // Batch ready, dispense results:
     for (int i = 0; i < batch_n; ++i) {
+      auto& request = *requests[i];
       auto board_policy = last_batch->move_p.SubSlice(offset + i);
-      requests[i].result.policy.clear();
-      requests[i].result.policy.reserve(requests[i].moves->size());
+      request.result.policy.clear();
+      request.result.policy.reserve(request.moves->size());
       double total = 0.0;
-      for (const Move& m : *requests[i].moves) {
+      for (const Move& m : *request.moves) {
         const double v =
-            MovePriorFromTensor(board_policy, requests[i].board->turn(), m);
-        requests[i].result.policy.emplace_back(m, v);
+            MovePriorFromTensor(board_policy, request.board->turn(), m);
+        request.result.policy.emplace_back(m, v);
         total += v;
       }
-      if (total < 0.2) {
-        // Remove this when starting from scratch.
-        std::cerr << "Network not good, 4/5 moves are not legal\n";
-        std::cerr << requests[i].board->ToPrintString();
+      if (total < 0.1) {
+        total += 1.0;
+        for (auto& move_p : request.result.policy) {
+          move_p.second = 1.0 / request.result.policy.size();
+        }
       }
-      for (auto& move_p : requests[i].result.policy) {
+      for (auto& move_p : request.result.policy) {
         move_p.second /= total;
       }
-      requests[i].result.value = last_batch->value.flat<float>()(i);
+      request.result.value = 1 * last_batch->value.matrix<float>()(i, 0) +
+                             -1 * last_batch->value.matrix<float>()(i, 1);
+      cache_.Insert(0, *request.board, request.result);
     }
 
     // Now we can try making a new request.
@@ -152,6 +181,8 @@ void PredictionQueue::GetPredictions(Request* requests, int n) {
     }
   }
 }
+
+void PredictionQueue::EmptyCache() { cache_.Clear(); }
 
 PolicyNetworkPlayer::PolicyNetworkPlayer(PredictionQueue* queue)
     : queue_(queue) {}

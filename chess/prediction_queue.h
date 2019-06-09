@@ -13,11 +13,11 @@
 #include "chess/board.h"
 #include "chess/model.h"
 #include "chess/tensors.h"
+#include "chess/prediction_cache.h"
 #include "tensorflow/core/framework/tensor.h"
 #include "chess/player.h"
 
 namespace chess {
-
 
 class PredictionQueue {
  public:
@@ -49,6 +49,8 @@ class PredictionQueue {
     return static_cast<double>(preds) / batches;
   }
 
+  void EmptyCache();
+
  private:
   struct WorkBatch {
     explicit WorkBatch(int n) : board_tensor(MakeBoardTensor(n)) {}
@@ -77,6 +79,7 @@ class PredictionQueue {
   bool stopped_ = false;
   int num_working_ = 0;
 
+  PredictionCache cache_;
   std::vector<std::thread> workers_;
   // TODO: Possible to put prediction cache here.
 };

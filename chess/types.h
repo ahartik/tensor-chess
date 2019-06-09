@@ -128,7 +128,7 @@ using MoveList = std::vector<Move>;
 
 // Output of either a neural network prediction, or MCTS evaluation.
 struct PredictionResult {
-  std::vector<std::pair<Move, double>> policy;
+  std::vector<std::pair<Move, float>> policy;
   double value = 0.0;
 };
 

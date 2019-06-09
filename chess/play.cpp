@@ -40,24 +40,21 @@ class RandomPlayer : public Player {
 void PlayGames() {
   Board::Init();
   auto model = CreateDefaultModel(/*allow_init=*/false);
+  auto human_model = CreateDefaultModel(false, -1, "human_new");
   PredictionQueue pred_queue(model.get(), 8);
+  PredictionQueue human_queue(human_model.get(), 8);
   std::vector<std::thread> threads;
 
   RandomPlayer random_player;
   CliHumanPlayer human_player;
   PolicyNetworkPlayer policy_player(&pred_queue);
   MCTSPlayer mcts_player(&pred_queue, 1000);
-
-  Player* const players[] = {
-      &random_player,
-      &policy_player,
-      &policy_player,
-      &human_player,
-  };
+  MCTSPlayer human_mcts_player(&human_queue, 1000);
 
   while (true) {
     // Game g({&random_player, &policy_player});
-    Game g({&policy_player, &mcts_player});
+    // Game g({&policy_player, &mcts_player});
+    Game g({&human_mcts_player, &mcts_player});
     while (!g.is_over()) {
       g.Work();
 

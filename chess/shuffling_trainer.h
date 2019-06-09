@@ -17,15 +17,16 @@ namespace chess {
 
 struct TrainingSample {
   Board board;
+  // TODO: Change to PredictionResult?
   std::vector<std::pair<Move, float>> moves;
-  double value = 0.0;
+  Color winner;
 };
 
 // This class is thread-safe.
 class ShufflingTrainer {
  public:
   explicit ShufflingTrainer(Model* model, int batch_size = 256,
-                            int shuffle_size = 10000);
+                            int shuffle_size = 1000);
   ~ShufflingTrainer();
 
   void Train(std::unique_ptr<TrainingSample> sample);

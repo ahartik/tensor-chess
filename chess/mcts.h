@@ -5,7 +5,7 @@
 #include <memory>
 #include <random>
 
-#include "absl/container/flat_hash_set.h"
+#include "absl/container/flat_hash_map.h"
 #include "absl/container/inlined_vector.h"
 #include "absl/container/node_hash_map.h"
 #include "absl/types/optional.h"
@@ -22,6 +22,22 @@ struct ActionRef {
   mcts::State* s;
   mcts::Action* a;
 };
+
+struct StateHasher {
+  using is_transparent = void;
+  size_t operator()(const State&) const;
+  size_t operator()(BoardFP) const;
+};
+
+struct StateEquals {
+  using is_transparent = void;
+
+  bool operator()(const State&, const State&) const;
+  bool operator()(const BoardFP&, const State&) const;
+  bool operator()(const State&, const BoardFP&) const;
+  bool operator()(const BoardFP&, const BoardFP&) const;
+};
+
 }  // namespace mcts
 
 class MCTS {
@@ -57,7 +73,7 @@ class MCTS {
     // What board we want to get inspected.
     Board board_;
     PathVec picked_path_;
-    std::shared_ptr<mcts::State> parent_;
+    mcts::State* parent_;
     MoveList moves_;
     // The action from 'parent' leading to this board.
     mcts::Action* parent_a_ = nullptr;
@@ -85,13 +101,12 @@ class MCTS {
 
  private:
   Board current_;
-  std::shared_ptr<mcts::State> root_;
+  mcts::State* root_;
 
-  // TODO: Actually implement repetition draws.
-  absl::flat_hash_set<uint64_t> visited_;
+  absl::flat_hash_map<uint64_t, int> visited_;
   // TODO: Optimize this memory-wise.
   // TODO: Probably no need for shared_ptr here.
-  absl::node_hash_map<Board, std::shared_ptr<mcts::State>> visited_states_;
+  absl::flat_hash_map<BoardFP, std::unique_ptr<mcts::State>> visited_states_;
   std::mt19937 rand_;
 };
 

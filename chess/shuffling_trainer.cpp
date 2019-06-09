@@ -11,9 +11,7 @@ constexpr bool kKeepPool = false;
 
 ShufflingTrainer::ShufflingTrainer(Model* model, int batch_size,
                                    int shuffle_size)
-    : model_(model),
-      batch_size_(batch_size),
-      shuffle_size_(shuffle_size) {
+    : model_(model), batch_size_(batch_size), shuffle_size_(shuffle_size) {
   CHECK_GE(shuffle_size, batch_size);
   workers_.emplace_back([this] { WorkerThread(); });
 }
@@ -40,6 +38,8 @@ void ShufflingTrainer::Train(std::unique_ptr<TrainingSample> sample) {
 #endif
 
   data_.push_back(std::move(sample));
+  // TODO: Also train flipped version of the board, and rotated if there are no
+  // pawns left.
   ++since_full_flush_;
   if (since_full_flush_ > 10 * shuffle_size_) {
     Flush();
@@ -61,7 +61,7 @@ void ShufflingTrainer::WorkerThread() {
       tensorflow::DT_FLOAT,
       tensorflow::TensorShape({batch_size_, kMoveVectorSize}));
   tensorflow::Tensor value_tensor(tensorflow::DT_FLOAT,
-                                  tensorflow::TensorShape({batch_size_}));
+                                  tensorflow::TensorShape({batch_size_, 3}));
 
   while (true) {
     std::vector<std::unique_ptr<TrainingSample>> batch_samples(batch_size_);
@@ -85,19 +85,29 @@ void ShufflingTrainer::WorkerThread() {
     }
 
     for (int i = 0; i < batch_size_; ++i) {
+      const auto& sample = batch_samples[i];
       auto board_matrix = board_tensor.SubSlice(i);
-      BoardToTensor(batch_samples[i]->board, &board_matrix);
+      BoardToTensor(sample->board, &board_matrix);
 
       auto move_vec = move_tensor.SubSlice(i);
       for (int i = 0; i < kMoveVectorSize; ++i) {
         move_vec.vec<float>()(i) = 0.0;
       }
-      const Color turn = batch_samples[i]->board.turn();
-      for (const auto& move : batch_samples[i]->moves) {
+      const Color turn = sample->board.turn();
+      for (const auto& move : sample->moves) {
         move_vec.vec<float>()(EncodeMove(turn, move.first)) = move.second;
       }
 
-      value_tensor.flat<float>()(i) = batch_samples[i]->value;
+      const int value_ind =
+          batch_samples[i]->winner == sample->board.turn()
+              ? 0
+              : batch_samples[i]->winner == OtherColor(sample->board.turn())
+                    ? 1
+                    : 2;
+      value_tensor.matrix<float>()(i, 0) = 0;
+      value_tensor.matrix<float>()(i, 1) = 0;
+      value_tensor.matrix<float>()(i, 2) = 0;
+      value_tensor.matrix<float>()(i, value_ind) = 1;
     }
 
     model_->RunTrainStep(board_tensor, move_tensor, value_tensor);

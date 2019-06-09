@@ -52,12 +52,13 @@ class Model {
   std::atomic<int64_t> num_preds_{0};
 };
 
-std::string GetDefaultGraphDef();
-std::string GetDefaultCheckpoint(int gen = -1);
+std::string GetDefaultCheckpoint(int gen = -1,
+                                 const std::string& dir = "default");
+
 int GetNumGens();
 
 std::unique_ptr<Model> CreateDefaultModel(bool allow_init, int gen = -1,
-                                          const std::string& dir = "");
+                                          const std::string& dir = "default");
 }  // namespace chess
 
 #endif

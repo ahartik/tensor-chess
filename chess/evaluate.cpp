@@ -19,7 +19,7 @@ namespace chess {
 
 const int kTourneySize = 400;
 const double kPromotionWinrate = 0.55;
-const int kNumIters = 200;
+const int kNumIters = 400;
 
 bool ShouldPromote(PredictionQueue* new_q, PredictionQueue* old_q) {
   std::atomic<int> score{0};
@@ -83,7 +83,7 @@ void PlayGames() {
       old_queue = std::move(new_queue);
       ++next_gen;
     }
-    absl::SleepFor(absl::Seconds(10));
+    absl::SleepFor(absl::Minutes(10));
   }
 }
 

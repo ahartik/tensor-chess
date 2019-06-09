@@ -1,20 +1,25 @@
 #include "chess/mcts_player.h"
 
+#include <time.h>
+
 #include "tensorflow/core/platform/logging.h"
 
 namespace chess {
 
 MCTSPlayer::MCTSPlayer(PredictionQueue* pq, int iters_per_move)
     : queue_(pq), iters_per_move_(iters_per_move) {
+  rand_.seed(time(0) ^ reinterpret_cast<intptr_t>(this));
   mcts_ = std::make_unique<MCTS>();
 }
 
 void MCTSPlayer::Reset() {
   mcts_->SetBoard(Board());
+  saved_predictions_.clear();
 }
 
 void MCTSPlayer::Advance(const Move& m) {
   mcts_->MakeMove(m);
+  saved_predictions_.emplace_back();
 }
 
 void MCTSPlayer::RunIterations(int n) {
@@ -37,24 +42,49 @@ void MCTSPlayer::RunIterations(int n) {
     requests.clear();
   };
 
-  for (int iter = 0; iter < n; ++iter) {
-    auto pred_req = mcts_->StartIteration();
-    if (pred_req != nullptr) {
-      requests.push_back(std::move(pred_req));
+  while (n >= 0) {
+    for (int i = 0; i < minibatch_size && i < n; ++i) {
+      auto pred_req = mcts_->StartIteration();
+      if (pred_req != nullptr) {
+        requests.push_back(std::move(pred_req));
+      }
     }
-    if (requests.size() == minibatch_size) {
-      flush();
-    }
+    flush();
+    n -= minibatch_size;
   }
-  flush();
 }
 
 Move MCTSPlayer::GetMove() {
-  int n = iters_per_move_ - mcts_->num_iterations();
-  RunIterations(n);
+  RunIterations(iters_per_move_);
   auto pred = mcts_->GetPrediction();
+
+  if (saved_predictions_.empty()) {
+    saved_predictions_.emplace_back();
+  }
+  {
+    auto& b = saved_predictions_.back();
+    b.board = mcts_->current_board();
+    b.pred = pred;
+  }
+
+  // Apply dirichlet noise here:
+
+  // LOG(INFO) << "v=" << pred.value;
+  // After certain ply, do
+#if 1
+  if (mcts_->current_board().ply() > 12 && (rand_() % 20 != 0)) {
+    double best = 0;
+    Move best_move;
+    for (const auto& m : pred.policy) {
+      if (m.second > best) {
+        best = m.second;
+        best_move = m.first;
+      }
+    }
+    return best_move;
+  }
+#endif
   double r = std::uniform_real_distribution<double>(0.0, 1.0)(rand_);
-  LOG(INFO) << "v=" << pred.value;
 
   CHECK(!pred.policy.empty());
   for (const auto& m : pred.policy) {

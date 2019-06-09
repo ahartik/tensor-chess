@@ -19,35 +19,29 @@
 
 namespace chess {
 
-const int kNumIters = 200;
+const int kNumIters = 400;
 
 void PlayerThread(int thread_i, PredictionQueue* pred_queue,
                   ShufflingTrainer* trainer) {
   auto player = std::make_unique<MCTSPlayer>(pred_queue, kNumIters);
-  const int kGamesPerRefresh = 100;
+  const int kGamesPerRefresh = 2;
   int games_to_refresh = kGamesPerRefresh;
 
   while (true) {
     Game g({player.get()});
     while (!g.is_over()) {
       g.Work();
-      if (thread_i == 0) {
-        std::cout << "Thread " << thread_i << ":\n"
-                  << g.board().ToPrintString() << "\n";
-      }
     }
-    double res = 0;
+    std::cout << "Thread " << thread_i << ":\n"
+              << g.board().ToPrintString() << "\n";
     switch (g.winner()) {
       case Color::kEmpty:
-        res = 0;
         std::cout << "Draw!\n\n";
         break;
       case Color::kWhite:
-        res = 1;
         std::cout << "White wins!\n\n";
         break;
       case Color::kBlack:
-        res = -1;
         std::cout << "Black wins!\n\n";
         break;
     }
@@ -57,7 +51,7 @@ void PlayerThread(int thread_i, PredictionQueue* pred_queue,
       auto sample = std::make_unique<TrainingSample>();
       sample->board = state.board;
       sample->moves = state.pred.policy;
-      sample->value = state.board.turn() == Color::kWhite ? res : -res;
+      sample->winner = g.winner();
       trainer->Train(std::move(sample));
     }
 
@@ -103,6 +97,8 @@ void PlayGames() {
 
     last_log = log_time;
     last_num_preds = num_preds;
+
+    pred_queue.EmptyCache();
 
     if (absl::Now() > last_clear + max_cache_age) {
       pred_queue.EmptyCache();

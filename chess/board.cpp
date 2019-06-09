@@ -457,4 +457,15 @@ std::ostream& operator<<(std::ostream& o, const Board& b) {
   return o << b.ToFEN();
 }
 
+BoardFP BoardFingerprint(const Board& b) {
+  // Construct another hash. This can be cheaper, since collisions with the
+  // primary hash are so unlikely.
+  // TODO: Consider making this stable so we can store it to disk.
+  uint64_t other_h = HashCombine(b.bitboard(Color::kWhite, Piece::kPawn) |
+                                     b.bitboard(Color::kWhite, Piece::kKing),
+                                 b.bitboard(Color::kBlack, Piece::kPawn) |
+                                     b.bitboard(Color::kBlack, Piece::kKing));
+  return absl::MakeUint128(other_h, b.board_hash());
+}
+
 }  // namespace chess

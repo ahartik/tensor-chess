@@ -35,8 +35,9 @@ Network structure:
 * Each head ends in 1x1 convolution, potentially followed by dense layers.
 
 Output "heads":
- * Policy: distribution of size 64 * (64 + 9)
- * Value: probability of win, probability of draw
+ * Policy: distribution with dims [73, 64]
+   - 
+ * Value: probability of win, probability of draw, probability of loss
  * Time usage learning: How much of remaining time should be used on this move.
 
 Time usage learning:

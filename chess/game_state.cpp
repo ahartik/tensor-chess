@@ -42,6 +42,12 @@ void Game::Advance(const Move& m) {
     return;
   }
   if (board_.no_progress_count() >= 100) {
+    std::cerr << "50 move rule draw\n";
+    is_over_ = true;
+    winner_ = Color::kEmpty;
+  }
+  if (board_.ply() >= 200) {
+    std::cerr << "Game too long, making it a draw\n";
     is_over_ = true;
     winner_ = Color::kEmpty;
   }

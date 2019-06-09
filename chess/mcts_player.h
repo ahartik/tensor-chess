@@ -27,11 +27,24 @@ class MCTSPlayer : public Player {
   // TODO: Move def to .cc
   Move GetMove() override;
 
+  struct SavedPrediction {
+    Board board;
+    PredictionResult pred;
+  };
+  std::vector<SavedPrediction> saved_predictions() const {
+    auto saved = saved_predictions_;
+    if (!saved.empty() && saved.back().pred.policy.empty()) {
+      saved.pop_back();
+    }
+    return saved_predictions_;
+  }
+
  private:
   void RunIterations(int n);
 
   PredictionQueue* const queue_;
   const int iters_per_move_;
+  std::vector<SavedPrediction> saved_predictions_;
   std::unique_ptr<MCTS> mcts_;
   std::mt19937 rand_;
 };

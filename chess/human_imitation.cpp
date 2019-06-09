@@ -23,9 +23,16 @@ void TrainGame(ShufflingTrainer* trainer, const GameRecord& record) {
     auto sample = std::make_unique<TrainingSample>();
     sample->board = board;
     sample->moves.emplace_back(m, 1.0);
-    sample->value = record.result();
-    if (board.turn() == Color::kBlack) {
-      sample->value *= -1;
+    switch (record.result()) {
+      case 1:
+        sample->winner = Color::kWhite;
+        break;
+      case -1:
+        sample->winner = Color::kBlack;
+        break;
+      case 0:
+        sample->winner = Color::kEmpty;
+        break;
     }
     trainer->Train(std::move(sample));
 
