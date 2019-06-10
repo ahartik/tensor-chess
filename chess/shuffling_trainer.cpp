@@ -14,6 +14,7 @@ ShufflingTrainer::ShufflingTrainer(Model* model, int batch_size,
     : model_(model), batch_size_(batch_size), shuffle_size_(shuffle_size) {
   CHECK_GE(shuffle_size, batch_size);
   workers_.emplace_back([this] { WorkerThread(); });
+  workers_.emplace_back([this] { WorkerThread(); });
 }
 
 ShufflingTrainer::~ShufflingTrainer() {
@@ -61,7 +62,7 @@ void ShufflingTrainer::WorkerThread() {
       tensorflow::DT_FLOAT,
       tensorflow::TensorShape({batch_size_, kMoveVectorSize}));
   tensorflow::Tensor value_tensor(tensorflow::DT_FLOAT,
-                                  tensorflow::TensorShape({batch_size_, 3}));
+                                  tensorflow::TensorShape({batch_size_}));
 
   while (true) {
     std::vector<std::unique_ptr<TrainingSample>> batch_samples(batch_size_);
@@ -98,14 +99,11 @@ void ShufflingTrainer::WorkerThread() {
         move_vec.vec<float>()(EncodeMove(turn, move.first)) = move.second;
       }
 
-      const int value_ind =
+      const double value =
           sample->winner == sample->board.turn()
-              ? 0
-              : sample->winner == OtherColor(sample->board.turn()) ? 1 : 2;
-      value_tensor.matrix<float>()(i, 0) = 0;
-      value_tensor.matrix<float>()(i, 1) = 0;
-      value_tensor.matrix<float>()(i, 2) = 0;
-      value_tensor.matrix<float>()(i, value_ind) = 1;
+              ? 1
+              : sample->winner == OtherColor(sample->board.turn()) ? -1 : 0;
+      value_tensor.flat<float>()(i) = value;
     }
 
     model_->RunTrainStep(board_tensor, move_tensor, value_tensor);

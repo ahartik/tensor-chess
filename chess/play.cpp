@@ -40,7 +40,8 @@ class RandomPlayer : public Player {
 void PlayGames() {
   Board::Init();
   auto model = CreateDefaultModel(/*allow_init=*/false);
-  auto human_model = CreateDefaultModel(false, -1, "human_new");
+  //auto human_model = CreateDefaultModel(false, -1, "human_new");
+  auto human_model = CreateDefaultModel(false, 0);
   PredictionQueue pred_queue(model.get(), 8);
   PredictionQueue human_queue(human_model.get(), 8);
   std::vector<std::thread> threads;
@@ -52,11 +53,12 @@ void PlayGames() {
   MCTSPlayer mcts_player(&pred_queue, 1000);
   MCTSPlayer human_mcts_player(&human_queue, 1000);
 
-  while (true) {
+  do {
     // Game g({&random_player, &policy_player});
-    Game g({&human_policy, &mcts_player});
-    // Game g({&policy_player, &human_policy});
-    // Game g({&human_mcts_player, &mcts_player});
+    // Game g({&human_policy, &mcts_player});
+    // Game g({&policy_player, &mcts_player});
+    Game g({&human_mcts_player, &mcts_player});
+    // Game g({&mcts_player, &human_mcts_player});
     // Game g({&human_mcts_player});
     while (!g.is_over()) {
       g.Work();
@@ -75,7 +77,7 @@ void PlayGames() {
         std::cout << "Black wins!\n\n";
         break;
     }
-  }
+  } while (false);
 }
 
 }  // namespace chess

@@ -20,6 +20,8 @@ int EncodeMove(Color turn, Move m);
 double MovePriorFromTensor(const tensorflow::Tensor& tensor, Color turn,
                            const Move& m);
 
+void InitMoveEncoding();
+
 }  // namespace chess
 
 #endif

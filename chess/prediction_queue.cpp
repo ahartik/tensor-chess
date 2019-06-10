@@ -160,8 +160,7 @@ void PredictionQueue::GetPredictions(Request* requests_in, int n) {
       for (auto& move_p : request.result.policy) {
         move_p.second /= total;
       }
-      request.result.value = 1 * last_batch->value.matrix<float>()(i, 0) +
-                             -1 * last_batch->value.matrix<float>()(i, 1);
+      request.result.value = last_batch->value.flat<float>()(i);
       cache_.Insert(0, *request.board, request.result);
     }
 

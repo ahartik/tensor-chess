@@ -8,6 +8,7 @@
 
 #include "absl/time/time.h"
 #include "chess/board.h"
+#include "chess/movegen.h"
 #include "chess/model.h"
 #include "chess/shuffling_trainer.h"
 #include "chess/tensors.h"
@@ -24,6 +25,16 @@ int TrainGame(ShufflingTrainer* trainer, const GameRecord& record) {
   int count_moves = 0;
   for (const MoveProto& move_proto : record.moves()) {
     const Move m = Move::FromProto(move_proto);
+    bool legal = false;
+    IterateLegalMoves(board, [m, &legal](Move legal_move) {
+      if (m == legal_move) {
+        legal = true;
+      }
+    });
+    if (!legal) {
+      std::cerr << "Illegal move " << m << " in '" << board.ToFEN() << "'\n";
+      return count_moves;
+    }
     auto sample = std::make_unique<TrainingSample>();
     sample->board = board;
     sample->moves.emplace_back(m, 1.0);
@@ -45,6 +56,7 @@ int TrainGame(ShufflingTrainer* trainer, const GameRecord& record) {
   }
   return count_moves;
 }
+
 void TrainerThread(int tid, ShufflingTrainer* trainer,
                    const std::vector<std::string>& files) {
   std::mt19937_64 mt(time(0) ^ tid);
@@ -70,12 +82,13 @@ void TrainerThread(int tid, ShufflingTrainer* trainer,
 }
 
 void TrainFiles(const std::vector<std::string>& files) {
+  Board::Init();
   auto model = CreateDefaultModel(/*allow_init=*/true);
 
-  ShufflingTrainer trainer(model.get());
+  ShufflingTrainer trainer(model.get(), 512, 512 * 20);
   std::vector<std::thread> threads;
 
-  const int kNumThreads = 4;
+  const int kNumThreads = 1;
   for (int i = 0; i < kNumThreads; ++i) {
     threads.emplace_back(
         [i, &trainer, &files] { TrainerThread(i, &trainer, files); });

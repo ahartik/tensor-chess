@@ -67,7 +67,7 @@ Move MCTSPlayer::GetMove() {
     b.pred = pred;
   }
 
-  LOG(INFO) << "v=" << pred.value;
+  // LOG(INFO) << "v=" << pred.value << " for " << mcts_->current_board().turn();
   // After certain ply, do
 #if 1
   if (mcts_->current_board().ply() > 12 && (rand_() % 20 != 0)) {

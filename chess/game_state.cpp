@@ -46,7 +46,7 @@ void Game::Advance(const Move& m) {
     is_over_ = true;
     winner_ = Color::kEmpty;
   }
-  if (board_.ply() >= 200) {
+  if (board_.ply() >= 300) {
     std::cerr << "Game too long, making it a draw\n";
     is_over_ = true;
     winner_ = Color::kEmpty;

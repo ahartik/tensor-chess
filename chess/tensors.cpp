@@ -65,6 +65,70 @@ constexpr int kNumLayers = sizeof(layers) / sizeof(layers[0]);
 
 static_assert(kNumLayers == 14, "Update build_graph.py if this number changes");
 
+int move_encoding[16][16] = {};
+constexpr int kCenter = 8;
+int InitMoves() {
+  memset(move_encoding, 0xff, sizeof(move_encoding));
+  // Queen moves.
+  int dr[] = {1, 1, 0, -1, -1, -1, 0, 1};
+  int df[] = {0, 1, 1, 1, 0, -1, -1, -1};
+  int m = 0;
+  for (int d = 0; d < 8; ++d) {
+    for (int i = 1; i <= 7; ++i) {
+      int r = kCenter + i * dr[d];
+      int f = kCenter + i * df[d];
+      CHECK_EQ(move_encoding[r][f], -1);
+      move_encoding[r][f] = m++;
+    }
+  }
+  CHECK_EQ(m, 56);
+  // Knight moves
+  for (int dr : {1, 2}) {
+    const int df = dr ^ 3;
+    // Either can be positive or negative.
+    for (int i = 0; i < 4; ++i) {
+      int result_r = kCenter + dr * ((i & 1) ? 1 : -1);
+      int result_f = kCenter + df * ((i & 2) ? 1 : -1);
+      move_encoding[result_r][result_f] = m++;
+    }
+  }
+  CHECK_EQ(m, 64);
+  return 0;
+}
+
+const int dummy = InitMoves();
+
+int EncodeMoveTo(const Move& m) {
+  if (m.promotion != Piece::kNone && m.promotion != Piece::kQueen) {
+    int encoded_from = 0;
+    if (m.to == m.from + 8) {
+      encoded_from = 64;
+    } else if (m.to == m.from + 7) {
+      encoded_from = 67;
+    } else if (m.to == m.from + 9) {
+      encoded_from = 70;
+    }
+    switch (m.promotion) {
+      case Piece::kRook:
+        break;
+      case Piece::kBishop:
+        encoded_from += 1;
+        break;
+      case Piece::kKnight:
+        encoded_from += 2;
+        break;
+      default:
+        LOG(FATAL) << "Invalid promotion " << m.promotion << "\n";
+    }
+    return encoded_from;
+  }
+  int dr = SquareRank(m.to) - SquareRank(m.from);
+  int df = SquareFile(m.to) - SquareFile(m.from);
+  int x = move_encoding[kCenter + dr][kCenter + df];
+  CHECK_GE(x, 0) << "dr=" << dr << " df=" << df << " m= " << m;
+  return x;
+}
+
 }  // namespace
 
 int EncodeMove(Color turn, Move m) {
@@ -72,30 +136,7 @@ int EncodeMove(Color turn, Move m) {
     m.to = FlippedSquare(m.to);
     m.from = FlippedSquare(m.from);
   }
-  if (m.promotion == Piece::kNone || m.promotion == Piece::kQueen) {
-    return 64 * m.from + m.to;
-  }
-  int encoded_from = 0;
-  if (m.to == m.from + 8) {
-    encoded_from = 64;
-  } else if (m.to == m.from + 7) {
-    encoded_from = 67;
-  } else if (m.to == m.from + 9) {
-    encoded_from = 70;
-  }
-  switch (m.promotion) {
-    case Piece::kRook:
-      break;
-    case Piece::kBishop:
-      encoded_from += 1;
-      break;
-    case Piece::kKnight:
-      encoded_from += 2;
-      break;
-    default:
-      LOG(FATAL) << "Invalid promotion " << m.promotion << "\n";
-  }
-  return encoded_from * 64 + m.to;
+  return 64 * EncodeMoveTo(m) + m.from;
 }
 
 tensorflow::Tensor MakeBoardTensor(int batch_size) {
