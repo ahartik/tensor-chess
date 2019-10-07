@@ -19,7 +19,7 @@ class MCTSPlayer : public Player {
   explicit MCTSPlayer(PredictionQueue* pq, int iters_per_move);
 
   //
-  void Reset() override;
+  void Reset(const Board& b) override;
 
   //
   void Advance(const Move& m) override;

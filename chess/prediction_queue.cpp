@@ -7,12 +7,15 @@ namespace chess {
 namespace {
 
 constexpr int kMaxPendingBatches = 2;
+constexpr int kFreelistMaxSize = 2;
+
+constexpr int kGenBuckets = 10;
 
 }  // namespace
 
 PredictionQueue::PredictionQueue(Model* model, int max_batch_size)
     : model_(model), max_batch_size_(max_batch_size) {
-  const int kNumWorkers = 3;
+  const int kNumWorkers = 2;
   for (int i = 0; i < kNumWorkers; ++i) {
     workers_.emplace_back([this, i] { WorkerThread(i); });
   }
@@ -138,6 +141,7 @@ void PredictionQueue::GetPredictions(Request* requests_in, int n) {
     CHECK_GE(offset, 0);
     CHECK_NE(last_batch, nullptr);
 
+    const int64_t gen = gen_;
     // Batch ready, dispense results:
     for (int i = 0; i < batch_n; ++i) {
       auto& request = *requests[i];
@@ -161,7 +165,7 @@ void PredictionQueue::GetPredictions(Request* requests_in, int n) {
         move_p.second /= total;
       }
       request.result.value = last_batch->value.flat<float>()(i);
-      cache_.Insert(0, *request.board, request.result);
+      cache_.Insert(gen, *request.board, request.result);
     }
 
     // Now we can try making a new request.
@@ -175,18 +179,27 @@ void PredictionQueue::GetPredictions(Request* requests_in, int n) {
       if (last_batch->pending_requests == 0) {
         // This was the last request to be served from this batch, we can
         // freelist this batch.
-        freelist_.push_back(std::move(last_batch));
+        if (freelist_.size() < kFreelistMaxSize) {
+          freelist_.push_back(std::move(last_batch));
+        }
       }
     }
   }
 }
 
-void PredictionQueue::EmptyCache() { cache_.Clear(); }
+void PredictionQueue::SetCycleTime(double cycle_time) {
+  const int64_t gen = kGenBuckets * fmod(cycle_time, 1ll << 20);
+  cache_.ClearOlderThan(gen - kGenBuckets);
+  gen_ = gen;
+}
+
+void PredictionQueue::CacheRealPrediction(const Board& b,
+                                          const PredictionResult& result) {
+  cache_.Insert(gen_, b, result);
+}
 
 PolicyNetworkPlayer::PolicyNetworkPlayer(PredictionQueue* queue)
     : queue_(queue) {}
-
-void PolicyNetworkPlayer::Reset() { b_ = Board(); }
 
 void PolicyNetworkPlayer::Advance(const Move& m) { b_ = Board(b_, m); }
 

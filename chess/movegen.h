@@ -33,7 +33,7 @@ class MoveGenerator {
       in_check_ = true;
       bool in_check = ComputeCheck(&check_ok_, &push_mask_);
       if (ABSL_PREDICT_FALSE(!in_check)) {
-        std::cerr << "ComputeCheck disagrees with king_danger\n";
+        std::cerr << "ComputeCheck disagrees with king_danger " << b.ToFEN() << "\n";
         abort();
       }
       check_ok_ |= push_mask_;

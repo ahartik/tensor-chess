@@ -23,21 +23,6 @@ struct ActionRef {
   mcts::Action* a;
 };
 
-struct StateHasher {
-  using is_transparent = void;
-  size_t operator()(const State&) const;
-  size_t operator()(BoardFP) const;
-};
-
-struct StateEquals {
-  using is_transparent = void;
-
-  bool operator()(const State&, const State&) const;
-  bool operator()(const BoardFP&, const State&) const;
-  bool operator()(const State&, const BoardFP&) const;
-  bool operator()(const BoardFP&, const BoardFP&) const;
-};
-
 }  // namespace mcts
 
 class MCTS {

@@ -6,10 +6,11 @@
 
 namespace chess {
 
-Game::Game(const std::vector<Player*>& players) : players_(players) {
+Game::Game(const std::vector<Player*>& players, Board start)
+    : players_(players), board_(start) {
   ++visit_count_[board_.board_hash()];
   for (Player* p : players_) {
-    p->Reset();
+    p->Reset(board_);
   }
 }
 

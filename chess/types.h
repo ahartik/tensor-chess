@@ -38,7 +38,7 @@ extern const Piece kPromoPieces[4];
 
 struct PieceColor {
   Piece p;
-  Color c;
+  Color c = Color::kEmpty;
 };
 
 inline char PieceChar(Piece p, Color c = Color::kWhite) {

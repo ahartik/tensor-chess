@@ -49,7 +49,10 @@ class PredictionQueue {
     return static_cast<double>(preds) / batches;
   }
 
-  void EmptyCache();
+  // 
+  void SetCycleTime(double cycle_time);
+
+  void CacheRealPrediction(const Board& b, const PredictionResult& result);
 
  private:
   struct WorkBatch {
@@ -78,6 +81,7 @@ class PredictionQueue {
   // TODO: Add freelist for work batch items.
   bool stopped_ = false;
   int num_working_ = 0;
+  std::atomic<int64_t> gen_{0};
 
   PredictionCache cache_;
   std::vector<std::thread> workers_;
@@ -91,7 +95,7 @@ class PolicyNetworkPlayer : public Player {
  public:
   PolicyNetworkPlayer(PredictionQueue* queue);
 
-  void Reset() override;
+  void Reset(const Board& b) override { b_ = b; }
   void Advance(const Move& m) override;
   Move GetMove() override;
 

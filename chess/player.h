@@ -16,7 +16,7 @@ class Player {
   virtual ~Player() {}
 
   // Modify board state.
-  virtual void Reset() = 0;
+  virtual void Reset(const Board& b) = 0;
   virtual void Advance(const Move& m) = 0;
 
   //
@@ -27,7 +27,7 @@ class Player {
 class CliHumanPlayer : public Player {
  public:
   // Modify board state.
-  void Reset() override { b_ = Board(); }
+  void Reset(const Board& b) override { b_ = b; }
 
   void Advance(const Move& m) override { b_ = Board(b_, m); }
 

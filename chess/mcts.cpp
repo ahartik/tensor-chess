@@ -13,21 +13,20 @@ namespace mcts {
 
 struct Action {
   Move move;
-  // Prior and prior value don't change after construction.
+  // Prior doesn't change after construction.
   double prior = 0.0;
 
   int num_virtual = 0;
   int num_taken = 0;
   double total_value = 0;
-  State* state;
+  State* state = nullptr;
 
   void AddResult(double v);
 };
 
 struct State {
   State(const Board& b, const PredictionResult& p)
-      : fp(BoardFingerprint(b)),
-        turn(b.turn()),
+      : turn(b.turn()),
         is_terminal(false),
         winner(Color::kEmpty) {
     CHECK_GT(p.policy.size(), 0);
@@ -45,8 +44,7 @@ struct State {
   }
 
   State(const Board& b, Color winner)
-      : fp(BoardFingerprint(b)),
-        turn(b.turn()),
+      : turn(b.turn()),
         is_terminal(true),
         winner(winner) {}
 
@@ -63,32 +61,12 @@ struct State {
       return -1;
     }
   }
-  const BoardFP fp;
+  // const BoardFP fp;
   const Color turn;
   const bool is_terminal;
   const Color winner;
   std::vector<Action> actions;
 };
-
-size_t StateHasher::operator()(const State& state) const {
-  return absl::Uint128Low64(state.fp);
-}
-size_t StateHasher::operator()(BoardFP fp) const {
-  return absl::Uint128Low64(fp);
-}
-
-bool StateEquals::operator()(const State& a, const State& b) const {
-  return a.fp == b.fp;
-}
-bool StateEquals::operator()(const BoardFP& a, const State& b) const {
-  return a == b.fp;
-}
-bool StateEquals::operator()(const State& a, const BoardFP& b) const {
-  return b == a.fp;
-}
-bool StateEquals::operator()(const BoardFP& a, const BoardFP& b) const {
-  return a == b;
-}
 
 void Action::AddResult(double v) {
   num_taken += 1;
@@ -191,7 +169,7 @@ std::unique_ptr<MCTS::PredictionRequest> MCTS::StartIteration() {
   Board cur_board = current_;
   while (true) {
     CHECK_EQ(cur_board.turn(), cur->turn);
-    CHECK_EQ(BoardFingerprint(cur_board), cur->fp) << cur_board;
+    // CHECK_EQ(BoardFingerprint(cur_board), cur->fp) << cur_board;
     Action* best_action = PickAction(rand_, *cur, cur == root_);
     picked_path.emplace_back(cur, best_action);
     cur_board = Board(cur_board, best_action->move);
@@ -219,7 +197,6 @@ std::unique_ptr<MCTS::PredictionRequest> MCTS::StartIteration() {
     if (best_action->state == nullptr) {
       // See if we already visited this state via some other path.
       const auto trans_it = visited_states_.find(cur_fp);
-      std::shared_ptr<State> transposed;
       if (trans_it != visited_states_.end()) {
         CHECK(trans_it->second != nullptr);
         best_action->state = trans_it->second.get();
@@ -366,7 +343,7 @@ void MCTS::MakeMove(Move m) {
 
   if (root_ != nullptr) {
     CHECK_EQ(current_.turn(), root_->turn);
-    CHECK_EQ(BoardFingerprint(current_), root_->fp);
+    // CHECK_EQ(BoardFingerprint(current_), root_->fp);
   } else {
     SetBoard(current_);
   }
@@ -376,7 +353,8 @@ void MCTS::MakeMove(Move m) {
 void MCTS::SetBoard(const Board& b) {
   current_ = b;
   visited_.clear();
-  const auto it = visited_states_.find(BoardFingerprint(b));
+  const auto fp = BoardFingerprint(b);
+  const auto it = visited_states_.find(fp);
   if (it == visited_states_.end()) {
     // Start with even split over all legal moves.
     // TODO: This is not correct, fix this.
@@ -401,7 +379,7 @@ void MCTS::SetBoard(const Board& b) {
         break;
     }
     root_ = new_root.get();
-    visited_states_[root_->fp] = std::move(new_root);
+    visited_states_[fp] = std::move(new_root);
   } else {
     root_ = it->second.get();
   }

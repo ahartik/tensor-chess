@@ -137,6 +137,21 @@ Board::Board(const BoardProto& p) {
   board_hash_ = ComputeBoardHash();
 }
 
+Board::Board(PieceColor arr[64]) {
+  memset(&bitboards_, 0, sizeof(bitboards_));
+  for (int i = 0; i < 64; ++i) {
+    auto p = arr[i];
+    if (p.c != Color::kEmpty) {
+      bitboards_[int(p.c)][int(p.p)] |= 1ull << i;
+    }
+  }
+  en_passant_ = 0;
+  castling_rights_ = 0;
+  half_move_count_ = 0;
+  no_progress_count_ = 0;
+  board_hash_ = ComputeBoardHash();
+}
+
 Board::Board(const Board& o, const Move& m) : Board(o) {
   const uint64_t from_o = OneHot(m.from);
   const uint64_t to_o = OneHot(m.to);

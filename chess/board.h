@@ -35,6 +35,8 @@ class Board {
 
   explicit Board(const BoardProto& p);
 
+  explicit Board(PieceColor arr[64]);
+
   // crashes on failure
   explicit Board(absl::string_view fen);
 

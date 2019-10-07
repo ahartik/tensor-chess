@@ -10,7 +10,7 @@ namespace chess {
 
 class Game {
  public:
-  explicit Game(const std::vector<Player*>& players);
+  explicit Game(const std::vector<Player*>& players, Board start = Board());
 
   //
   const Board& board() const { return board_; }

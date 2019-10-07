@@ -12,8 +12,8 @@ MCTSPlayer::MCTSPlayer(PredictionQueue* pq, int iters_per_move)
   mcts_ = std::make_unique<MCTS>();
 }
 
-void MCTSPlayer::Reset() {
-  mcts_->SetBoard(Board());
+void MCTSPlayer::Reset(const Board& b) {
+  mcts_->SetBoard(b);
   saved_predictions_.clear();
 }
 
@@ -66,9 +66,10 @@ Move MCTSPlayer::GetMove() {
     b.board = mcts_->current_board();
     b.pred = pred;
   }
+  queue_->CacheRealPrediction(mcts_->current_board(), pred);
 
-  // LOG(INFO) << "v=" << pred.value << " for " << mcts_->current_board().turn();
-  // After certain ply, do
+  // LOG(INFO) << "v=" << pred.value << " for " <<
+  // mcts_->current_board().turn(); After certain ply, do
 #if 1
   if (mcts_->current_board().ply() > 12 && (rand_() % 20 != 0)) {
     double best = 0;
@@ -91,6 +92,7 @@ Move MCTSPlayer::GetMove() {
       return m.first;
     }
   }
+
   return pred.policy[0].first;
 }
 
