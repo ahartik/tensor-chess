@@ -1,9 +1,9 @@
 load("@org_tensorflow//tensorflow:tensorflow.bzl", "tf_cc_binary")
 load("@org_tensorflow//tensorflow:tensorflow.bzl", "tf_copts")
-load(
-    "@org_tensorflow//tensorflow/core:platform/default/build_config.bzl",
-    "tf_proto_library",
-)
+# load(
+#     "@org_tensorflow//tensorflow/core:platform/default/build_config.bzl",
+#     "tf_proto_library",
+# )
 
 cc_library(
     name = "board",
