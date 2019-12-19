@@ -17,9 +17,10 @@
 #include "absl/time/time.h"
 #include "c4cc/board.h"
 #include "c4cc/mcts_player.h"
-#include "c4cc/model.h"
+#include "c4cc/model_collection.h"
 #include "c4cc/play_game.h"
 #include "c4cc/shuffling_trainer.h"
+#include "generic/model.h"
 #include "tensorflow/core/platform/env.h"
 #include "tensorflow/core/platform/init_main.h"
 #include "tensorflow/core/platform/logging.h"
@@ -32,11 +33,18 @@ const bool be_simple = false;
 
 std::atomic<int64_t> num_boards;
 
+std::unique_ptr<generic::Model> OpenOrCreateModel() {
+  auto model = generic::Model::Open(
+      kModelPath, GetModelCollection()->CurrentCheckpointDir());
+  if (model == nullptr) {
+    model = generic::Model::New(kModelPath);
+  }
+  return model;
+}
+
 // This class is thread-safe.
 class Trainer {
  public:
-  Trainer() {}
-
   // As MCTSPlayer is not thread-safe, don't call this with the same player
   // from multiple threads.
   void PlayGame(MCTSPlayer* player) {
@@ -77,13 +85,13 @@ class Trainer {
     absl::MutexLock lock(&mu_);
     const int64_t num = trainer_.num_trained();
     if (num > last_num_trained_ + checkpoint_interval_) {
-      model_->Checkpoint(GetDefaultCheckpoint());
+      model_->Checkpoint(GetModelCollection()->CurrentCheckpointDir());
       last_num_trained_ = num;
       LOG(INFO) << "Checkpointed";
     }
   }
 
-  std::unique_ptr<Model> model_ = CreateDefaultModel(true);
+  std::unique_ptr<generic::Model> model_{OpenOrCreateModel()};
   mutable PredictionQueue queue_{model_.get()};
 
   const int checkpoint_interval_ = 10 * 1024;

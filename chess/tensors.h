@@ -11,8 +11,8 @@ extern const int kMoveVectorSize;
 // Returns an unset tensor of the shape to hold 'batch_size' input boards.
 tensorflow::Tensor MakeBoardTensor(int batch_size);
 tensorflow::Tensor MakeMoveTensor(int batch_size);
-// Writes board state to tensor at given index. Here i < batch_size used to
-// create the tensor.
+
+// Writes board state to tensor.
 void BoardToTensor(const Board& b, tensorflow::Tensor* tensor);
 
 int EncodeMove(Color turn, Move m);

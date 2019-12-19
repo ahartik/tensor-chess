@@ -88,7 +88,7 @@ int MCTSPlayer::GetMove() {
   CHECK(!board().is_over());
 
   Prediction pred = GetPrediction();
-  LogStats();
+  // LogStats();
 
   // TODO: Add options for move selection (i.e. temperature).
   const auto valid_moves = board().valid_moves();

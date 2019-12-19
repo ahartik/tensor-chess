@@ -1,10 +1,10 @@
 #ifndef _C4CC_MCTS_PLAYER_H_
 #define _C4CC_MCTS_PLAYER_H_
+
 #include <random>
 
 #include "c4cc/board.h"
 #include "c4cc/mcts.h"
-#include "c4cc/model.h"
 #include "c4cc/play_game.h"
 #include "c4cc/prediction_queue.h"
 

@@ -1,6 +1,7 @@
 #include "c4cc/shuffling_trainer.h"
 
 #include "absl/time/time.h"
+#include "c4cc/board_tensor.h"
 
 namespace c4cc {
 
@@ -8,7 +9,7 @@ namespace {
   constexpr bool kKeepPool = true;
 }
 
-ShufflingTrainer::ShufflingTrainer(Model* model, int batch_size,
+ShufflingTrainer::ShufflingTrainer(generic::Model* model, int batch_size,
                                    int shuffle_size)
     : model_(model),
       batch_size_(batch_size),

@@ -128,7 +128,6 @@ cc_library(
     deps = [
         ":mcts",
         ":board",
-        ":model",
         ":play_game",
         ":prediction_queue",
         "@org_tensorflow//tensorflow/core:lib",
@@ -143,7 +142,8 @@ cc_library(
     copts = tf_copts(),
     deps = [
         ":board",
-        ":model",
+        ":board_tensor",
+        "//generic:model",
         "@com_google_absl//absl/synchronization",
         "@org_tensorflow//tensorflow/core:lib",
         "@org_tensorflow//tensorflow/core:tensorflow",
@@ -157,7 +157,8 @@ cc_library(
     copts = tf_copts(),
     deps = [
         ":board",
-        ":model",
+        ":board_tensor",
+        "//generic:model",
         "@com_google_absl//absl/synchronization",
         "@com_google_absl//absl/time",
         "@org_tensorflow//tensorflow/core:lib",
@@ -185,13 +186,12 @@ tf_cc_binary(
     srcs = ["self_play_trainer.cpp"],
     deps = [
         ":board",
-        ":human_player",
-        ":model",
         ":mcts_player",
-        ":negamax",
         ":play_game",
         ":shuffling_trainer",
+        "//generic:model",
         "//util:init",
+        ":model_collection",
         "@com_google_absl//absl/synchronization",
         "@com_google_absl//absl/time",
         "@org_tensorflow//tensorflow/core:lib",
@@ -209,5 +209,40 @@ tf_cc_binary(
         ":play_game",
         "//util:init",
         "@com_google_absl//absl/time",
+    ],
+)
+
+cc_library(
+    name = "board_tensor",
+    srcs = ["board_tensor.cpp"],
+    hdrs = ["board_tensor.h"],
+    copts = tf_copts(),
+    deps = [
+        ":board",
+        "//generic:model",
+    ],
+)
+
+cc_library(
+    name = "model_collection",
+    srcs = ["model_collection.cpp"],
+    hdrs = ["model_collection.h"],
+    copts = tf_copts(),
+    deps = [
+        "//generic:model",
+    ],
+)
+
+cc_library(
+    name =  "generic_board",
+    srcs = ["generic_board.cpp"],
+    hdrs = ["generic_board.h"],
+    copts = tf_copts(),
+    deps = [
+        ":board",
+        "//generic:board",
+        "@org_tensorflow//tensorflow/core:tensorflow",
+        "@com_google_absl//absl/numeric:int128",
+        "@com_google_absl//absl/hash",
     ],
 )

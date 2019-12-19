@@ -8,3 +8,5 @@ build --action_env=TMP=/tmp/
 build -c opt
 build --copt=-march=native
 build --nocheck_visibility
+
+build --cxxopt=-std=c++14

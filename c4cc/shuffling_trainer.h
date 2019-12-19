@@ -1,23 +1,23 @@
 #ifndef _C4CC_SHUFFLING_TRAINER_H_
 #define _C4CC_SHUFFLING_TRAINER_H_
 
-#include <deque>
 #include <atomic>
 #include <cstdint>
+#include <deque>
 #include <random>
 #include <thread>
 #include <vector>
 
 #include "absl/synchronization/mutex.h"
 #include "c4cc/board.h"
-#include "c4cc/model.h"
+#include "generic/model.h"
 
 namespace c4cc {
 
 // This class is thread-safe.
 class ShufflingTrainer {
  public:
-  explicit ShufflingTrainer(Model* model, int batch_size = 256,
+  explicit ShufflingTrainer(generic::Model* model, int batch_size = 256,
                             int shuffle_size = 10000);
   ~ShufflingTrainer();
 
@@ -37,7 +37,7 @@ class ShufflingTrainer {
 
   void WorkerThread();
 
-  Model* const model_;
+  generic::Model* const model_;
   const int batch_size_;
   const int shuffle_size_;
   // 4 minutes of boards.

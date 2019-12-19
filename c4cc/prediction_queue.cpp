@@ -4,7 +4,7 @@
 
 namespace c4cc {
 
-PredictionQueue::PredictionQueue(Model* model) : model_(model) {
+PredictionQueue::PredictionQueue(generic::Model* model) : model_(model) {
   const int kNumWorkers = 3;
   for (int i = 0; i < kNumWorkers; ++i) {
     workers_.emplace_back([this, i] { WorkerThread(i); });
