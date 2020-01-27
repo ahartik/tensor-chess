@@ -171,8 +171,8 @@ tf_cc_binary(
     srcs = ["play.cpp"],
     deps = [
         ":board",
+        ":model_collection",
         ":human_player",
-        ":model",
         ":mcts_player",
         ":negamax",
         ":play_game",

@@ -37,7 +37,10 @@ std::unique_ptr<generic::Model> OpenOrCreateModel() {
   auto model = generic::Model::Open(
       kModelPath, GetModelCollection()->CurrentCheckpointDir());
   if (model == nullptr) {
+    LOG(INFO) << "Starting from scratch";
     model = generic::Model::New(kModelPath);
+  } else {
+    LOG(INFO) << "Continuing training";
   }
   return model;
 }

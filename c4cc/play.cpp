@@ -9,7 +9,7 @@
 #include "absl/synchronization/mutex.h"
 #include "c4cc/human_player.h"
 #include "c4cc/mcts_player.h"
-#include "c4cc/model.h"
+#include "c4cc/model_collection.h"
 #include "c4cc/negamax.h"
 #include "c4cc/play_game.h"
 #include "c4cc/prediction_queue.h"
@@ -102,17 +102,21 @@ void Play(Options opts) {
 
 void Go(int argc, char** argv) {
   // auto model1 = CreateDefaultModel(/*allow_init=*/false, -1, "golden");
-  auto model2 = CreateDefaultModel(/*allow_init=*/false, -1);
+  // auto model2 = CreateDefaultModel(/*allow_init=*/false, -1);
+  auto model = generic::Model::Open(
+      kModelPath, GetModelCollection()->CurrentCheckpointDir());
+  CHECK(model != nullptr);
 
-  PredictionQueue q1(model2.get());
-  PredictionQueue q2(model2.get());
+  PredictionQueue q(model.get());
+  // PredictionQueue q2(model2.get());
 
   c4cc::Options opts;
   opts.players[0] = c4cc::PlayerType::kHuman;
   opts.players[1] = c4cc::PlayerType::kMcts;
   opts.mcts_iters = 1000;
-  opts.queues[0] = &q2;
-  opts.queues[1] = &q2;
+  opts.queues[0] = &q;
+  opts.queues[1] = &q;
+  // opts.queues[1] = &q2;
 
   c4cc::Play(opts);
 }
