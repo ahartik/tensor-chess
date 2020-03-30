@@ -17,7 +17,7 @@ class GenericBoard : public generic::Board {
   }
 
   generic::BoardFP fingerprint() const override {
-      return absl::Hash<c4cc::Board>()(b_);
+    return absl::Hash<c4cc::Board>()(b_);
   }
 
   std::vector<int> GetValidMoves() const override {
@@ -26,6 +26,21 @@ class GenericBoard : public generic::Board {
       moves.push_back(move);
     }
     return moves;
+  }
+
+  bool is_over() const override {
+    return b_.is_over();
+  }
+  int result() const override {
+    const auto winner = b_.result();
+    if (winner == Color::kEmpty) {
+      return 0;
+    }
+    if (winner == b_.turn()) {
+      return 1;
+    } else {
+      return -1;
+    }
   }
 
   // These are constant per game.
