@@ -15,11 +15,6 @@
 
 namespace generic {
 
-struct PredictionResult {
-  std::vector<std::pair<int, float>> policy;
-  double value = 0.0;
-};
-
 // This class is thread-safe.
 class PredictionQueue {
  public:

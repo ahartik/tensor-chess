@@ -128,8 +128,8 @@ cc_library(
     deps = [
         ":board",
         ":generic_board",
-        ":mcts",
         ":play_game",
+        "//generic:mcts",
         "//generic:prediction_queue",
         "@org_tensorflow//tensorflow/core:lib",
         "@org_tensorflow//tensorflow/core:tensorflow",

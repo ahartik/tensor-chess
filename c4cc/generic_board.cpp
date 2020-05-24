@@ -41,6 +41,8 @@ class GenericBoard : public generic::Board {
     }
   }
 
+  int turn() const override { return b_.turn() == Color::kOne ? 0 : 1; }
+
   // These are constant per game.
   void GetTensorShape(int n, tensorflow::TensorShape* shape) const override {
     *shape = tensorflow::TensorShape({n, 84});

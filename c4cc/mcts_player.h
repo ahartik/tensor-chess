@@ -4,8 +4,8 @@
 #include <random>
 
 #include "c4cc/board.h"
-#include "c4cc/mcts.h"
 #include "c4cc/play_game.h"
+#include "generic/mcts.h"
 #include "generic/prediction_queue.h"
 
 namespace c4cc {
@@ -16,7 +16,7 @@ class MCTSPlayer : public Player {
                       bool hard = false);
   ~MCTSPlayer() override {}
 
-  const Board& board() const override { return mcts_->current_board(); }
+  const Board& board() const override { return board_; };
 
   void SetBoard(const Board& b) override;
   int GetMove() override;
@@ -33,10 +33,11 @@ class MCTSPlayer : public Player {
   generic::PredictionQueue* const queue_;
   const bool hard_;
 
+  Board board_;
   const int iters_per_move_;
   Prediction current_pred_;
   bool pred_ready_;
-  std::unique_ptr<MCTS> mcts_;
+  std::unique_ptr<generic::MCTS> mcts_;
   std::mt19937 rand_;
 };
 

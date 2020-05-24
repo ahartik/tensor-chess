@@ -1,6 +1,8 @@
+#include <pthread.h>
 #include <time.h>
 
 #include <memory>
+#include <vector>
 
 #include "c4cc/generic_board.h"
 #include "c4cc/mcts_player.h"
@@ -15,14 +17,12 @@ MCTSPlayer::MCTSPlayer(generic::PredictionQueue* queue, int iters, bool hard)
     : queue_(queue),
       hard_(hard),
       iters_per_move_(iters),
-      mcts_(std::make_unique<MCTS>(Board())) {
+      mcts_(std::make_unique<generic::MCTS>(MakeGenericBoard(Board()))) {
   rand_.seed(time(0) ^ reinterpret_cast<intptr_t>(this));
 }
 
 void MCTSPlayer::SetBoard(const Board& b) {
-  if (b != mcts_->current_board()) {
-    mcts_->SetBoard(b);
-  }
+  mcts_->SetBoard(MakeGenericBoard(b));
   pred_ready_ = false;
 }
 
@@ -30,41 +30,28 @@ void MCTSPlayer::RunIterations(int n) {
   // Smaller number of games per minibatch should result in better accuracy, but
   // will be slower.
   const int minibatch_size = 8;
-  std::vector<std::unique_ptr<MCTS::PredictionRequest>> requests;
-  Board boards[minibatch_size];
+  std::vector<std::unique_ptr<generic::MCTS::PredictionRequest>> mcts_reqs;
+  std::vector<generic::PredictionQueue::Request> pred_reqs;
 
   const auto flush = [&] {
-    CHECK_LE(requests.size(), minibatch_size);
-    std::vector<std::unique_ptr<generic::Board>> generic_boards;
-    std::vector<generic::PredictionQueue::Request> preqs;
-    for (const Board& b : boards) {
-      generic_boards.push_back(MakeGenericBoard(b));
-      generic::PredictionQueue::Request preq;
-      preq.board = generic_boards.back().get();
-      preqs.push_back(preq);
+    CHECK_LE(pred_reqs.size(), minibatch_size);
+    queue_->GetPredictions(pred_reqs.data(), pred_reqs.size());
+    for (int i = 0; i < pred_reqs.size(); ++i) {
+      mcts_->FinishIteration(std::move(mcts_reqs[i]), pred_reqs[i].result);
     }
-    queue_->GetPredictions(preqs.data(), preqs.size());
-    for (int i = 0; i < requests.size(); ++i) {
-      Prediction pred;
-      for (int m = 0; m < 7; ++m) {
-        pred.move_p[m] = 0.0;
-      }
-      for (const auto& [m, p] : preqs[i].result.policy) {
-        pred.move_p[m] = p;
-      }
-      pred.value = preqs[i].result.value;
-      mcts_->FinishIteration(std::move(requests[i]), pred);
-    }
-    requests.clear();
+    pred_reqs.clear();
+    mcts_reqs.clear();
   };
 
   for (int iter = 0; iter < n; ++iter) {
     auto pred_req = mcts_->StartIteration();
     if (pred_req != nullptr) {
-      boards[requests.size()] = pred_req->board();
-      requests.push_back(std::move(pred_req));
+      pred_reqs.emplace_back();
+      auto& preq = pred_reqs.back();
+      preq.board = &pred_req->board();
+      mcts_reqs.push_back(std::move(pred_req));
     }
-    if (requests.size() == minibatch_size) {
+    if (pred_reqs.size() == minibatch_size) {
       flush();
     }
   }
@@ -76,8 +63,8 @@ void MCTSPlayer::LogStats() {
   PrintBoardWithColor(std::cerr, board());
   LOG(INFO) << "Got " << pred << " with total " << mcts_->num_iterations()
             << " mcts iters";
-  LOG(INFO) << "Pri " << mcts_->GetPrior();
-  LOG(INFO) << "Chi " << mcts_->GetChildValues();
+  // LOG(INFO) << "Pri " << mcts_->GetPrior();
+  // LOG(INFO) << "Chi " << mcts_->GetChildValues();
 }
 
 int MCTSPlayer::GetMove() {
@@ -126,17 +113,22 @@ Prediction MCTSPlayer::GetPrediction() {
   if (pred_ready_) {
     return current_pred_;
   }
-  const auto valid_moves = board().valid_moves();
-  CHECK(valid_moves.size() != 0);
-
   RunIterations(iters_per_move_);
-  current_pred_ = mcts_->GetPrediction();
+  generic::PredictionResult gen_pred = mcts_->GetPrediction();
+  current_pred_.value = gen_pred.value;
+  for (int i = 0; i < 7; ++i) {
+    current_pred_.move_p[i] = 0;
+  }
+  for (const auto& [move, prob] : gen_pred.policy) {
+    current_pred_.move_p[move] = prob;
+  }
   pred_ready_ = true;
   return current_pred_;
 }
 
 void MCTSPlayer::MakeMove(int move) {
   mcts_->MakeMove(move);
+  board_.MakeMove(move);
   pred_ready_ = false;
 }
 
