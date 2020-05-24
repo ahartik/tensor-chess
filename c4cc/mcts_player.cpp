@@ -1,19 +1,18 @@
-#include "c4cc/mcts_player.h"
-
 #include <time.h>
 
 #include <memory>
 
+#include "c4cc/generic_board.h"
+#include "c4cc/mcts_player.h"
+#include "generic/board.h"
 #include "tensorflow/core/platform/logging.h"
 
 namespace c4cc {
 
 namespace {}  // namespace
 
-MCTSPlayer::MCTSPlayer(PredictionQueue* queue, int iters,
-                       PredictionCache* cache, bool hard)
+MCTSPlayer::MCTSPlayer(generic::PredictionQueue* queue, int iters, bool hard)
     : queue_(queue),
-      pred_cache_(cache),
       hard_(hard),
       iters_per_move_(iters),
       mcts_(std::make_unique<MCTS>(Board())) {
@@ -31,23 +30,30 @@ void MCTSPlayer::RunIterations(int n) {
   // Smaller number of games per minibatch should result in better accuracy, but
   // will be slower.
   const int minibatch_size = 8;
-  tensorflow::Tensor board_tensor = MakeBoardTensor(minibatch_size);
   std::vector<std::unique_ptr<MCTS::PredictionRequest>> requests;
   Board boards[minibatch_size];
-  Prediction predictions[minibatch_size];
 
   const auto flush = [&] {
     CHECK_LE(requests.size(), minibatch_size);
-    for (int i = 0; i < requests.size(); ++i) {
-      CHECK(!requests[i]->board().is_over());
-      BoardToTensor(requests[i]->board(), &board_tensor, i);
+    std::vector<std::unique_ptr<generic::Board>> generic_boards;
+    std::vector<generic::PredictionQueue::Request> preqs;
+    for (const Board& b : boards) {
+      generic_boards.push_back(MakeGenericBoard(b));
+      generic::PredictionQueue::Request preq;
+      preq.board = generic_boards.back().get();
+      preqs.push_back(preq);
     }
-    queue_->GetPredictions(boards, predictions, requests.size());
+    queue_->GetPredictions(preqs.data(), preqs.size());
     for (int i = 0; i < requests.size(); ++i) {
-      if (pred_cache_ != nullptr) {
-        pred_cache_->emplace(requests[i]->board(), predictions[i]);
+      Prediction pred;
+      for (int m = 0; m < 7; ++m) {
+        pred.move_p[m] = 0.0;
       }
-      mcts_->FinishIteration(std::move(requests[i]), predictions[i]);
+      for (const auto& [m, p] : preqs[i].result.policy) {
+        pred.move_p[m] = p;
+      }
+      pred.value = preqs[i].result.value;
+      mcts_->FinishIteration(std::move(requests[i]), pred);
     }
     requests.clear();
   };
@@ -55,18 +61,8 @@ void MCTSPlayer::RunIterations(int n) {
   for (int iter = 0; iter < n; ++iter) {
     auto pred_req = mcts_->StartIteration();
     if (pred_req != nullptr) {
-      bool cached = false;
-      if (pred_cache_ != nullptr) {
-        auto it = pred_cache_->find(pred_req->board());
-        if (it != pred_cache_->end()) {
-          mcts_->FinishIteration(std::move(pred_req), it->second);
-          cached = true;
-        }
-      }
-      if (!cached) {
-        boards[requests.size()] = pred_req->board();
-        requests.push_back(std::move(pred_req));
-      }
+      boards[requests.size()] = pred_req->board();
+      requests.push_back(std::move(pred_req));
     }
     if (requests.size() == minibatch_size) {
       flush();

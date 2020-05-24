@@ -12,7 +12,7 @@
 #include "c4cc/model_collection.h"
 #include "c4cc/negamax.h"
 #include "c4cc/play_game.h"
-#include "c4cc/prediction_queue.h"
+#include "generic/prediction_queue.h"
 #include "tensorflow/core/platform/env.h"
 #include "tensorflow/core/platform/init_main.h"
 #include "tensorflow/core/platform/logging.h"
@@ -30,7 +30,7 @@ enum class PlayerType {
 struct Options {
   PlayerType players[2];
   int negamax_depth = 7;
-  PredictionQueue* queues[2];
+  generic::PredictionQueue* queues[2];
   int mcts_iters = 400;
   int num_games = 1;
   bool hard = true;
@@ -43,7 +43,6 @@ std::unique_ptr<Player> MakePlayer(int p, Options opts) {
       return std::make_unique<NegamaxPlayer>(opts.negamax_depth);
     case PlayerType::kMcts:
       return std::make_unique<MCTSPlayer>(opts.queues[p], opts.mcts_iters,
-                                          nullptr,
                                           /*hard=*/opts.hard);
   }
   std::cerr << "Invalid PlayerType " << static_cast<int>(opts.players[p])
@@ -107,7 +106,7 @@ void Go(int argc, char** argv) {
       kModelPath, GetModelCollection()->CurrentCheckpointDir());
   CHECK(model != nullptr);
 
-  PredictionQueue q(model.get());
+  generic::PredictionQueue q(model.get());
   // PredictionQueue q2(model2.get());
 
   c4cc::Options opts;

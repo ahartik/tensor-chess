@@ -1,4 +1,5 @@
 #include "generic/prediction_queue.h"
+
 #include "tensorflow/core/platform/logging.h"
 
 namespace generic {
@@ -114,8 +115,7 @@ void PredictionQueue::GetPredictions(Request* requests, int n) {
 
       // Write input in the tensor already.
       for (int i = 0; i < batch_n; ++i) {
-        auto slice = last_batch->board_tensor.SubSlice(offset + i);
-        requests[i].board->ToTensor(&slice);
+        requests[i].board->ToTensor(&last_batch->board_tensor, offset + i);
       }
       // Wait for this batch to be ready.
       mu_.Await(absl::Condition(&last_batch->ready));
@@ -127,12 +127,12 @@ void PredictionQueue::GetPredictions(Request* requests, int n) {
     // Batch ready, dispense results:
     for (int i = 0; i < batch_n; ++i) {
       auto& request = requests[i];
-      auto board_policy = last_batch->move_p.SubSlice(offset + i);
       request.result.policy.clear();
-      request.result.policy.reserve(request.moves->size());
+      const std::vector<int> moves = request.board->GetValidMoves();
+      request.result.policy.reserve(moves.size());
       double total = 0.0;
-      for (const int m : *request.moves) {
-        const double v = board_policy.vec<float>()(m);
+      for (const int m : moves) {
+        const double v = last_batch->move_p.matrix<float>()(offset + i, m);
         request.result.policy.emplace_back(m, v);
         total += v;
       }

@@ -28,9 +28,7 @@ class GenericBoard : public generic::Board {
     return moves;
   }
 
-  bool is_over() const override {
-    return b_.is_over();
-  }
+  bool is_over() const override { return b_.is_over(); }
   int result() const override {
     const auto winner = b_.result();
     if (winner == Color::kEmpty) {
@@ -44,14 +42,14 @@ class GenericBoard : public generic::Board {
   }
 
   // These are constant per game.
-  tensorflow::TensorShape tensor_shape() const override {
-    return tensorflow::TensorShape({84});
+  void GetTensorShape(int n, tensorflow::TensorShape* shape) const override {
+    *shape = tensorflow::TensorShape({n, 84});
   }
 
   // This determines prediction tensor shape.
   int num_possible_moves() const override { return 7; }
 
-  void ToTensor(tensorflow::Tensor* t) const override {
+  void ToTensor(tensorflow::Tensor* t, int i) const override {
     static const Color kColorOrder[2][2] = {
         {Color::kOne, Color::kTwo},
         {Color::kTwo, Color::kOne},
@@ -61,7 +59,7 @@ class GenericBoard : public generic::Board {
       for (int x = 0; x < 7; ++x) {
         for (int y = 0; y < 6; ++y) {
           const bool set = b_.color(x, y) == c;
-          t->vec<float>()(j) = set ? 1.0 : 0.0;
+          t->matrix<float>()(i, j) = set ? 1.0 : 0.0;
           ++j;
         }
       }

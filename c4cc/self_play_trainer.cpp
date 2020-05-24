@@ -65,7 +65,7 @@ class Trainer {
     TrainGame(std::move(boards), std::move(preds), player->board().result());
   }
 
-  PredictionQueue* queue() const { return &queue_; }
+  generic::PredictionQueue* queue() const { return &queue_; }
 
  private:
   void TrainGame(std::vector<Board> boards, std::vector<Prediction> preds,
@@ -95,7 +95,7 @@ class Trainer {
   }
 
   std::unique_ptr<generic::Model> model_{OpenOrCreateModel()};
-  mutable PredictionQueue queue_{model_.get()};
+  mutable generic::PredictionQueue queue_{model_.get()};
 
   const int checkpoint_interval_ = 10 * 1024;
   ShufflingTrainer trainer_{model_.get(), 256, 2048};

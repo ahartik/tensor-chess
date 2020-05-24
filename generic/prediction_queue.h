@@ -9,8 +9,8 @@
 #include <vector>
 
 #include "absl/synchronization/mutex.h"
-#include "generic/model.h"
 #include "generic/board.h"
+#include "generic/model.h"
 #include "tensorflow/core/framework/tensor.h"
 
 namespace generic {
@@ -20,15 +20,12 @@ struct PredictionResult {
   double value = 0.0;
 };
 
+// This class is thread-safe.
 class PredictionQueue {
  public:
   struct Request {
     // Input to the request:
-    // `board` must stay valid until the end of the request.
     const Board* board;
-    // List of valid moves.
-    const std::vector<int>* moves;
-
     PredictionResult result;
   };
 
@@ -37,8 +34,6 @@ class PredictionQueue {
 
   // Blocks.
   void GetPredictions(Request* requests, int n);
-
-  // TODO: Consider adding an asynchronous interface too.
 
   int64_t num_predictions() const {
     return pred_count_.load(std::memory_order_relaxed);
@@ -56,12 +51,8 @@ class PredictionQueue {
  private:
   struct WorkBatch {
     explicit WorkBatch(int n, const Board& first_board) {
-      tensorflow::PartialTensorShape partial;
-      partial = partial.Concatenate(n);
-      partial = partial.Concatenate(first_board.tensor_shape());
-
       tensorflow::TensorShape shape;
-      CHECK(partial.AsTensorShape(&shape));
+      first_board.GetTensorShape(n, &shape);
       board_tensor = tensorflow::Tensor(tensorflow::DT_FLOAT, shape);
     }
     tensorflow::Tensor board_tensor;
@@ -74,7 +65,8 @@ class PredictionQueue {
 
   void WorkerThread(int worker_id);
 
-  std::shared_ptr<WorkBatch> CreateBatch(const Board& first_board) EXCLUSIVE_LOCKS_REQUIRED(mu_);
+  std::shared_ptr<WorkBatch> CreateBatch(const Board& first_board)
+      EXCLUSIVE_LOCKS_REQUIRED(mu_);
 
   Model* const model_;
   const int max_batch_size_;
