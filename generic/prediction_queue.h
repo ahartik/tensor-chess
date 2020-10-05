@@ -1,5 +1,5 @@
-#ifndef _C4CC_PREDICTION_QUEUE_H_
-#define _C4CC_PREDICTION_QUEUE_H_
+#ifndef _GENERIC_PREDICTION_QUEUE_H_
+#define _GENERIC_PREDICTION_QUEUE_H_
 
 #include <atomic>
 #include <cstdint>

@@ -103,10 +103,12 @@ void Go(int d, Board b) {
   std::cout << "Leaves per second: "
             << int64_t(total_leaves / absl::ToDoubleSeconds(end - start))
             << "\n";
-  if (p == known_results[d]) {
-    std::cout << "Correct result\n";
-  } else {
-    std::cout << "Wrong result, expected " << known_results[d] << "\n";
+  if (b.board_hash() == Board().board_hash()) {
+    if (p == known_results[d]) {
+      std::cout << "Correct result\n";
+    } else {
+      std::cout << "Wrong result, expected " << known_results[d] << "\n";
+    }
   }
   std::cout << "hash_skips: " << hash_skips << "\n";
 }

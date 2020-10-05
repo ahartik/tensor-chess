@@ -23,7 +23,6 @@ class MCTSPlayer : public Player {
   void MakeMove(int move) override;
 
   Prediction GetPrediction();
-  void Reset();
 
   void LogStats();
 

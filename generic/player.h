@@ -20,13 +20,13 @@ class Player {
   // This slightly-ugly interface allows caching state between different games.
   virtual void SetBoard(std::unique_ptr<Board> b) = 0;
 
-  // Returns the move this player wants to make in this position.
+  // Returns the move this player would make in this position.
   // Must not be called if board().is_over() returns true.
   virtual int GetMove() = 0;
 
+  // Advances the game state with the given move.
   virtual void MakeMove(int move) = 0;
 };
-
 
 }  // namespace generic
 
