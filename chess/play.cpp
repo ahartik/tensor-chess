@@ -1,4 +1,5 @@
 #include <iostream>
+
 #include <memory>
 #include <random>
 #include <thread>
@@ -80,23 +81,21 @@ void PlayGames() {
   Board::Init();
   auto model = CreateDefaultModel(/*allow_init=*/false);
   // auto human_model = CreateDefaultModel(false, -1, "human_new");
-  auto human_model = CreateDefaultModel(false, 1);
+  // auto human_model = CreateDefaultModel(false, 1);
   PredictionQueue pred_queue(model.get(), 8);
-  PredictionQueue human_queue(human_model.get(), 8);
+  // PredictionQueue human_queue(human_model.get(), 8);
   std::vector<std::thread> threads;
 
   RandomPlayer random_player;
   CliHumanPlayer human_player;
   PolicyNetworkPlayer policy_player(&pred_queue);
-  PolicyNetworkPlayer human_policy(&human_queue);
   MCTSPlayer mcts_player(&pred_queue, 1000);
-  MCTSPlayer human_mcts_player(&human_queue, 1000);
 
   std::mt19937_64 rand;
   do {
-    Game g({&random_player, &policy_player}, RandomBoardWith(rand, 2));
-    std::cout << "New game from\n" << g.board().ToPrintString() << "\n";
-    // Game g({&human_policy, &mcts_player});
+    // Game g({&random_player, &policy_player}, RandomBoardWith(rand, 2));
+    // std::cout << "New game from\n" << g.board().ToPrintString() << "\n";
+    Game g({&human_player, &policy_player}, Board());
     // Game g({&policy_player, &mcts_player});
     // Game g({&human_mcts_player, &mcts_player});
     // Game g({&mcts_player, &human_mcts_player});

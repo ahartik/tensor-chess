@@ -104,23 +104,6 @@ cc_library(
 )
 
 cc_library(
-    name =  "mcts",
-    hdrs = ["mcts.h"],
-    srcs = ["mcts.cpp"],
-    copts = tf_copts(),
-    deps = [
-        ":board",
-        "@com_google_absl//absl/container:node_hash_map",
-        "@com_google_absl//absl/container:inlined_vector",
-        "@com_google_absl//absl/types:optional",
-        # This is only for logging, this library itself should not use
-        # tensorflow for computation.
-        "@org_tensorflow//tensorflow/core:lib",
-        "@org_tensorflow//tensorflow/core:tensorflow",
-    ],
-)
-
-cc_library(
     name =  "mcts_player",
     hdrs = ["mcts_player.h"],
     srcs = ["mcts_player.cpp"],

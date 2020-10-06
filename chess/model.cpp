@@ -107,7 +107,7 @@ void Model::Checkpoint(const std::string& checkpoint_prefix) {
 void Model::SaveOrRestore(const std::string& checkpoint_prefix,
                           const std::string& op_name) {
   tensorflow::Tensor t(tensorflow::DT_STRING, tensorflow::TensorShape());
-  t.scalar<std::string>()() = checkpoint_prefix;
+  t.scalar<tensorflow::tstring>()() = checkpoint_prefix;
   TF_CHECK_OK(session_->Run({{"save/Const", t}}, {}, {op_name}, nullptr));
 }
 
