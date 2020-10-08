@@ -22,6 +22,7 @@ class Game {
   // Must not be called if this game is already over.
   void Advance(const Move& m);
 
+  // Selects the best move for the current player and performs it.
   // Must not be called if this game is already over.
   void Work();
 

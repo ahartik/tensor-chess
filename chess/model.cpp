@@ -19,7 +19,7 @@ Model::Model(const std::string& graph_def_filename) {
   TF_CHECK_OK(tensorflow::ReadBinaryProto(tensorflow::Env::Default(),
                                           graph_def_filename, &graph_def));
   tensorflow::SessionOptions opts;
-  opts.config.mutable_gpu_options()->set_per_process_gpu_memory_fraction(0.4);
+  opts.config.mutable_gpu_options()->set_per_process_gpu_memory_fraction(0.1);
   session_.reset(tensorflow::NewSession(opts));
   TF_CHECK_OK(session_->Create(graph_def));
 

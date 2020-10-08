@@ -79,6 +79,7 @@ cc_library(
         ":game_cc_proto",
         ":square",
         "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:optional",
     ],
 )
 
@@ -350,6 +351,30 @@ tf_cc_binary(
     ],
 )
 
+tf_cc_binary(
+    name =  "uci_bot",
+    srcs = ["uci_bot.cpp"],
+    deps = [
+        ":board",
+        ":player",
+        ":types",
+        ":prediction_queue",
+        ":model",
+        "@com_google_absl//absl/time",
+        "@com_google_absl//absl/base",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@org_tensorflow//tensorflow/core:lib",
+        "@org_tensorflow//tensorflow/core:tensorflow",
+        "@org_tensorflow//tensorflow/core:framework",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_binary(
+    name = "movegen_test",
+    srcs = ["movegen_test.cpp"],
+    deps = [ ":board" ],
+)
 
 # cc_test(
 #     name = "board_test",

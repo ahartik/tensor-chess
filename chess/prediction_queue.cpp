@@ -209,6 +209,12 @@ Move PolicyNetworkPlayer::GetMove() {
   req.board = &b_;
   req.moves = &valid_moves;
   queue_->GetPredictions(&req, 1);
+  std::cerr << "Value before making move: " << req.result.value << "\n";
+  std::cerr << "Valid moves: ";
+  for (const auto move : valid_moves) {
+    std::cerr << move << " ";
+  }
+  std::cerr << "\n";
 
   std::uniform_real_distribution<double> rand(0.0, 1.0);
   double r = rand(mt_);

@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "chess/game.pb.h"
 
 namespace chess {
@@ -91,7 +92,11 @@ struct Move {
     return m;
   }
 
+  // Converts a move to UCI string.
   std::string ToString() const;
+
+  // Converts a move from a UCI string.
+  static absl::optional<Move> FromString(absl::string_view str);
 
   bool operator==(const Move& o) const {
     return from == o.from && to == o.to && promotion == o.promotion;
@@ -128,7 +133,7 @@ using MoveList = std::vector<Move>;
 
 // Output of either a neural network prediction, or MCTS evaluation.
 struct PredictionResult {
-  std::vector<std::pair<Move, float>> policy;
+  std::vector<std::pair<Move, double>> policy;
   double value = 0.0;
 };
 
