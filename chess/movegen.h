@@ -321,7 +321,7 @@ class MoveGenerator {
     }
     // King:
     danger |= KingMoveMask(GetFirstBit(b_.bitboard(opp_, Piece::kKing)));
-    std::cerr << "KingDanger: " << BitboardToString(danger) << "\n";
+    // std::cerr << "KingDanger: " << BitboardToString(danger) << "\n";
     return danger;
   }
 
@@ -453,7 +453,7 @@ MovegenResult IterateLegalMoves(const Board& b, const MoveFunc& f) {
   gen.GenerateMoves();
   const int num_moves = gen.NumMoves();
   const bool in_check = gen.IsInCheck();
-  std::cerr << "in_check=" << in_check << "\n";
+  // std::cerr << "in_check=" << in_check << "\n";
   if (num_moves == 0) {
     if (in_check) {
       return MovegenResult::kCheckmate;

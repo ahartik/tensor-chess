@@ -4,12 +4,11 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "new_git_repository")
 
-# git_repository(
-#     name = "googletest",
-#     # build_file = "googletest/BUILD.bazel",
-#     remote = "https://github.com/google/googletest",
-#     tag = "release-1.8.1",
-# )
+git_repository(
+    name = "googletest",
+    remote = "https://github.com/google/googletest",
+    tag = "release-1.10.0",
+)
 
 # TensorFlow depends on "io_bazel_rules_closure" so we need this here.
 # Needs to be kept in sync with the same target in TensorFlow's WORKSPACE file.

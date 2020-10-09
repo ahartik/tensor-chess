@@ -8,18 +8,20 @@
 
 #include "absl/time/time.h"
 #include "chess/board.h"
+#include "chess/model_collection.h"
 #include "chess/movegen.h"
-#include "chess/model.h"
-#include "chess/shuffling_trainer.h"
 #include "chess/tensors.h"
+#include "generic/model.h"
+#include "generic/shuffling_trainer.h"
 #include "tensorflow/core/platform/env.h"
 #include "tensorflow/core/platform/init_main.h"
 #include "tensorflow/core/platform/logging.h"
 #include "util/recordio.h"
 
 namespace chess {
+namespace {
 
-int TrainGame(ShufflingTrainer* trainer, const GameRecord& record) {
+int TrainGame(generic::ShufflingTrainer* trainer, const GameRecord& record) {
   Board board;
 
   int count_moves = 0;
@@ -82,10 +84,11 @@ void TrainerThread(int tid, ShufflingTrainer* trainer,
 }
 
 void TrainFiles(const std::vector<std::string>& files) {
-  Board::Init();
-  auto model = CreateDefaultModel(/*allow_init=*/true);
+  const auto* const model_collection = GetModelCollection();
+  auto model = generic::Model::Open(kModelPath,
+                                    model_collection->CurrentCheckpointDir());
 
-  ShufflingTrainer trainer(model.get(), 512, 512 * 20);
+  generic::ShufflingTrainer trainer(model.get(), 512, 512 * 20);
   std::vector<std::thread> threads;
 
   const int kNumThreads = 1;
@@ -95,16 +98,18 @@ void TrainFiles(const std::vector<std::string>& files) {
   }
 
   while (true) {
-    model->Checkpoint(GetDefaultCheckpoint());
+    model->Checkpoint(model_collection->CurrentCheckpointDir());
     std::cout << "Saved checkpoint\n";
     absl::SleepFor(absl::Seconds(5));
   }
 }
 
+}  // namespace
 }  // namespace chess
 
 int main(int argc, char** argv) {
   tensorflow::port::InitMain(argv[0], &argc, &argv);
+  chess::Board::Init();
 
   std::vector<std::string> files;
   for (int i = 1; i < argc; ++i) {

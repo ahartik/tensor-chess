@@ -13,9 +13,10 @@ tensorflow::Tensor MakeBoardTensor(int batch_size);
 tensorflow::Tensor MakeMoveTensor(int batch_size);
 
 // Writes board state to tensor.
-void BoardToTensor(const Board& b, tensorflow::Tensor* tensor);
+void BoardToTensor(const Board& b, tensorflow::Tensor tensor);
 
 int EncodeMove(Color turn, Move m);
+Move DecodeMove(const Board& b, int encoded);
 
 double MovePriorFromTensor(const tensorflow::Tensor& tensor, Color turn,
                            const Move& m);

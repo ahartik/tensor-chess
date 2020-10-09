@@ -11,7 +11,7 @@
 
 #include "absl/synchronization/mutex.h"
 #include "chess/board.h"
-#include "chess/model.h"
+#include "generic/model.h"
 #include "chess/tensors.h"
 #include "chess/prediction_cache.h"
 #include "tensorflow/core/framework/tensor.h"

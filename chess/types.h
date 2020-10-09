@@ -12,12 +12,15 @@
 
 namespace chess {
 
+// Color of a piece. kEmpty is added since sometimes it's useful for
+// representing an empty square.
 enum class Color : uint8_t {
   kWhite = 0,
   kBlack = 1,
   kEmpty = 2,
 };
 
+// Flips color between black <=> white. `c` must not be kEmpty.
 inline Color OtherColor(Color c);
 
 std::ostream& operator<<(std::ostream& out, Color c);

@@ -1,6 +1,7 @@
 # load('@com_google_protobuf//:protobuf.bzl', 'proto_library')
 # load('@com_google_protobuf//:protobuf.bzl', 'cc_proto_library')
 load("@org_tensorflow//tensorflow:tensorflow.bzl", "tf_cc_binary")
+load("@org_tensorflow//tensorflow:tensorflow.bzl", "tf_cc_test")
 load("@org_tensorflow//tensorflow:tensorflow.bzl", "tf_copts")
 
 proto_library(
@@ -151,19 +152,20 @@ tf_cc_binary(
     ],
 )
 
-cc_library (
-    name = "model",
-    hdrs = ["model.h"],
-    srcs = ["model.cpp"],
-    copts = tf_copts(),
-    deps = [
-        "@com_google_absl//absl/synchronization",
-        "@org_tensorflow//tensorflow/core:lib",
-        "@org_tensorflow//tensorflow/core:tensorflow",
-        "@org_tensorflow//tensorflow/core:framework",
-        "@com_google_absl//absl/strings:str_format",
-    ],
-)
+
+# cc_library (
+#     name = "model",
+#     hdrs = ["model.h"],
+#     srcs = ["model.cpp"],
+#     copts = tf_copts(),
+#     deps = [
+#         "@com_google_absl//absl/synchronization",
+#         "@org_tensorflow//tensorflow/core:lib",
+#         "@org_tensorflow//tensorflow/core:tensorflow",
+#         "@org_tensorflow//tensorflow/core:framework",
+#         "@com_google_absl//absl/strings:str_format",
+#     ],
+# )
 
 cc_library (
     name =  "tensors",
@@ -179,6 +181,15 @@ cc_library (
     ],
 )
 
+tf_cc_test(
+    name = "tensors_test",
+    srcs = ["tensors_test.cpp"],
+    deps = [
+        ":tensors",
+        "@googletest//:gtest",
+    ],
+)
+
 cc_library(
     name =  "shuffling_trainer",
     hdrs = ["shuffling_trainer.h"],
@@ -187,7 +198,7 @@ cc_library(
     deps = [
         ":board",
         ":tensors",
-        ":model",
+        "//generic:model",
         "@com_google_absl//absl/synchronization",
         "@org_tensorflow//tensorflow/core:lib",
         "@org_tensorflow//tensorflow/core:tensorflow",
@@ -202,7 +213,7 @@ cc_library (
     copts = tf_copts(),
     deps = [
         ":board",
-        ":model",
+        "//generic:model",
         ":tensors",
         ":prediction_cache",
         "@com_google_absl//absl/synchronization",
@@ -265,7 +276,7 @@ tf_cc_binary(
     deps = [
         ":board",
         ":tensors",
-        ":model",
+        "//generic:model",
         "@org_tensorflow//tensorflow/core:lib",
         "@org_tensorflow//tensorflow/core:tensorflow",
     ],
@@ -277,8 +288,9 @@ tf_cc_binary(
     deps = [
         ":board",
         ":tensors",
+        ":model_collection",
         ":shuffling_trainer",
-        ":model",
+        "//generic/model",
         "@org_tensorflow//tensorflow/core:lib",
         "@org_tensorflow//tensorflow/core:tensorflow",
         "//util:recordio",
@@ -294,7 +306,7 @@ tf_cc_binary(
         ":types",
         ":mcts",
         ":mcts_player",
-        ":model",
+        "//generic:model",
         ":prediction_queue",
         ":game_state",
         "@com_google_absl//absl/time",
@@ -315,7 +327,7 @@ tf_cc_binary(
         ":types",
         ":mcts",
         ":mcts_player",
-        ":model",
+        "//generic:model",
         ":prediction_queue",
         ":game_state",
         "@com_google_absl//absl/time",
@@ -338,7 +350,7 @@ tf_cc_binary(
         ":mcts",
         ":mcts_player",
         ":shuffling_trainer",
-        ":model",
+        "//generic:model",
         ":prediction_queue",
         ":prediction_cache",
         ":game_state",
@@ -359,7 +371,7 @@ tf_cc_binary(
         ":player",
         ":types",
         ":prediction_queue",
-        ":model",
+        "//generic:model",
         "@com_google_absl//absl/time",
         "@com_google_absl//absl/base",
         "@com_google_absl//absl/container:flat_hash_map",
@@ -374,6 +386,26 @@ cc_binary(
     name = "movegen_test",
     srcs = ["movegen_test.cpp"],
     deps = [ ":board" ],
+)
+
+cc_library(
+    name = "model_collection",
+    srcs = ["model_collection.cpp"],
+    hdrs = ["model_collection.h"],
+    copts = tf_copts(),
+    deps = [
+        "//generic:model",
+    ],
+)
+
+cc_library(
+    name = "generic_board",
+    srcs = ["generic_board.cpp"],
+    hdrs = ["generic_board.h"],
+    deps = [
+        ":board",
+        "//generic:board",
+    ],
 )
 
 # cc_test(

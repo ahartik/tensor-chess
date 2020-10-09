@@ -6,7 +6,8 @@
 namespace util {
 namespace {
 
-TEST(RecordIOTest, Basic) {
+// Just a simple sanity test fornow.
+TEST(RecordIOTest, WriteAndRead) {
   const char* path = "/tmp/test.recordio";
   RecordWriter writer(path);
   ASSERT_TRUE(writer.Write("hello"));

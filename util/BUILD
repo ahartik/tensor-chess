@@ -22,7 +22,6 @@ cc_library(
 cc_test(
     name = "recordio_test",
     srcs = ["recordio_test.cc"],
-    copts = ["-Iexternal/gtest/include"],
     deps = [
         ":recordio",
         "@googletest//:gtest_main",

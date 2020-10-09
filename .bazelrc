@@ -10,3 +10,8 @@ build --copt=-march=native
 build --nocheck_visibility
 
 build --cxxopt=-std=c++14
+
+# This is required for googletest, for some reason TF overrides the java
+# toolchain which causes problems.
+# TODO: Figure out if this can be resolved.
+build --host_java_toolchain="@bazel_tools//tools/jdk:remote_toolchain"
