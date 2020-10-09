@@ -1,8 +1,8 @@
 #include "chess/generic_board.h"
 
+#include "absl/hash/hash.h"
 #include "chess/movegen.h"
 #include "chess/tensors.h"
-#include "absl/hash/hash.h"
 #include "tensorflow/core/framework/tensor.h"
 
 namespace chess {
@@ -17,65 +17,58 @@ class GenericBoard : public generic::Board {
 
   std::unique_ptr<Board> Move(int move) const override {
     return std::make_unique<GenericBoard>(
-        Board(b_, 
+        chess::Board(b_, DecodeMove(b_, move)));
   }
 
-  generic::BoardFP fingerprint() const override {
-    return absl::Hash<chess::Board>()(b_);
-  }
+  generic::BoardFP fingerprint() const override { return BoardFingerprint(b_); }
 
   std::vector<int> GetValidMoves() const override {
     std::vector<int> moves;
-    IterateLegalMoves(b_, [this, &moves]
-        (const chess::Move& m) {
-        moves.push_back(EncodeMove(b_.turn(), m));
-        });
+    IterateLegalMoves(b_, [this, &moves](const chess::Move& m) {
+      moves.push_back(EncodeMove(b_.turn(), m));
+    });
     return moves;
   }
 
-  bool is_over() const override { return b_.is_over(); }
+  bool is_over() const override {
+    return game_state_ != MovegenResult::kNotOver;
+  }
+
   int result() const override {
-    const auto winner = b_.result();
-    if (winner == Color::kEmpty) {
-      return 0;
-    }
-    if (winner == b_.turn()) {
-      return 1;
-    } else {
-      return -1;
+    switch (game_state_) {
+      case MovegenResult::kCheckmate:
+        return -1;
+      case MovegenResult::kStalemate:
+        return 0;
+      case MovegenResult::kNotOver:
+        std::cerr << "Invalid call to chess::GenericBoard::result(), game not "
+                     "over. fen "
+                  << b_.ToFEN() << "\n";
+        return 0;
+      default:
+        std::cerr << "Invalid game_state_" << static_cast<int>(game_state_)
+                  << "\n";
+        abort();
+        return 0;
     }
   }
 
-  int turn() const override { return b_.turn() == Color::kOne ? 0 : 1; }
+  int turn() const override { return b_.turn() == Color::kWhite ? 0 : 1; }
 
   // These are constant per game.
   void GetTensorShape(int n, tensorflow::TensorShape* shape) const override {
-    *shape = tensorflow::TensorShape({n, 84});
+    *shape = tensorflow::TensorShape({n, kBoardTensorNumLayers, 64});
   }
 
   // This determines prediction tensor shape.
-  int num_possible_moves() const override { return 7; }
+  int num_possible_moves() const override { return kMoveVectorSize; }
 
   void ToTensor(tensorflow::Tensor* t, int i) const override {
-    static const Color kColorOrder[2][2] = {
-        {Color::kOne, Color::kTwo},
-        {Color::kTwo, Color::kOne},
-    };
-    int j = 0;
-    for (Color c : kColorOrder[b_.turn() == Color::kOne]) {
-      for (int x = 0; x < 7; ++x) {
-        for (int y = 0; y < 6; ++y) {
-          const bool set = b_.color(x, y) == c;
-          t->matrix<float>()(i, j) = set ? 1.0 : 0.0;
-          ++j;
-        }
-      }
-    }
+    BoardToTensor(b_, t->SubSlice(i));
   }
 
  private:
   chess::Board b_;
-  std::vector<int> encoded_moves_;
   MovegenResult game_state_;
 };
 

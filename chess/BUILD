@@ -402,9 +402,12 @@ cc_library(
     name = "generic_board",
     srcs = ["generic_board.cpp"],
     hdrs = ["generic_board.h"],
+    copts = tf_copts(),
     deps = [
         ":board",
+        ":tensors",
         "//generic:board",
+        "@org_tensorflow//tensorflow/core:lib",
     ],
 )
 

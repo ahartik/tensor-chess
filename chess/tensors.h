@@ -8,6 +8,7 @@
 namespace chess {
 
 extern const int kMoveVectorSize;
+inline constexpr int kBoardTensorNumLayers = 14;
 // Returns an unset tensor of the shape to hold 'batch_size' input boards.
 tensorflow::Tensor MakeBoardTensor(int batch_size);
 tensorflow::Tensor MakeMoveTensor(int batch_size);

@@ -61,9 +61,9 @@ const LayerFunc layers[] = {
       SetBitBoard(b.castling_rights(), b.turn() == Color::kBlack, tensor);
     },
 };
-constexpr int kNumLayers = sizeof(layers) / sizeof(layers[0]);
 
-static_assert(kNumLayers == 14, "Update build_graph.py if this number changes");
+static_assert(sizeof(layers) / sizeof(layers[0]) == kBoardTensorNumLayers,
+              "Update build_graph.py if this number changes");
 
 // Move encoding is very similar to Leela Chess.  Moves are encoded as 64 *
 // encoded_move_to + move_from. `encoded_move_to` has 73 possible values,
@@ -101,8 +101,8 @@ int InitMoves() {
     const int df = dr ^ 3;
     // Either can be positive or negative.
     for (int i = 0; i < 4; ++i) {
-      int delta_r =  dr * ((i & 1) ? 1 : -1);
-      int delta_f =  df * ((i & 2) ? 1 : -1);
+      int delta_r = dr * ((i & 1) ? 1 : -1);
+      int delta_f = df * ((i & 2) ? 1 : -1);
       encoded_delta[m] = (delta_r * 8 + delta_f);
       move_encoding[kCenter + delta_r][kCenter + delta_f] = m++;
     }
@@ -207,14 +207,14 @@ Move DecodeMove(const Board& b, int encoded) {
 tensorflow::Tensor MakeBoardTensor(int batch_size) {
   return tensorflow::Tensor(
       tensorflow::DT_FLOAT,
-      tensorflow::TensorShape({batch_size, kNumLayers, 64}));
+      tensorflow::TensorShape({batch_size, kBoardTensorNumLayers, 64}));
 }
 
 void BoardToTensor(const Board& b, tensorflow::Tensor tensor) {
   CHECK_EQ(tensor.dims(), 2);
-  CHECK_EQ(tensor.dim_size(0), kNumLayers);
+  CHECK_EQ(tensor.dim_size(0), kBoardTensorNumLayers);
   CHECK_EQ(tensor.dim_size(1), 64);
-  for (int layer = 0; layer < kNumLayers; ++layer) {
+  for (int layer = 0; layer < kBoardTensorNumLayers; ++layer) {
     auto slice = tensor.SubSlice(layer);
     layers[layer](b, &slice);
   }
