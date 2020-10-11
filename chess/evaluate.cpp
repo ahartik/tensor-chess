@@ -68,8 +68,6 @@ bool ShouldPromote(PredictionQueue* new_q, PredictionQueue* old_q) {
 }
 
 void PlayGames() {
-  Board::Init();
-
   int next_gen = GetNumGens();
   auto old_model = CreateDefaultModel(/*allow_init=*/false, next_gen - 1);
   auto old_queue = std::make_unique<PredictionQueue>(old_model.get(), 96);

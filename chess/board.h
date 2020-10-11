@@ -82,15 +82,15 @@ class Board {
     return o;
   }
 
-  // Initialize movegen and hashing.
-  static void Init();
-
   // "half-move clock", for purposes of 50-move rule. Draw occurs at 100.
   int no_progress_count() const { return no_progress_count_; }
 
  private:
   template <typename H>
   friend H AbslHashValue(H h, const Board& b);
+
+  // Initialize movegen and hashing.
+  static void Init();
 
   uint64_t ComputeBoardHash() const;
 

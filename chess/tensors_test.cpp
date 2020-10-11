@@ -91,6 +91,5 @@ TEST(TensorConvertTest, BoardEncoding) {
 
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
-  chess::Board::Init();
   return RUN_ALL_TESTS();
 }

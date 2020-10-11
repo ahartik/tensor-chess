@@ -41,8 +41,6 @@ void Go(int d, Board b) {
 }  // namespace chess
 
 int main(int argc, char** argv) {
-  chess::Board::Init();
-
   if (argc <= 1) {
     std::cerr << "Usage: " << argv[0] << " depth\n";
     return 1;

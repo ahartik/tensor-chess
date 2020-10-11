@@ -115,7 +115,6 @@ void TrainFiles(const std::vector<std::string>& files) {
 
 int main(int argc, char** argv) {
   tensorflow::port::InitMain(argv[0], &argc, &argv);
-  chess::Board::Init();
 
   std::vector<std::string> files;
   for (int i = 1; i < argc; ++i) {

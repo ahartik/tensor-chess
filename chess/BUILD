@@ -401,12 +401,6 @@ tf_cc_binary(
     ],
 )
 
-cc_binary(
-    name = "movegen_test",
-    srcs = ["movegen_test.cpp"],
-    deps = [ ":board" ],
-)
-
 cc_library(
     name = "model_collection",
     srcs = ["model_collection.cpp"],

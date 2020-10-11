@@ -22,6 +22,10 @@ Board::Board()
     : Board("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1") {}
 
 Board::Board(absl::string_view fen) {
+  // This init is only done when constructing from FEN or starting from the
+  // initial position.
+  Init();
+
   int r = 7;
   int f = 0;
   std::vector<absl::string_view> parts = absl::StrSplit(fen, ' ');
@@ -125,6 +129,7 @@ Board::Board(absl::string_view fen) {
 }
 
 Board::Board(const BoardProto& p) {
+  Init();
   assert(p.bitboards_size() == 12);
   for (int c = 0; c < 2; ++c) {
     for (int i = 0; i < 6; ++i) {
@@ -138,6 +143,7 @@ Board::Board(const BoardProto& p) {
 }
 
 Board::Board(PieceColor arr[64]) {
+  Init();
   memset(&bitboards_, 0, sizeof(bitboards_));
   for (int i = 0; i < 64; ++i) {
     auto p = arr[i];
@@ -153,6 +159,8 @@ Board::Board(PieceColor arr[64]) {
 }
 
 Board::Board(const Board& o, const Move& m) : Board(o) {
+  // Init() call is not required here, at least one board must have already been
+  // constructed with another constructor.
   const uint64_t from_o = OneHot(m.from);
   const uint64_t to_o = OneHot(m.to);
   const int ti = half_move_count_ & 1;

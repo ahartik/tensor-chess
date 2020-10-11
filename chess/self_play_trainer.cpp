@@ -142,7 +142,6 @@ void PlayerThread(int thread_i, PredictionQueue* pred_queue,
 }
 
 void PlayGames() {
-  Board::Init();
   auto model = CreateDefaultModel(/*allow_init=*/true);
   PredictionQueue pred_queue(model.get(), 256);
   ShufflingTrainer trainer(model.get());

@@ -93,7 +93,6 @@ void Go() {
   if (uciline != "isready") {
     FailWith(absl::StrCat("Expected 'isready', got '", uciline, "'"));
   }
-  Board::Init();
 
   BotThread bot;
 

@@ -50,11 +50,20 @@ TEST(MoveEncodingTest, Position4) {
   EXPECT_EQ(Perft(b, 6), 706045033);
 }
 
+TEST(MoveEncodingTest, Position5) {
+  // https://www.chessprogramming.org/Perft_Results#Position_5
+  Board b("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8");
+  EXPECT_EQ(Perft(b, 1), 44);
+  EXPECT_EQ(Perft(b, 2), 1486);
+  EXPECT_EQ(Perft(b, 3), 62379);
+  EXPECT_EQ(Perft(b, 4), 2103487);
+  EXPECT_EQ(Perft(b, 5), 89941194);
+}
+
 }  // namespace
 }  // namespace chess
 
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
-  chess::Board::Init();
   return RUN_ALL_TESTS();
 }
