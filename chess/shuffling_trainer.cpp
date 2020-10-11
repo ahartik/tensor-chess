@@ -9,7 +9,7 @@ namespace {
 constexpr bool kKeepPool = false;
 }
 
-ShufflingTrainer::ShufflingTrainer(Model* model, int batch_size,
+ShufflingTrainer::ShufflingTrainer(generic::Model* model, int batch_size,
                                    int shuffle_size)
     : model_(model), batch_size_(batch_size), shuffle_size_(shuffle_size) {
   CHECK_GE(shuffle_size, batch_size);
@@ -87,8 +87,7 @@ void ShufflingTrainer::WorkerThread() {
 
     for (int i = 0; i < batch_size_; ++i) {
       const auto& sample = batch_samples[i];
-      auto board_matrix = board_tensor.SubSlice(i);
-      BoardToTensor(sample->board, &board_matrix);
+      BoardToTensor(sample->board, board_tensor.SubSlice(i));
 
       auto move_vec = move_tensor.SubSlice(i);
       for (int i = 0; i < kMoveVectorSize; ++i) {

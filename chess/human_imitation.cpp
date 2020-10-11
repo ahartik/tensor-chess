@@ -12,7 +12,7 @@
 #include "chess/movegen.h"
 #include "chess/tensors.h"
 #include "generic/model.h"
-#include "generic/shuffling_trainer.h"
+#include "chess/shuffling_trainer.h"
 #include "tensorflow/core/platform/env.h"
 #include "tensorflow/core/platform/init_main.h"
 #include "tensorflow/core/platform/logging.h"
@@ -21,7 +21,7 @@
 namespace chess {
 namespace {
 
-int TrainGame(generic::ShufflingTrainer* trainer, const GameRecord& record) {
+int TrainGame(ShufflingTrainer* trainer, const GameRecord& record) {
   Board board;
 
   int count_moves = 0;
@@ -87,8 +87,14 @@ void TrainFiles(const std::vector<std::string>& files) {
   const auto* const model_collection = GetModelCollection();
   auto model = generic::Model::Open(kModelPath,
                                     model_collection->CurrentCheckpointDir());
+  if (model == nullptr) {
+    LOG(INFO) << "Starting from scratch";
+    model = generic::Model::New(kModelPath);
+  } else {
+    LOG(INFO) << "Continuing training";
+  }
 
-  generic::ShufflingTrainer trainer(model.get(), 512, 512 * 20);
+  ShufflingTrainer trainer(model.get(), 512, 512 * 20);
   std::vector<std::thread> threads;
 
   const int kNumThreads = 1;

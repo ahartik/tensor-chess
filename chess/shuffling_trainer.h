@@ -11,7 +11,7 @@
 
 #include "absl/synchronization/mutex.h"
 #include "chess/board.h"
-#include "chess/model.h"
+#include "generic/model.h"
 
 namespace chess {
 
@@ -25,7 +25,7 @@ struct TrainingSample {
 // This class is thread-safe.
 class ShufflingTrainer {
  public:
-  explicit ShufflingTrainer(Model* model, int batch_size = 256,
+  explicit ShufflingTrainer(generic::Model* model, int batch_size = 256,
                             int shuffle_size = 1000);
   ~ShufflingTrainer();
 
@@ -40,7 +40,7 @@ class ShufflingTrainer {
  private:
   void WorkerThread();
 
-  Model* const model_;
+  generic::Model* const model_;
   const int batch_size_;
   const int shuffle_size_;
   // TODO: Following comment doesn't make sense for chess yet.

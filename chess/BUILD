@@ -141,11 +141,30 @@ cc_binary(
     ],
 )
 
-tf_cc_binary(
-    name = "perft",
+cc_library(
+    name = "perft_lib",
+    hdrs= ["perft.h"],
     srcs = ["perft.cpp"],
     deps = [
         ":board",
+    ],
+)
+
+cc_test(
+    name = "perft_test",
+    srcs = ["perft_test.cpp"],
+    deps = [
+        ":perft_lib",
+        "@googletest//:gtest",
+    ],
+)
+
+tf_cc_binary(
+    name = "perft",
+    srcs = ["perft_main.cpp"],
+    deps = [
+        ":board",
+        ":perft_lib",
         "@com_google_absl//absl/time",
         "@com_google_absl//absl/base",
         "@com_google_absl//absl/container:flat_hash_map",
@@ -290,7 +309,7 @@ tf_cc_binary(
         ":tensors",
         ":model_collection",
         ":shuffling_trainer",
-        "//generic/model",
+        "//generic:model",
         "@org_tensorflow//tensorflow/core:lib",
         "@org_tensorflow//tensorflow/core:tensorflow",
         "//util:recordio",
@@ -407,6 +426,21 @@ cc_library(
         ":board",
         ":tensors",
         "//generic:board",
+        "@org_tensorflow//tensorflow/core:lib",
+    ],
+)
+
+cc_library(
+    name = "policy_player",
+    srcs = ["policy_player.cpp"],
+    hdrs = ["policy_player.h"],
+    copts = tf_copts(),
+    deps = [
+        ":board",
+        ":generic_board",
+        ":tensors",
+        "//generic:board",
+        "//generic:prediction_queue",
         "@org_tensorflow//tensorflow/core:lib",
     ],
 )
