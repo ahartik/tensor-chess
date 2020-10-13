@@ -17,11 +17,11 @@ namespace generic {
 // This class is thread-safe.
 class ShufflingTrainer {
  public:
-  explicit ShufflingTrainer(Model* model, int batch_size = 256,
-                            int shuffle_size = 10000);
+  explicit ShufflingTrainer(Model* model, const Board& model_board,
+                            int batch_size = 256, int shuffle_size = 10000);
   ~ShufflingTrainer();
 
-  void Train(const Board& b, const PredictionResult& target);
+  void Train(std::unique_ptr<Board> b, PredictionResult target);
 
   int64_t num_trained() const {
     return num_trained_.load(std::memory_order_relaxed);
@@ -31,14 +31,8 @@ class ShufflingTrainer {
 
  private:
   struct BoardData {
-    Board b;
-    Prediction target;
-  };
-
-  struct BatchData {
-    tensorflow::Tensor board_tensor;
-    tensorflow::Tensor move_tensor;
-    tensorflow::Tensor value_tensor;
+    std::unique_ptr<Board> board;
+    PredictionResult target;
   };
 
   void WorkerThread();
@@ -46,6 +40,9 @@ class ShufflingTrainer {
   Model* const model_;
   const int batch_size_;
   const int shuffle_size_;
+  const int num_moves_;
+  tensorflow::TensorShape board_shape_;
+  // TODO add better explanation
   // 4 minutes of boards.
   const int max_size_ = 400 * 60 * 4 * 2;
 

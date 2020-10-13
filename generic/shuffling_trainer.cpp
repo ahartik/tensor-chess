@@ -5,16 +5,20 @@
 namespace generic {
 
 namespace {
-  constexpr bool kKeepPool = true;
+constexpr bool kKeepPool = true;
 }
 
-ShufflingTrainer::ShufflingTrainer(generic::Model* model, int batch_size,
-                                   int shuffle_size)
+ShufflingTrainer::ShufflingTrainer(generic::Model* model,
+                                   const generic::Board& model_board,
+                                   int batch_size, int shuffle_size)
     : model_(model),
       batch_size_(batch_size),
       shuffle_size_(shuffle_size),
-      worker_([this] { WorkerThread(); }) {
+      num_moves_(model_board.num_possible_moves()),
+      worker_([this] { WorkerThread(); })
+{
   CHECK_GE(shuffle_size, batch_size);
+  model_board.GetTensorShape(batch_size, &board_shape_);
 }
 
 ShufflingTrainer::~ShufflingTrainer() {
@@ -25,16 +29,14 @@ ShufflingTrainer::~ShufflingTrainer() {
   worker_.join();
 }
 
-void ShufflingTrainer::Train(const Board& b, const Prediction& target) {
+void ShufflingTrainer::Train(std::unique_ptr<Board> b,
+                             PredictionResult target) {
+  BoardData new_board;
+  new_board.board = std::move(b);
+  new_board.target = std::move(target);
   absl::MutexLock lock(&mu_);
-  if (b.ply() < 10) {
-    // Discard half of early states to increase variance.
-    if (rng_() % 2 == 0) {
-      return;
-    }
-  }
 
-  data_.push_back({b, target});
+  data_.push_back(std::move(new_board));
   ++since_full_flush_;
   if (since_full_flush_ > 10 * shuffle_size_) {
     Flush();
@@ -50,10 +52,9 @@ void ShufflingTrainer::Flush() {
 }
 
 void ShufflingTrainer::WorkerThread() {
-  tensorflow::Tensor board_tensor(tensorflow::DT_FLOAT,
-                                  tensorflow::TensorShape({batch_size_, 84}));
-  tensorflow::Tensor move_tensor(tensorflow::DT_FLOAT,
-                                 tensorflow::TensorShape({batch_size_, 7}));
+  tensorflow::Tensor board_tensor(tensorflow::DT_FLOAT, board_shape_);
+  tensorflow::Tensor move_tensor(
+      tensorflow::DT_FLOAT, tensorflow::TensorShape({batch_size_, num_moves_}));
   tensorflow::Tensor value_tensor(tensorflow::DT_FLOAT,
                                   tensorflow::TensorShape({batch_size_}));
 
@@ -69,9 +70,14 @@ void ShufflingTrainer::WorkerThread() {
     for (int i = 0; i < batch_size_; ++i) {
       std::uniform_int_distribution<int> dist(0, data_.size() - 1);
       const int x = dist(rng_);
-      BoardToTensor(data_[x].b, &board_tensor, i);
-      for (int m = 0; m < 7; ++m) {
-        move_tensor.matrix<float>()(i, m) = data_[x].target.move_p[m];
+      data_[x].board->ToTensor(&board_tensor, i);
+      
+      auto move_matrix = move_tensor.matrix<float>();
+      for (int j = 0; j < num_moves_; ++j) {
+        move_matrix(i,j) = 0.0;
+      }
+      for (const auto [move, p] : data_[x].target.policy) {
+        move_matrix(i, move) = p;
       }
       value_tensor.flat<float>()(i) = data_[x].target.value;
       if (!kKeepPool) {
@@ -90,4 +96,4 @@ void ShufflingTrainer::WorkerThread() {
   }
 }
 
-}  // namespace c4cc
+}  // namespace generic

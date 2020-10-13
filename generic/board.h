@@ -52,10 +52,12 @@ class Board {
   // XXX:
   virtual void ToTensor(tensorflow::Tensor* t, int i) const = 0;
 
+  // TODO: Document
   virtual void GetTensorShape(int batch_size,
                               tensorflow::TensorShape* out) const = 0;
 
-  // This determines prediction tensor shape.
+  // Number move encodings. All moves returned by GetValidMoves(), are less
+  // than this.
   virtual int num_possible_moves() const = 0;
 };
 

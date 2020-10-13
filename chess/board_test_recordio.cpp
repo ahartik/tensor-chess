@@ -62,7 +62,6 @@ int main(int argc, char** argv) {
     std::cerr << "Usage: " << argv[0] << " file.recordio\n";
     return 1;
   }
-  chess::Board::Init();
   for (int i = 1; i < argc; ++i) {
     std::cout << "Testing " << argv[i] << "\n";
     chess::Go(argv[i]);

@@ -44,6 +44,20 @@ cc_library (
 )
 
 cc_library (
+    name =  "shuffling_trainer",
+    hdrs = ["shuffling_trainer.h"],
+    srcs = ["shuffling_trainer.cpp"],
+    copts = tf_copts(),
+    deps = [
+        ":board",
+        ":model",
+        "@org_tensorflow//tensorflow/core:lib",
+        "@org_tensorflow//tensorflow/core:tensorflow",
+        "@org_tensorflow//tensorflow/core:framework",
+    ],
+)
+
+cc_library (
     name =  "player",
     hdrs = ["player.h"],
     srcs = [],

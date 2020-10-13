@@ -57,7 +57,6 @@ void Go() {
 }  // namespace chess
 
 int main(int argc, char** argv) {
-  chess::InitializeMovegen();
   chess::Go();
   return 0;
 }
