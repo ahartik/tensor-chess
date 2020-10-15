@@ -2,23 +2,27 @@
 
 #include <time.h>
 
+#include "chess/generic_board.h"
+#include "chess/tensors.h"
 #include "tensorflow/core/platform/logging.h"
 
 namespace chess {
 
-MCTSPlayer::MCTSPlayer(PredictionQueue* pq, int iters_per_move)
+MCTSPlayer::MCTSPlayer(generic::PredictionQueue* pq, int iters_per_move)
     : queue_(pq), iters_per_move_(iters_per_move) {
   rand_.seed(time(0) ^ reinterpret_cast<intptr_t>(this));
-  mcts_ = std::make_unique<MCTS>();
+  mcts_ = std::make_unique<generic::MCTS>(MakeGenericBoard(board_));
 }
 
 void MCTSPlayer::Reset(const Board& b) {
-  mcts_->SetBoard(b);
+  mcts_->SetBoard(MakeGenericBoard(b));
+  board_ = b;
   saved_predictions_.clear();
 }
 
 void MCTSPlayer::Advance(const Move& m) {
-  mcts_->MakeMove(m);
+  mcts_->MakeMove(EncodeMove(board_.turn(), m));
+  board_ = Board(board_, m);
   saved_predictions_.emplace_back();
 }
 
@@ -26,14 +30,13 @@ void MCTSPlayer::RunIterations(int n) {
   // Smaller number of games per minibatch should result in better accuracy, but
   // will be slower.
   const int minibatch_size = 8;
-  std::vector<std::unique_ptr<MCTS::PredictionRequest>> requests;
-  PredictionQueue::Request batch[minibatch_size];
+  std::vector<std::unique_ptr<generic::MCTS::PredictionRequest>> requests;
+  generic::PredictionQueue::Request batch[minibatch_size];
 
   const auto flush = [&] {
     CHECK_LE(requests.size(), minibatch_size);
     for (int i = 0; i < requests.size(); ++i) {
       batch[i].board = &requests[i]->board();
-      batch[i].moves = &requests[i]->moves();
     }
     queue_->GetPredictions(batch, requests.size());
     for (int i = 0; i < requests.size(); ++i) {
@@ -63,21 +66,22 @@ Move MCTSPlayer::GetMove() {
   }
   {
     auto& b = saved_predictions_.back();
-    b.board = mcts_->current_board();
+    b.board = board_;
     b.pred = pred;
   }
-  queue_->CacheRealPrediction(mcts_->current_board(), pred);
+  // queue_->CacheRealPrediction(mcts_->current_board(), pred);
 
-  // LOG(INFO) << "v=" << pred.value << " for " <<
-  // mcts_->current_board().turn(); After certain ply, do
+  LOG(INFO) << "v=" << pred.value << " for " << board_.turn() << " in\n"
+            << board_.ToPrintString();
+  // After certain ply, pick the best move most of the time.
 #if 1
-  if (mcts_->current_board().ply() > 12 && (rand_() % 20 != 0)) {
+  if (board_.ply() > 12 && (rand_() % 20 != 0)) {
     double best = 0;
     Move best_move;
     for (const auto& m : pred.policy) {
       if (m.second > best) {
         best = m.second;
-        best_move = m.first;
+        best_move = DecodeMove(board_, m.first);
       }
     }
     return best_move;
@@ -89,11 +93,11 @@ Move MCTSPlayer::GetMove() {
   for (const auto& m : pred.policy) {
     r -= m.second;
     if (r <= 0) {
-      return m.first;
+      return DecodeMove(board_, m.first);
     }
   }
 
-  return pred.policy[0].first;
+  return DecodeMove(board_, pred.policy[0].first);
 }
 
 }  // namespace chess

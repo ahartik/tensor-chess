@@ -2,21 +2,21 @@
 #define _CHESS_MCTS_PLAYER_H_
 
 #include <functional>
-#include <memory>
 #include <iostream>
+#include <memory>
 #include <string>
 
 #include "chess/board.h"
 #include "chess/player.h"
-#include "chess/prediction_queue.h"
-#include "chess/mcts.h"
 #include "chess/types.h"
+#include "generic/mcts.h"
+#include "generic/prediction_queue.h"
 
 namespace chess {
 
 class MCTSPlayer : public Player {
  public:
-  explicit MCTSPlayer(PredictionQueue* pq, int iters_per_move);
+  explicit MCTSPlayer(generic::PredictionQueue* pq, int iters_per_move);
 
   //
   void Reset(const Board& b) override;
@@ -24,12 +24,11 @@ class MCTSPlayer : public Player {
   //
   void Advance(const Move& m) override;
 
-  // TODO: Move def to .cc
   Move GetMove() override;
 
   struct SavedPrediction {
     Board board;
-    PredictionResult pred;
+    generic::PredictionResult pred;
   };
   std::vector<SavedPrediction> saved_predictions() const {
     auto saved = saved_predictions_;
@@ -42,10 +41,11 @@ class MCTSPlayer : public Player {
  private:
   void RunIterations(int n);
 
-  PredictionQueue* const queue_;
+  Board board_;
+  generic::PredictionQueue* const queue_;
   const int iters_per_move_;
   std::vector<SavedPrediction> saved_predictions_;
-  std::unique_ptr<MCTS> mcts_;
+  std::unique_ptr<generic::MCTS> mcts_;
   std::mt19937 rand_;
 };
 

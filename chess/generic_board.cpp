@@ -15,9 +15,16 @@ class GenericBoard : public generic::Board {
     game_state_ = IterateLegalMoves(b, [](const chess::Move& m) {});
   }
 
+  GenericBoard(chess::Board b, MovegenResult state)
+      : b_(b), game_state_(state) {}
+
   std::unique_ptr<Board> Move(int move) const override {
     return std::make_unique<GenericBoard>(
         chess::Board(b_, DecodeMove(b_, move)));
+  }
+
+  std::unique_ptr<Board> Clone() const override {
+    return std::make_unique<GenericBoard>(b_, game_state_);
   }
 
   generic::BoardFP fingerprint() const override { return BoardFingerprint(b_); }

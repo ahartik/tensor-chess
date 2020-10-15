@@ -35,6 +35,8 @@ class Board {
   virtual ~Board() {}
 
   virtual std::vector<int> GetValidMoves() const = 0;
+  
+  virtual std::unique_ptr<Board> Clone() const = 0;
 
   virtual std::unique_ptr<Board> Move(int move) const = 0;
 

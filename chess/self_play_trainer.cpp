@@ -8,12 +8,14 @@
 #include "chess/bitboard.h"
 #include "chess/board.h"
 #include "chess/game_state.h"
+#include "chess/generic_board.h"
 #include "chess/magic.h"
 #include "chess/mcts_player.h"
 #include "chess/model.h"
+#include "chess/model_collection.h"
 #include "chess/player.h"
-#include "chess/prediction_queue.h"
-#include "chess/shuffling_trainer.h"
+#include "generic/prediction_queue.h"
+#include "generic/shuffling_trainer.h"
 #include "tensorflow/core/platform/env.h"
 #include "tensorflow/core/platform/init_main.h"
 #include "tensorflow/core/platform/logging.h"
@@ -93,8 +95,8 @@ Board CreateStartBoard(std::mt19937_64& rand) {
 #endif
 }
 
-void PlayerThread(int thread_i, PredictionQueue* pred_queue,
-                  ShufflingTrainer* trainer) {
+void PlayerThread(int thread_i, generic::PredictionQueue* pred_queue,
+                  generic::ShufflingTrainer* trainer) {
   auto player = std::make_unique<MCTSPlayer>(pred_queue, kNumIters);
   const int kGamesPerRefresh = 2;
   int games_to_refresh = kGamesPerRefresh;
@@ -120,15 +122,15 @@ void PlayerThread(int thread_i, PredictionQueue* pred_queue,
         break;
     }
 
-    if (g.board().ply() > 10 || g.winner() != Color::kEmpty) {
-      // TODO: Log games too
-      for (const auto& state : player->saved_predictions()) {
-        auto sample = std::make_unique<TrainingSample>();
-        sample->board = state.board;
-        sample->moves = state.pred.policy;
-        sample->winner = g.winner();
-        trainer->Train(std::move(sample));
+    // TODO: Write log for games
+    for (const auto& state : player->saved_predictions()) {
+      auto pred = state.pred;
+      if (g.winner() == Color::kEmpty) {
+        pred.value = 0;
+      } else {
+        pred.value = g.winner() == state.board.turn() ? 1.0 : -1.0;
       }
+      trainer->Train(MakeGenericBoard(state.board), pred);
     }
 
     --games_to_refresh;
@@ -142,25 +144,25 @@ void PlayerThread(int thread_i, PredictionQueue* pred_queue,
 }
 
 void PlayGames() {
-  auto model = CreateDefaultModel(/*allow_init=*/true);
-  PredictionQueue pred_queue(model.get(), 256);
-  ShufflingTrainer trainer(model.get());
+  const auto* const model_collection = GetModelCollection();
+  auto model = generic::Model::Open(kModelPath,
+                                    model_collection->CurrentCheckpointDir());
+  generic::PredictionQueue pred_queue(model.get(), 256);
+  generic::ShufflingTrainer trainer(model.get(), *MakeGenericBoard(Board()));
   std::vector<std::thread> threads;
 
-  const int kNumThreads = 80;
-  // const int kNumThreads = 4;
+  // const int kNumThreads = 80;
+  const int kNumThreads = 1;
   for (int i = 0; i < kNumThreads; ++i) {
     threads.emplace_back(
         [i, &pred_queue, &trainer] { PlayerThread(i, &pred_queue, &trainer); });
   }
   int64_t last_num_preds = 0;
   absl::Time last_log = absl::Now();
-  const absl::Duration max_cache_age = absl::Minutes(5);
-  const absl::Time start_time = absl::Now();
   while (true) {
     absl::SleepFor(absl::Seconds(5));
 
-    model->Checkpoint(GetDefaultCheckpoint());
+    model->Checkpoint(model_collection->CurrentCheckpointDir());
     // std::cout << "Saved checkpoint\n";
 
     absl::Time log_time = absl::Now();
@@ -172,9 +174,6 @@ void PlayGames() {
 
     last_log = log_time;
     last_num_preds = num_preds;
-
-    pred_queue.SetCycleTime(
-        absl::FDivDuration(log_time - start_time, max_cache_age));
   }
 }
 

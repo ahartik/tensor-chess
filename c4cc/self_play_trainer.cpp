@@ -19,8 +19,10 @@
 #include "c4cc/mcts_player.h"
 #include "c4cc/model_collection.h"
 #include "c4cc/play_game.h"
-#include "c4cc/shuffling_trainer.h"
+#include "c4cc/generic_board.h"
+#include "generic/board.h"
 #include "generic/model.h"
+#include "generic/shuffling_trainer.h"
 #include "tensorflow/core/platform/env.h"
 #include "tensorflow/core/platform/init_main.h"
 #include "tensorflow/core/platform/logging.h"
@@ -46,6 +48,8 @@ std::unique_ptr<generic::Model> OpenOrCreateModel() {
 }
 
 // This class is thread-safe.
+// TODO: Make this generic so it can be used for other games (i.e. chess) as
+// well.
 class Trainer {
  public:
   // As MCTSPlayer is not thread-safe, don't call this with the same player
@@ -53,12 +57,20 @@ class Trainer {
   void PlayGame(MCTSPlayer* player) {
     player->SetBoard(Board());
     std::vector<Board> boards;
-    std::vector<Prediction> preds;
+    std::vector<generic::PredictionResult> preds;
     while (!player->board().is_over()) {
       ++num_boards;
       auto pred = player->GetPrediction();
       boards.push_back(player->board());
-      preds.push_back(pred);
+      // We convert from c4cc::Prediction to generic::PredictionResult. This is
+      // a little ugly, ideally there should be a "generic" trainer class doing
+      // this self-play training.
+      generic::PredictionResult gen_pred;
+      gen_pred.value = pred.value;
+      for (int m = 0; m < 7; ++m) {
+        gen_pred.policy.emplace_back(m, pred.move_p[m]);
+      }
+      preds.push_back(gen_pred);
       player->MakeMove(player->GetMove());
     }
     // PrintBoardWithColor(std::cout, player->board());
@@ -68,8 +80,8 @@ class Trainer {
   generic::PredictionQueue* queue() const { return &queue_; }
 
  private:
-  void TrainGame(std::vector<Board> boards, std::vector<Prediction> preds,
-                 Color winner) {
+  void TrainGame(std::vector<Board> boards,
+                 std::vector<generic::PredictionResult> preds, Color winner) {
     for (int i = 0; i < boards.size(); ++i) {
       if (winner == Color::kEmpty) {
         preds[i].value = 0.0;
@@ -80,8 +92,15 @@ class Trainer {
           preds[i].value = -1.0;
         }
       }
-      trainer_.Train(boards[i], preds[i]);
-      trainer_.Train(boards[i].GetFlipped(), preds[i].GetFlipped());
+      trainer_.Train(
+          MakeGenericBoard(boards[i]),
+          preds[i]
+          );
+      for (auto& [move, prob] : preds[i].policy) {
+        move = 6 - move;
+      }
+      trainer_.Train(
+          MakeGenericBoard(boards[i].GetFlipped()), preds[i]);
       CHECK_EQ(boards[i].GetFlipped().GetFlipped(), boards[i]);
     }
 
@@ -98,7 +117,8 @@ class Trainer {
   mutable generic::PredictionQueue queue_{model_.get()};
 
   const int checkpoint_interval_ = 10 * 1024;
-  ShufflingTrainer trainer_{model_.get(), 256, 2048};
+  generic::ShufflingTrainer trainer_{model_.get(), *MakeGenericBoard(Board()),
+                                     256, 2048};
   absl::Mutex mu_;
   int64_t last_num_trained_ = 0;
 };

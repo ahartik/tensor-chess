@@ -90,6 +90,7 @@ void ShufflingTrainer::WorkerThread() {
     model_->RunTrainStep(board_tensor, move_tensor, value_tensor);
     num_trained_.fetch_add(batch_size_, std::memory_order_relaxed);
 
+    // XXX: This is very hacky.
     absl::SleepFor(absl::Milliseconds(50));
 
     mu_.Lock();
