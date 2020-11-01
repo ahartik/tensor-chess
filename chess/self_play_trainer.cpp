@@ -23,7 +23,7 @@
 
 namespace chess {
 
-const int kNumIters = 800;
+const int kNumIters = 400;
 
 const std::string kTrainingFens[] = {
     // One rook per side
@@ -98,7 +98,7 @@ Board CreateStartBoard(std::mt19937_64& rand) {
 void PlayerThread(int thread_i, generic::PredictionQueue* pred_queue,
                   generic::ShufflingTrainer* trainer) {
   auto player = std::make_unique<MCTSPlayer>(pred_queue, kNumIters);
-  const int kGamesPerRefresh = 2;
+  const int kGamesPerRefresh = 1;
   int games_to_refresh = kGamesPerRefresh;
 
   std::mt19937_64 rand(thread_i);
@@ -125,6 +125,7 @@ void PlayerThread(int thread_i, generic::PredictionQueue* pred_queue,
     // TODO: Write log for games
     for (const auto& state : player->saved_predictions()) {
       auto pred = state.pred;
+      CHECK_EQ(pred.policy.size(), state.board.valid_moves().size());
       if (g.winner() == Color::kEmpty) {
         pred.value = 0;
       } else {
@@ -147,12 +148,19 @@ void PlayGames() {
   const auto* const model_collection = GetModelCollection();
   auto model = generic::Model::Open(kModelPath,
                                     model_collection->CurrentCheckpointDir());
+  if (model == nullptr) {
+    LOG(INFO) << "Starting from scratch";
+    model = generic::Model::New(kModelPath);
+  } else {
+    LOG(INFO) << "Continuing training";
+  }
+
   generic::PredictionQueue pred_queue(model.get(), 256);
   generic::ShufflingTrainer trainer(model.get(), *MakeGenericBoard(Board()));
   std::vector<std::thread> threads;
 
-  // const int kNumThreads = 80;
-  const int kNumThreads = 1;
+  const int kNumThreads = 80;
+  // const int kNumThreads = 1;
   for (int i = 0; i < kNumThreads; ++i) {
     threads.emplace_back(
         [i, &pred_queue, &trainer] { PlayerThread(i, &pred_queue, &trainer); });

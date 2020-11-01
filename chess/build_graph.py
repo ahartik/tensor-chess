@@ -28,7 +28,7 @@ with tf.Graph().as_default() as graph:
 
     channel_setup = 'channels_first'
     fused_bn = True
-    num_filters = 128
+    num_filters = 64
 
     all_layers = []
     l2_reg = keras.regularizers.l2(0.001)
@@ -38,7 +38,7 @@ with tf.Graph().as_default() as graph:
         return layer(y)
 
 
-    def add_conv2d(y, res=True, bn=True, filters=128, kernel=(3,3)):
+    def add_conv2d(y, res=True, bn=True, filters=num_filters, kernel=(3,3)):
         if not res:
             layer = tf.keras.layers.Conv2D(filters, kernel, padding='same',
                     data_format = channel_setup, kernel_regularizer=l2_reg)
@@ -75,7 +75,7 @@ with tf.Graph().as_default() as graph:
 # layer = add_conv2d(layer, res=False)
     layer = add_conv2d(layer, res=False)
 
-    num_blocks = 15
+    num_blocks = 10
 
     for i in range(0, num_blocks):
         layer = add_conv2d(layer, res=True)

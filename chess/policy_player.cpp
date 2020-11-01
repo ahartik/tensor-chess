@@ -23,12 +23,14 @@ class PolicyPlayer : public Player {
     req.board = generic_board.get();
     queue_->GetPredictions(&req, 1);
 
+#if 0
     std::cerr << "Value before making move: " << req.result.value << "\n";
     std::cerr << "Valid moves: ";
     for (const auto [move, p] : req.result.policy) {
       std::cerr << DecodeMove(b_, move) << " " << p << "\n";
     }
     std::cerr << "\n";
+#endif
 
     std::uniform_real_distribution<double> rand(0.0, 1.0);
     double r = rand(mt_);
@@ -50,6 +52,8 @@ class PolicyPlayer : public Player {
 
 }  // namespace
 
-std::unique_ptr<Player> MakePolicyPlayer(generic::PredictionQueue* p_queue) {}
+std::unique_ptr<Player> MakePolicyPlayer(generic::PredictionQueue* p_queue) {
+  return std::make_unique<PolicyPlayer>(p_queue);
+}
 
 }  // namespace chess

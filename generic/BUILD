@@ -104,6 +104,12 @@ cc_library (
     ],
 )
 
-
-
-
+cc_library (
+    name =  "prediction_cache",
+    hdrs = ["prediction_cache.h"],
+    srcs = ["prediction_cache.cpp"],
+    deps = [
+        ":board",
+        "@com_google_absl//absl/container:flat_hash_map",
+    ],
+)

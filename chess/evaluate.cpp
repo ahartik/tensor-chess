@@ -31,8 +31,12 @@ bool ShouldPromote(generic::PredictionQueue* new_q,
 
   auto play_game = [&](int g) {
     MCTSPlayer new_player(new_q, kNumIters);
+#if 1
     MCTSPlayer old_player(old_q, kNumIters);
-    // auto old_player = MakePolicyPlayer(old_q);
+#else
+    auto old_player_p = MakePolicyPlayer(old_q);
+    auto& old_player = *old_player_p;
+#endif
     std::vector<Player*> players;
     const Color new_color = g % 2 == 0 ? Color::kWhite : Color::kBlack;
     if (new_color == Color::kWhite) {
@@ -51,13 +55,13 @@ bool ShouldPromote(generic::PredictionQueue* new_q,
     } else if (game.winner() == new_color) {
       score += 2;
     }
+    ++games_so_far;
     LOG(INFO) << "Score: " << score << " after " << games_so_far << " games";
     LOG(INFO) << "new is " << new_color << ":\n"
               << game.board().ToPrintString();
-    ++games_so_far;
   };
 
-  constexpr int kNumGamesPerStep = 1;
+  constexpr int kNumGamesPerStep = 20;
   for (int g = 0; g < kTourneySize; g += kNumGamesPerStep) {
     std::vector<std::thread> threads;
     for (int i = 0; i < kNumGamesPerStep; ++i) {
@@ -92,7 +96,9 @@ void PlayGames() {
       old_queue = std::move(new_queue);
       ++next_gen;
     }
-    absl::SleepFor(absl::Minutes(10));
+    const auto sleep_time = absl::Minutes(60);
+    LOG(INFO) << "Sleeping for " << sleep_time;
+    absl::SleepFor(sleep_time);
   }
 }
 

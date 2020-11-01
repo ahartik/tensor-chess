@@ -59,7 +59,9 @@ void MCTSPlayer::RunIterations(int n) {
 
 Move MCTSPlayer::GetMove() {
   RunIterations(iters_per_move_);
-  auto pred = mcts_->GetPrediction();
+  const auto pred = mcts_->GetPrediction();
+  CHECK_EQ(mcts_->current_board().fingerprint(),
+      BoardFingerprint(board_));
 
   if (saved_predictions_.empty()) {
     saved_predictions_.emplace_back();
@@ -71,8 +73,10 @@ Move MCTSPlayer::GetMove() {
   }
   // queue_->CacheRealPrediction(mcts_->current_board(), pred);
 
+#if 0
   LOG(INFO) << "v=" << pred.value << " for " << board_.turn() << " in\n"
             << board_.ToPrintString();
+#endif
   // After certain ply, pick the best move most of the time.
 #if 1
   if (board_.ply() > 12 && (rand_() % 20 != 0)) {

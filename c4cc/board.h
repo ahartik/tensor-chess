@@ -142,6 +142,8 @@ class Board {
   Color turn_ = Color::kOne;
   Color result_ = Color::kEmpty;
 };
+static_assert(sizeof(Board) == 16);
+static_assert(alignof(Board) == 1);
 
 void PrintBoard(std::ostream& out, const Board& b, const char* one,
                 const char* two);
