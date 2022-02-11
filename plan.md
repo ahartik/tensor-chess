@@ -1,4 +1,4 @@
-Goal: Build a strong self-learning chess AI. Strongest in the world.
+Goal: Build a strong self-learning chess AI.
 
 To get there:
   * Repository state must allow boot-strapping of learning

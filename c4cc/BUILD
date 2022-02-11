@@ -233,3 +233,21 @@ cc_library(
         "@com_google_absl//absl/hash",
     ],
 )
+
+cc_library(
+    name =  "perfect_negamax",
+    srcs = ["perfect_negamax.cpp"],
+    hdrs = ["perfect_negamax.h"],
+    deps = [
+        ":board",
+        ],
+)
+
+cc_binary(
+    name =  "perfect_test",
+    srcs = ["perfect_test.cpp"],
+    deps = [
+        ":board",
+        ":perfect_negamax",
+        ],
+)
