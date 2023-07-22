@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "absl/synchronization/mutex.h"
+#include "absl/base/thread_annotations.h"
 #include "chess/board.h"
 #include "generic/model.h"
 
@@ -50,10 +51,10 @@ class ShufflingTrainer {
   std::atomic<int64_t> num_trained_;
 
   absl::Mutex mu_;
-  bool stopped_ GUARDED_BY(mu_) = false;
-  std::mt19937 rng_ GUARDED_BY(mu_);
-  int64_t since_full_flush_ GUARDED_BY(mu_) = 0;
-  std::deque<std::unique_ptr<TrainingSample>> data_ GUARDED_BY(mu_);
+  bool stopped_ ABSL_GUARDED_BY(mu_) = false;
+  std::mt19937 rng_ ABSL_GUARDED_BY(mu_);
+  int64_t since_full_flush_ ABSL_GUARDED_BY(mu_) = 0;
+  std::deque<std::unique_ptr<TrainingSample>> data_ ABSL_GUARDED_BY(mu_);
 
   std::vector<std::thread> workers_;
 };
